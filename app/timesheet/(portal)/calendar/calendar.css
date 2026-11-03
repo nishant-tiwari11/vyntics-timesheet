@@ -1,0 +1,199 @@
+/* Calendar page. Prefixed .ts- (portal only). */
+
+.ts-cal-sub {
+  margin: 2px 0 0;
+}
+.ts-cal-card {
+  padding: 12px;
+}
+
+.ts-cal-weekdays,
+.ts-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+.ts-cal-weekdays {
+  margin-bottom: 6px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ts-muted);
+}
+.ts-cal-grid {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ts-cal-cell {
+  min-width: 0;
+  container-type: inline-size; /* lets a box hide its hours text when it is too narrow */
+}
+
+.ts-cal-day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 4px;
+  min-height: 84px;
+  padding: 6px;
+  overflow: hidden;
+  border: 1px solid var(--ts-border);
+  border-radius: 10px;
+  background: var(--ts-surface);
+  color: var(--ts-text);
+}
+.ts-cal-day:hover {
+  border-color: var(--ts-teal);
+}
+.ts-cal-day.is-weekend {
+  background: var(--ts-bg);
+  color: var(--ts-muted);
+}
+.ts-cal-day.is-other {
+  opacity: 0.45;
+}
+.ts-cal-day.is-today {
+  border-color: var(--ts-teal);
+  box-shadow: 0 0 0 1px var(--ts-teal);
+}
+
+/* Rises from the bottom: full at 8 h */
+.ts-cal-fill {
+  position: absolute;
+  inset: auto 0 0 0;
+  background: color-mix(in srgb, var(--ts-teal) 24%, transparent);
+  pointer-events: none;
+}
+.ts-cal-top,
+.ts-cal-bottom {
+  position: relative; /* above the fill */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.ts-cal-bottom {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  min-height: 18px;
+}
+.ts-cal-num {
+  font-size: 14px;
+  font-weight: 700;
+}
+.ts-cal-hours {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ts-cal-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ts-teal);
+}
+.ts-cal-tag-short {
+  display: none;
+}
+.ts-cal-day .ts-tag.is-pending,
+.ts-legend .ts-tag.is-pending {
+  border: 0;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+
+@container (max-width: 46px) {
+  .ts-cal-hours {
+    display: none;
+  }
+}
+
+/* Legend */
+.ts-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 0;
+  padding: 0 4px;
+  list-style: none;
+  font-size: 13px;
+  color: var(--ts-muted);
+}
+.ts-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ts-legend-swatch {
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--ts-border);
+  border-radius: 4px;
+}
+.ts-legend-fill {
+  background: linear-gradient(to top, color-mix(in srgb, var(--ts-teal) 24%, transparent) 60%, var(--ts-surface) 60%);
+}
+
+.ts-summary-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .ts-summary-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Phones: still seven columns, compact boxes */
+@media (max-width: 640px) {
+  .ts-cal-card {
+    padding: 8px;
+  }
+  .ts-cal-weekdays,
+  .ts-cal-grid {
+    gap: 3px;
+  }
+  .ts-cal-weekdays {
+    font-size: 10px;
+    letter-spacing: 0;
+  }
+  .ts-cal-day {
+    min-height: 58px;
+    padding: 4px;
+    border-radius: 8px;
+  }
+  .ts-cal-num {
+    font-size: 12px;
+  }
+  .ts-cal-hours {
+    font-size: 10px;
+  }
+  .ts-cal-dot {
+    width: 6px;
+    height: 6px;
+  }
+}
+/* Very narrow phones: "L" / "W" instead of Leave / WFH */
+@media (max-width: 480px) {
+  .ts-cal-tag-full {
+    display: none;
+  }
+  .ts-cal-tag-short {
+    display: inline;
+  }
+  .ts-cal-day .ts-tag {
+    padding: 0 4px;
+    font-size: 10px;
+  }
+}
+@media (max-width: 420px) {
+  .ts-summary-4 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
