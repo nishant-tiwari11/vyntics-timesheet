@@ -312,3 +312,10 @@
     color: #000 !important;
   }
 }
+
+/* ---------- Pop-up windows open in the middle of the page ---------- */
+/* Tailwind's reset sets every margin to 0, which removes the browser's automatic centring of a modal <dialog>
+   and leaves it in the top left corner. This puts the centring back. */
+.ts-portal .ts-dialog {
+  margin: auto;
+}
