@@ -1,24 +1,27 @@
 import "../dashboard/dashboard.css"; // chips, buttons, skeleton, work-log list styles
-import "../timesheet/timesheet-page.css"; // week navigation + sideways scroll wrapper
 import "./admin.css";
 import Link from "next/link";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
 import { getAdminCounts } from "@/lib/timesheet/admin";
-import { CardSkeleton } from "../dashboard/sections";
-import { EmployeesTab, LogsTab, RequestsTab, TimesheetsTab } from "./tabs";
+import { AdminTableSkeleton } from "../../_components/skeletons";
+import { CompOffTab } from "./CompOffTab";
+import { HolidaysTab } from "./HolidaysTab";
+import { AccessTab, EmployeesTab, LogsTab, RequestsTab } from "./tabs";
 
 export const metadata = { title: "Admin" };
 
 const TABS = [
-  { id: "timesheets", label: "Timesheets" },
   { id: "requests", label: "Requests" },
   { id: "logs", label: "Work logs" },
   { id: "employees", label: "Employees" },
+  { id: "holidays", label: "Holidays" },
+  { id: "compoff", label: "Comp-off" },
+  { id: "access", label: "Access" },
 ] as const;
 
-type Params = { tab?: string; week?: string; filter?: string; date?: string };
+type Params = { tab?: string; filter?: string; date?: string; year?: string; type?: string };
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
@@ -32,19 +35,19 @@ export default async function AdminPage({
   if (me?.role !== "admin") redirect("/timesheet/dashboard");
 
   const raw = await searchParams;
-  const p: Params = { tab: one(raw.tab), week: one(raw.week), filter: one(raw.filter), date: one(raw.date) };
-  const tab = TABS.find((t) => t.id === p.tab)?.id ?? "timesheets";
+  const p: Params = { tab: one(raw.tab), filter: one(raw.filter), date: one(raw.date), year: one(raw.year), type: one(raw.type) };
+  const tab = TABS.find((t) => t.id === p.tab)?.id ?? "requests";
 
-  let counts: { timesheets: number; requests: number } | null = null;
+  let counts: { requests: number; compOff: number } | null = null;
   try {
     counts = await getAdminCounts();
   } catch {
     counts = null; // badges are optional
   }
-  const badge = (id: string) => (id === "timesheets" ? counts?.timesheets : id === "requests" ? counts?.requests : 0) ?? 0;
+  const badge = (id: string) => (id === "requests" ? counts?.requests : id === "compoff" ? counts?.compOff : 0) ?? 0;
 
   return (
-    <div className="ts-sheet-page">
+    <div className="ts-page">
       <h1 className="ts-h1">Admin</h1>
 
       <nav aria-label="Admin sections" className="ts-admin-tabs">
@@ -69,11 +72,13 @@ export default async function AdminPage({
         })}
       </nav>
 
-      <Suspense key={JSON.stringify([tab, p.week, p.filter, p.date])} fallback={<CardSkeleton title="Loading" tall />}>
-        {tab === "timesheets" && <TimesheetsTab adminId={me.id} weekParam={p.week} />}
+      <Suspense key={JSON.stringify([tab, p.filter, p.date, p.year, p.type])} fallback={<AdminTableSkeleton />}>
         {tab === "requests" && <RequestsTab adminId={me.id} filterParam={p.filter} />}
         {tab === "logs" && <LogsTab dateParam={p.date} />}
         {tab === "employees" && <EmployeesTab adminId={me.id} />}
+        {tab === "holidays" && <HolidaysTab yearParam={p.year} typeParam={p.type} />}
+        {tab === "compoff" && <CompOffTab filterParam={p.filter} />}
+        {tab === "access" && <AccessTab />}
       </Suspense>
     </div>
   );

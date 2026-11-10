@@ -1,0 +1,314 @@
+/* Polish layer: one place for the spacing, type, state and touch-size rules that apply across every portal page.
+   Selectors start with .ts-portal so they win over the older per-page styles regardless of load order. */
+
+/* ---------- Type: clear hierarchy, aligned numbers ---------- */
+.ts-portal {
+  font-variant-numeric: tabular-nums; /* hours, totals and times line up in columns */
+}
+.ts-portal .ts-h1,
+.ts-portal .ts-greeting {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+.ts-portal .ts-topbar-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+.ts-portal .ts-page,
+.ts-portal .ts-dash {
+  gap: 24px; /* one rhythm between sections */
+}
+.ts-portal .ts-input::placeholder,
+.ts-portal .ts-search-input::placeholder {
+  color: var(--ts-muted);
+  opacity: 1; /* full muted gray keeps placeholder text at AA contrast */
+}
+
+/* ---------- Radius: one corner size everywhere ---------- */
+.ts-portal .ts-nav-link,
+.ts-portal .ts-search-input,
+.ts-portal .ts-apply-type,
+.ts-portal .ts-snap,
+.ts-portal .ts-stat,
+.ts-portal .ts-brand-mark,
+.ts-portal .ts-cal-day {
+  border-radius: var(--ts-radius);
+}
+.ts-portal .ts-search-input {
+  border-color: var(--input);
+}
+.ts-portal .ts-nav-link[aria-current="page"] {
+  box-shadow: none;
+}
+
+/* ---------- Motion: quick, quiet transitions (150ms) ---------- */
+.ts-portal :is(.ts-btn, .ts-nav-link, .ts-page-btn, .ts-lc-cell, .ts-lc-slot, .ts-lc-ev, .ts-lc-view, .ts-cal-day, .ts-apply-type, .ts-admin-tab, .ts-input, .ts-search-input) {
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ts-portal :is(.ts-btn, .ts-nav-link, .ts-page-btn, .ts-lc-cell, .ts-lc-slot, .ts-lc-ev, .ts-lc-view, .ts-cal-day, .ts-apply-type, .ts-admin-tab, .ts-input, .ts-search-input) {
+    transition: none;
+  }
+}
+
+/* ---------- Status: readable without colour (a symbol and a border style, not just a tint) ---------- */
+.ts-portal .ts-pill,
+.ts-portal .ts-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid transparent;
+}
+.ts-portal :is(.ts-pill-pending, .ts-chip-pending, .ts-chip-submitted) {
+  border-style: dashed;
+  border-color: currentColor;
+}
+.ts-portal :is(.ts-pill-pending, .ts-chip-pending, .ts-chip-submitted)::before {
+  content: "○";
+}
+.ts-portal :is(.ts-pill-approved, .ts-chip-approved)::before {
+  content: "✓";
+}
+.ts-portal :is(.ts-pill-rejected, .ts-chip-rejected)::before {
+  content: "✕";
+}
+
+/* ---------- Leave and WFH: black and gray, told apart by fill versus outline ---------- */
+.ts-portal :is(.ts-lc-off, .ts-lc-listoff, .ts-lc-cell.has-off) {
+  --off: var(--foreground);
+}
+.ts-portal .ts-lc-off-wfh,
+.ts-portal .ts-lc-cell.has-off.ts-lc-off-wfh {
+  --off: var(--muted-foreground);
+}
+.ts-portal .ts-lc-off.ts-lc-off-wfh,
+.ts-portal .ts-lc-listoff.ts-lc-off-wfh {
+  background: transparent;
+  border: 1px dashed var(--off);
+}
+.ts-portal .ts-lc-cell.has-off.ts-lc-off-wfh {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--ts-border);
+}
+.ts-portal .ts-lc-key-leave {
+  color: var(--foreground);
+}
+.ts-portal .ts-lc-key-wfh {
+  color: var(--muted-foreground);
+}
+.ts-portal .ts-lc-key-wfh::before {
+  background: transparent;
+  border: 1.5px dashed currentColor;
+}
+.ts-portal .ts-apply-type {
+  --tone: var(--foreground);
+}
+.ts-portal .ts-apply-type-wfh {
+  --tone: var(--muted-foreground);
+  border-left-style: dashed;
+}
+
+/* ---------- Empty states ---------- */
+.ts-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 16px;
+  text-align: center;
+}
+.ts-empty strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+.ts-empty p {
+  max-width: 44ch;
+  margin: 0;
+  color: var(--ts-muted);
+}
+
+/* ---------- Content width and page padding on large screens ---------- */
+@media (min-width: 1280px) {
+  .ts-portal .ts-main {
+    padding: 32px 32px 64px;
+  }
+}
+
+/* ---------- Touch: every control at least 44px on phones, tablets and touch screens ---------- */
+@media (max-width: 900px), (pointer: coarse) {
+  .ts-portal .ts-btn,
+  .ts-portal .ts-btn-sm,
+  .ts-portal .ts-nav-link,
+  .ts-portal .ts-admin-tab,
+  .ts-portal .ts-lc-view {
+    min-height: 44px;
+  }
+  .ts-portal .ts-icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .ts-portal .ts-input,
+  .ts-portal .ts-input-sm,
+  .ts-portal .ts-search-input {
+    min-height: 44px;
+    height: auto;
+  }
+  .ts-portal .ts-page-btn {
+    min-width: 44px;
+    height: 44px;
+  }
+}
+
+/* Sidebar logo: the Vyntics mark in a 32px circle, with a hairline so it stays visible on the dark theme */
+.ts-portal .ts-brand-logo {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--ts-border);
+}
+
+/* ---------- Holidays and festivals: monochrome. Solid gray = day off, outlined = optional. ---------- */
+.ts-hol {
+  display: block;
+  padding: 0 6px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ts-hol-public,
+.ts-hol-festival {
+  background: var(--ts-muted);
+  color: var(--ts-surface);
+}
+.ts-hol-optional {
+  border-color: var(--ts-muted);
+  background: transparent;
+  color: var(--ts-muted);
+}
+.ts-upcoming {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ts-upcoming li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--ts-border);
+}
+.ts-upcoming li:first-child {
+  border-top: 0;
+}
+.ts-upcoming-date {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--ts-border);
+  border-radius: var(--ts-radius);
+  font-size: 11px;
+  line-height: 1.1;
+  text-transform: uppercase;
+  color: var(--ts-muted);
+}
+.ts-upcoming-date strong {
+  font-size: 16px;
+  color: var(--ts-text);
+}
+.ts-upcoming-main {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+}
+.ts-upcoming-name {
+  font-weight: 600;
+}
+.ts-upcoming li .ts-hol {
+  flex: none;
+}
+
+/* ---------- Visible buttons: a clear border, and a clear hover (hover darkens the edge, not just the fill) ---------- */
+.ts-portal .ts-btn-ghost:hover,
+.ts-portal .ts-segment-btn:hover {
+  border-color: var(--ts-text);
+  background: var(--ts-teal-soft);
+}
+.ts-portal .ts-segment-btn,
+.ts-portal .ts-apply-type {
+  border-color: var(--input);
+}
+.ts-portal .ts-apply-type[aria-checked="true"] {
+  border-color: var(--tone);
+}
+.ts-portal .ts-btn:disabled {
+  opacity: 0.5;
+}
+
+/* ---------- Comp-off: an outlined badge, apart from the filled Leave and the dashed WFH ---------- */
+.ts-portal .ts-tag-comp {
+  border: 1px solid var(--ts-text);
+  background: transparent;
+  color: var(--ts-text);
+}
+.ts-portal .ts-lc-off.ts-lc-comp {
+  background: transparent;
+  border: 1px solid var(--off);
+  border-left-width: 3px;
+}
+
+/* ---------- Days off in the calendar: week off (soft gray), worked on a day off (outlined) ---------- */
+.ts-hol-weekoff {
+  background: var(--ts-teal-soft);
+  color: var(--ts-muted);
+}
+.ts-hol-worked {
+  border-color: var(--ts-text);
+  background: transparent;
+  color: var(--ts-text);
+}
+.ts-worked {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 4px;
+}
+
+/* ---------- Printing a payslip: hide the menus and controls, keep the payslip ---------- */
+@media print {
+  .ts-side,
+  .ts-topbar,
+  .no-print {
+    display: none !important;
+  }
+  .ts-shell,
+  .ts-content,
+  .ts-main {
+    display: block !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  .print-area {
+    border: 0 !important;
+    padding: 0 !important;
+    color: #000 !important;
+  }
+}

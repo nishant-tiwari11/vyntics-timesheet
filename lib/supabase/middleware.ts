@@ -7,9 +7,13 @@ import { supabaseEnv } from "./env";
 const LOGIN = "/timesheet/login";
 const HOME = "/timesheet/dashboard";
 const ADMIN = "/timesheet/admin";
+const CALLBACK = "/timesheet/auth/callback";
 
 // Middleware client: refreshes the session cookie and guards /timesheet routes.
 export async function updateSession(request: NextRequest) {
+  // The Google sign-in callback has no session yet; it creates one. Let it through untouched.
+  if (request.nextUrl.pathname.replace(/\/$/, "") === CALLBACK) return NextResponse.next({ request });
+
   const { url, anonKey } = supabaseEnv();
   let response = NextResponse.next({ request });
 

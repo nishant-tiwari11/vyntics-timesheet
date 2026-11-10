@@ -1,136 +1,138 @@
-/* Login-page styles. Prefixed .ts- so they never touch the main site. */
+/* Login page: the black brand panel and its animation. The sign-in card itself uses the shadcn components. */
 
-.ts-auth-card {
-  padding: 28px 24px;
+.ts-login {
+  display: grid;
+  grid-template-columns: 1fr;
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--foreground);
+}
+@media (min-width: 900px) {
+  .ts-login {
+    grid-template-columns: 1.05fr 1fr;
+  }
 }
 
-.ts-auth-brand {
+/* The brand panel is black in light and dark mode alike */
+.ts-login-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+  padding: 32px 24px;
+  overflow: hidden;
+  color: #fafafa;
+  background: #000;
+}
+@media (min-width: 900px) {
+  .ts-login-hero {
+    padding: 56px 64px;
+    gap: 22px;
+  }
+}
+.ts-login-hero > :not(.ts-hero-fx) {
+  position: relative;
+  z-index: 1;
+}
+.ts-login-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
+  gap: 12px;
 }
-.ts-auth-brand-name {
-  font-size: 18px;
-  font-weight: 700;
+.ts-login-logo {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
 }
-
-.ts-tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
-  padding: 4px;
-  margin-bottom: 20px;
-  border-radius: 10px;
-  background: var(--ts-bg);
-  border: 1px solid var(--ts-border);
-}
-.ts-tab {
-  min-height: 36px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--ts-muted);
-  font: inherit;
-  font-size: 14px;
+.ts-login-brand-name {
+  font-size: 20px;
   font-weight: 600;
-  cursor: pointer;
+  line-height: 1.2;
 }
-.ts-tab[aria-selected="true"] {
-  background: var(--ts-surface);
-  color: var(--ts-teal);
-  box-shadow: var(--ts-shadow);
+.ts-login-brand-name span {
+  color: #a3a3a3;
+  font-weight: 400;
 }
-.ts-tab:focus-visible {
-  outline: 2px solid var(--ts-teal);
-  outline-offset: 1px;
-}
-
-.ts-form {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.ts-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.ts-field label {
-  font-size: 14px;
+.ts-login-headline {
+  margin: 8px 0 0;
+  font-size: clamp(30px, 6vw, 52px);
   font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
 }
-
-.ts-input {
-  width: 100%;
-  min-height: 42px;
-  padding: 0 12px;
-  border: 1px solid var(--ts-border);
-  border-radius: 8px;
-  background: var(--ts-surface);
-  color: var(--ts-text);
-  font: inherit;
-  font-size: 16px; /* 16px stops iOS zooming on focus */
+.ts-login-headline span {
+  display: block;
+  color: #a3a3a3;
 }
-.ts-input::placeholder {
-  color: var(--ts-muted);
-  opacity: 0.7;
-}
-.ts-input:focus {
-  outline: 2px solid var(--ts-teal);
-  outline-offset: 0;
-  border-color: var(--ts-teal);
-}
-
-.ts-password {
-  position: relative;
-}
-.ts-password .ts-input {
-  padding-right: 64px;
-}
-.ts-password-toggle {
-  position: absolute;
-  top: 50%;
-  right: 6px;
-  transform: translateY(-50%);
-  padding: 6px 10px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--ts-teal);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.ts-password-toggle:hover {
-  background: var(--ts-teal-soft);
-}
-
-.ts-btn-block {
-  width: 100%;
-  min-height: 44px;
-  font-size: 15px;
-}
-.ts-btn:disabled {
-  opacity: 0.65;
-  cursor: progress;
-}
-
-.ts-success {
-  margin: 0 0 4px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  background: var(--ts-teal-soft);
-  color: var(--ts-teal);
-  font-size: 14px;
-}
-.ts-form .ts-alert {
-  margin-bottom: 4px;
-}
-
-.ts-hint {
+.ts-login-copy {
+  max-width: 460px;
   margin: 0;
-  font-size: 13px;
-  color: var(--ts-muted);
+  font-size: 16px;
+  line-height: 1.6;
+  color: #a3a3a3;
+}
+
+.ts-login-panel {
+  display: grid;
+  place-items: center;
+  padding: 32px 16px 48px;
+}
+
+/* ---------- Animated background on the dark panel ---------- */
+.ts-hero-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.ts-hero-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.14; /* one flat layer, so overlapping circles don't pile up */
+}
+.ts-runner {
+  position: absolute;
+  left: -30%;
+  width: clamp(64px, 14%, 130px);
+  opacity: 0.85;
+  animation: ts-run linear 1 forwards;
+}
+.ts-runner img,
+.ts-standing {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.ts-spin {
+  animation: ts-turn linear infinite;
+}
+.ts-standing {
+  position: absolute;
+  right: 4%;
+  bottom: 3%;
+  width: clamp(56px, 11%, 110px);
+  opacity: 0.8;
+}
+@keyframes ts-run {
+  from {
+    left: 100%;
+  }
+  to {
+    left: -30%;
+  }
+}
+@keyframes ts-turn {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ts-runner {
+    display: none;
+  }
 }

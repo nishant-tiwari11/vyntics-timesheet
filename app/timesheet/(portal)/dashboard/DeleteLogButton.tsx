@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
+import { adminDeleteLogAction } from "../admin/logActions";
 import { deleteLogAction } from "./actions";
 
 // Two-step delete: "Delete" → "Delete this entry?  [Yes, delete] [Keep]".
-export default function DeleteLogButton({ id }: { id: string }) {
+export default function DeleteLogButton({ id, admin = false }: { id: string; admin?: boolean }) {
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -12,11 +14,14 @@ export default function DeleteLogButton({ id }: { id: string }) {
   function confirmDelete() {
     setError(null);
     startTransition(async () => {
-      const result = await deleteLogAction(id);
+      const result = admin ? await adminDeleteLogAction(id) : await deleteLogAction(id);
       if (!result.ok) {
+        toast.error(result.error);
         setError(result.error);
         setAsking(false);
+        return;
       }
+      toast.success("Time log deleted.");
     });
   }
 

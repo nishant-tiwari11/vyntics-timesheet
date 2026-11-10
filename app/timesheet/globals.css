@@ -1,0 +1,136 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Monochrome theme. Light is the default; the .dark class (set by next-themes) switches to dark.
+   Colour is used only for essential status: a subtle red for errors, a subtle green for success. */
+:root {
+  --radius: 0.5rem;
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --card: #ffffff;
+  --card-foreground: #0a0a0a;
+  --popover: #ffffff;
+  --popover-foreground: #0a0a0a;
+  --primary: #0a0a0a;
+  --primary-foreground: #fafafa;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #0a0a0a;
+  --muted: #f5f5f5;
+  --muted-foreground: #666666;
+  --accent: #f5f5f5;
+  --accent-foreground: #0a0a0a;
+  --destructive: #b91c1c;
+  --success: #15803d;
+  --border: #e5e5e5;
+  --input: #8a8a8a; /* control borders: 3.4:1 on white, so buttons and fields are clearly visible */
+  --ring: #0a0a0a;
+  --sidebar: #fafafa;
+  --sidebar-foreground: #0a0a0a;
+  --sidebar-primary: #0a0a0a;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #f5f5f5;
+  --sidebar-accent-foreground: #0a0a0a;
+  --sidebar-border: #e5e5e5;
+  --sidebar-ring: #0a0a0a;
+}
+
+.dark {
+  --background: #0a0a0a;
+  --foreground: #fafafa;
+  --card: #0a0a0a;
+  --card-foreground: #fafafa;
+  --popover: #0a0a0a;
+  --popover-foreground: #fafafa;
+  --primary: #fafafa;
+  --primary-foreground: #0a0a0a;
+  --secondary: #171717;
+  --secondary-foreground: #fafafa;
+  --muted: #171717;
+  --muted-foreground: #a3a3a3;
+  --accent: #171717;
+  --accent-foreground: #fafafa;
+  --destructive: #f87171;
+  --success: #4ade80;
+  --border: #262626;
+  --input: #6b6b6b; /* control borders in dark mode: 3.4:1 on the dark background */
+  --ring: #d4d4d4;
+  --sidebar: #0a0a0a;
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: #fafafa;
+  --sidebar-primary-foreground: #0a0a0a;
+  --sidebar-accent: #171717;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #262626;
+  --sidebar-ring: #d4d4d4;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: var(--ts-font, ui-sans-serif), ui-sans-serif, system-ui, sans-serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  /* Links inherit the surrounding text colour and have no underline, unless a class says otherwise.
+     In the base layer on purpose: an unlayered rule here would beat Tailwind classes on every link-button. */
+  .ts-portal a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
+
+/* The portal's older .ts-* styles read these; they now come from the tokens above (one source of truth). */
+.ts-portal {
+  --ts-teal: var(--primary);
+  --ts-teal-hover: color-mix(in srgb, var(--primary) 85%, var(--background));
+  --ts-teal-soft: var(--muted);
+  --ts-bg: var(--background);
+  --ts-surface: var(--card);
+  --ts-border: var(--border);
+  --ts-text: var(--foreground);
+  --ts-muted: var(--muted-foreground);
+  --ts-danger: var(--destructive);
+  --ts-danger-soft: color-mix(in srgb, var(--destructive) 10%, var(--background));
+  --ts-on-accent: var(--primary-foreground);
+  --ts-side-bg: var(--sidebar);
+  --ts-radius: var(--radius);
+  --ts-shadow: none;
+  color-scheme: light;
+}
+.dark .ts-portal {
+  color-scheme: dark;
+}

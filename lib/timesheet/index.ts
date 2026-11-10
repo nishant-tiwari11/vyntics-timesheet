@@ -1,4 +1,3 @@
-export * from "./weeks";
 export * from "./requests";
 export * from "./logs";
 export { TimesheetError } from "./errors";

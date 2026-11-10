@@ -1,24 +1,46 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { daysInclusive } from "@/lib/timesheet/dates";
+import { toast } from "sonner";
+import { daysText } from "@/lib/timesheet/compOffCore";
+import { workingDays } from "@/lib/timesheet/dates";
+import { FormField, Input, Textarea } from "../../_components/Fields";
 import { createRequestAction } from "./actions";
 
 const REASON_MAX = 120;
 
-export default function ApplyForm({ today }: { today: string }) {
-  const [type, setType] = useState<"leave" | "wfh">("leave");
+const TYPES = [
+  { value: "leave", label: "Leave", sub: "A day or more off" },
+  { value: "wfh", label: "Work from home", sub: "Working remotely" },
+  { value: "comp", label: "Comp-off", sub: "Use days you earned" },
+] as const;
+
+type Kind = (typeof TYPES)[number]["value"];
+
+export default function ApplyForm({
+  today,
+  offDays = [],
+  compOff = null,
+}: {
+  today: string;
+  offDays?: string[];
+  /** Your comp-off balance, or null if it could not be loaded. */
+  compOff?: { available: number; expiringSoon: number } | null;
+}) {
+  const [type, setType] = useState<Kind>("leave");
   const [from, setFrom] = useState(today);
   const [to, setTo] = useState(today);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Partial<Record<"from" | "to", string>>>({});
   const [success, setSuccess] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  const days = from && to && to >= from ? daysInclusive(from, to) : 0;
+  const days = from && to && to >= from ? workingDays(from, to, offDays) : 0;
 
   function onFromChange(value: string) {
     setFrom(value);
+    setErrors({});
     if (value && to < value) setTo(value); // "To" can never be before "From"
   }
 
@@ -27,101 +49,117 @@ export default function ApplyForm({ today }: { today: string }) {
     setError(null);
     setSuccess(false);
 
-    if (!from || !to) return setError("Please choose both dates.");
-    if (from < today) return setError("The start date can't be in the past.");
-    if (to < from) return setError("The end date can't be before the start date.");
+    const found: Partial<Record<"from" | "to", string>> = {};
+    if (!from) found.from = "Choose the first day.";
+    else if (from < today) found.from = "The start date can't be in the past.";
+    if (!to) found.to = "Choose the last day.";
+    else if (from && to < from) found.to = "The end date can't be before the start date.";
+    if (type === "comp" && !found.from && !found.to) {
+      const have = compOff?.available ?? 0;
+      if (days === 0) found.to = "Those dates are all weekends or holidays, so there is nothing to take comp-off for.";
+      else if (days > have) found.to = `You have ${daysText(have)} of comp-off available, and this request needs ${daysText(days)}.`;
+    }
+    setErrors(found);
+    if (found.from || found.to) return;
 
     startTransition(async () => {
-      const result = await createRequestAction({ type, from, to, note });
+      const result = await createRequestAction({ type: type === "wfh" ? "wfh" : "leave", compOff: type === "comp", from, to, note });
       if (result.ok) {
+        toast.success("Request sent. Your admin will review it.");
         setSuccess(true);
         setNote("");
         setFrom(today);
         setTo(today);
       } else {
+        toast.error(result.error);
         setError(result.error);
       }
     });
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="ts-form">
-      <div className="ts-field" role="radiogroup" aria-label="Request type">
-        <span className="ts-label">Type</span>
-        <div className="ts-segment">
-          {(
-            [
-              ["leave", "Leave"],
-              ["wfh", "Work from home"],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              role="radio"
-              aria-checked={type === value}
-              className="ts-segment-btn"
-              onClick={() => setType(value)}
-              disabled={pending}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+    <form onSubmit={onSubmit} noValidate className="ts-apply">
+      <div className="ts-apply-types" role="radiogroup" aria-label="Request type">
+        {TYPES.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            role="radio"
+            aria-checked={type === t.value}
+            className={`ts-apply-type ts-apply-type-${t.value}`}
+            onClick={() => setType(t.value)}
+            disabled={pending}
+          >
+            <span className="ts-apply-type-title">{t.label}</span>
+            <span className="ts-apply-type-sub">{t.sub}</span>
+          </button>
+        ))}
       </div>
 
-      <div className="ts-row-2">
-        <div className="ts-field">
-          <label htmlFor="req-from">From</label>
-          <input
-            id="req-from"
+      {type === "comp" && (
+        <p className="ts-hint" role="status">
+          {compOff
+            ? `You have ${daysText(compOff.available)} of comp-off available${compOff.expiringSoon > 0 ? `, and ${daysText(compOff.expiringSoon)} expires soon` : ""}. Each working day uses one day.`
+            : "Couldn't load your comp-off balance. Try again in a moment."}
+        </p>
+      )}
+
+      <div className="ts-apply-dates">
+        <FormField label="From" required error={errors.from}>
+          <Input type="date" name="from" value={from} min={today} onChange={(e) => onFromChange(e.target.value)} disabled={pending} />
+        </FormField>
+        <span className="ts-apply-arrow" aria-hidden="true">
+          →
+        </span>
+        <FormField label="To" required error={errors.to}>
+          <Input
             type="date"
-            className="ts-input"
-            value={from}
-            min={today}
-            onChange={(e) => onFromChange(e.target.value)}
-            disabled={pending}
-            required
-          />
-        </div>
-        <div className="ts-field">
-          <label htmlFor="req-to">To</label>
-          <input
-            id="req-to"
-            type="date"
-            className="ts-input"
+            name="to"
             value={to}
             min={from || today}
-            onChange={(e) => setTo(e.target.value)}
+            onChange={(e) => {
+              setTo(e.target.value);
+              setErrors((prev) => ({ ...prev, to: undefined }));
+            }}
             disabled={pending}
-            required
           />
-        </div>
+        </FormField>
+        <p className="ts-apply-days" aria-live="polite">
+          {!from || !to || to < from ? (
+            "Choose valid dates"
+          ) : days === 0 ? (
+            "Days off only"
+          ) : (
+            <>
+              <strong>{days}</strong> working {days === 1 ? "day" : "days"}
+            </>
+          )}
+          <span>Weekends and holidays aren&apos;t counted</span>
+        </p>
       </div>
 
-      <p className="ts-hint" aria-live="polite">
-        {days > 0 ? `${days} ${days === 1 ? "day" : "days"} (counts weekends too)` : "Choose valid dates."}
-      </p>
-
-      <div className="ts-field">
-        <label htmlFor="req-reason">
-          Reason <span className="ts-muted">(optional)</span>
-        </label>
-        <input
-          id="req-reason"
-          type="text"
-          className="ts-input"
+      <FormField
+        label={
+          <>
+            Reason <span className="ts-muted">(optional)</span>
+          </>
+        }
+        hint={
+          <span style={{ display: "block", textAlign: "right" }}>
+            {note.length}/{REASON_MAX}
+          </span>
+        }
+      >
+        <Textarea
+          name="note"
+          rows={3}
           maxLength={REASON_MAX}
           value={note}
           onChange={(e) => setNote(e.target.value)}
           disabled={pending}
-          aria-describedby="req-reason-count"
           placeholder="e.g. Family event"
         />
-        <p id="req-reason-count" className="ts-hint">
-          {note.length}/{REASON_MAX}
-        </p>
-      </div>
+      </FormField>
 
       <div aria-live="polite">
         {error && (
@@ -136,9 +174,11 @@ export default function ApplyForm({ today }: { today: string }) {
         )}
       </div>
 
-      <button type="submit" className="ts-btn ts-btn-block" disabled={pending}>
-        {pending ? "Sending..." : "Send request"}
-      </button>
+      <div className="ts-apply-actions">
+        <button type="submit" className="ts-btn" disabled={pending}>
+          {pending ? "Sending..." : "Send request"}
+        </button>
+      </div>
     </form>
   );
 }

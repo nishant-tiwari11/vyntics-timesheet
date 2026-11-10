@@ -1,5 +1,6 @@
 import "server-only";
 import { db, requireAdmin, requireUser } from "./auth";
+import { assertCanSpend } from "./compOff";
 import { TimesheetError, assertDate, assertId, toError } from "./errors";
 import type { Request, RequestWithPerson } from "./types";
 
@@ -16,11 +17,37 @@ export async function listRequests(): Promise<Request[]> {
   return data;
 }
 
+/** Approved leave and work-from-home overlapping the dates, for the dashboard calendar. "all" is admin only. */
+export async function listApprovedRequestsBetween(opts: {
+  scope: "mine" | "all";
+  from: string;
+  to: string;
+}): Promise<RequestWithPerson[]> {
+  const from = assertDate(opts.from, "start date");
+  const to = assertDate(opts.to, "end date");
+  const me = opts.scope === "all" ? await requireAdmin() : await requireUser();
+  const supabase = await db();
+  let query = supabase
+    .from("requests")
+    .select("*, owner:profiles!requests_user_id_fkey(full_name, email)")
+    .eq("status", "approved")
+    .lte("from_date", to)
+    .gte("to_date", from)
+    .order("from_date", { ascending: true })
+    .limit(400);
+  if (opts.scope === "mine") query = query.eq("user_id", me.id);
+  const { data, error } = await query;
+  if (error) throw toError(error, "Couldn't load leave and work from home. Please try again.");
+  return data;
+}
+
 export async function createRequest(input: {
   type: "leave" | "wfh";
   from: string;
   to: string;
   note?: string;
+  /** Pay for this leave with comp-off days. */
+  compOff?: boolean;
 }): Promise<Request> {
   if (input.type !== "leave" && input.type !== "wfh") {
     throw new TimesheetError("Please choose Leave or Work from home.");
@@ -28,10 +55,13 @@ export async function createRequest(input: {
   const from = assertDate(input.from, "start date");
   const to = assertDate(input.to, "end date");
   if (to < from) throw new TimesheetError("The end date can't be before the start date.");
+  if (input.compOff && input.type !== "leave") throw new TimesheetError("Comp-off can only be used for leave.");
   const note = input.note?.trim() ?? "";
   if (note.length > 500) throw new TimesheetError("The reason can be up to 500 characters.");
 
   const me = await requireUser();
+  // Comp-off leave needs enough unexpired credit, with days already booked taken into account.
+  if (input.compOff) await assertCanSpend(me.id, from, to);
   const supabase = await db();
   // user_id and status come from the server, never from the caller.
   const { data, error } = await supabase
@@ -43,6 +73,7 @@ export async function createRequest(input: {
       to_date: to,
       reason: note || null,
       status: "pending",
+      comp_off: input.compOff === true,
     })
     .select()
     .single();

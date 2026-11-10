@@ -1,0 +1,50 @@
+/* Skeleton loaders: a soft block with a shimmer. Uses the portal's theme variables, so light and dark both work. */
+.ts-sk {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--ts-teal-soft), var(--ts-bg), var(--ts-teal-soft));
+  background-size: 200% 100%;
+  /* The block fades in after 150ms, so a fast load never flashes a skeleton at all. */
+  animation:
+    ts-sk-in 0.2s ease 0.15s backwards,
+    ts-sk-shimmer 1.4s linear infinite;
+}
+@keyframes ts-sk-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes ts-sk-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ts-sk {
+    animation: ts-sk-in 0.2s ease 0.15s backwards;
+  }
+}
+
+.ts-sk-pill {
+  border-radius: 999px;
+}
+.ts-sk-circle {
+  border-radius: 50%;
+}
+
+/* Cells of the table skeletons */
+.ts-sk-table td,
+.ts-sk-table th {
+  vertical-align: middle;
+}
+
+/* Retry message shown when a lazy-loaded piece fails to load */
+.ts-chunk-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0;
+}

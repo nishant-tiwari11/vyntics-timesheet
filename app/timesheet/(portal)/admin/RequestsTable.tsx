@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { daysInclusive, formatRange } from "@/lib/timesheet/dates";
+import { formatRange, workingDaysLabel } from "@/lib/timesheet/dates";
 import { decideRequestAction } from "./actions";
 import ResultMessage, { type Result } from "./ResultMessage";
 
@@ -11,6 +11,7 @@ export type RequestRowData = {
   email: string;
   isSelf: boolean;
   type: "leave" | "wfh";
+  compOff: boolean;
   from: string;
   to: string;
   reason: string | null;
@@ -20,7 +21,7 @@ export type RequestRowData = {
 
 const STATUS_LABEL = { pending: "Pending", approved: "Approved", rejected: "Rejected", cancelled: "Cancelled" } as const;
 
-export default function RequestsTable({ rows }: { rows: RequestRowData[] }) {
+export default function RequestsTable({ rows, offDays = [] }: { rows: RequestRowData[]; offDays?: string[] }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [result, setResult] = useState<Result>(null);
 
@@ -56,7 +57,6 @@ export default function RequestsTable({ rows }: { rows: RequestRowData[] }) {
           </thead>
           <tbody>
             {rows.map((r) => {
-              const n = daysInclusive(r.from, r.to);
               const working = busy === r.id;
               return (
                 <tr key={r.id}>
@@ -64,12 +64,10 @@ export default function RequestsTable({ rows }: { rows: RequestRowData[] }) {
                     <span className="ts-aname">{r.name}</span>
                     <span className="ts-asub">{r.email}</span>
                   </th>
-                  <td>{r.type === "leave" ? "Leave" : "Work from home"}</td>
+                  <td>{r.compOff ? "Comp-off" : r.type === "leave" ? "Leave" : "Work from home"}</td>
                   <td>
                     {formatRange(r.from, r.to)}{" "}
-                    <span className="ts-muted">
-                      · {n} {n === 1 ? "day" : "days"}
-                    </span>
+                    <span className="ts-muted">· {workingDaysLabel(r.from, r.to, offDays)}</span>
                     {r.alsoOff.length > 0 && (
                       <span className="ts-also-off">Also off: {r.alsoOff.join(", ")}</span>
                     )}

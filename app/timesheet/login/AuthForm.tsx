@@ -1,204 +1,82 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
-import { COMPANY_EMAIL_ERROR, COMPANY_EMAIL_HINT, isCompanyEmail } from "@/lib/companyEmail";
-
-type Mode = "signin" | "signup";
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+import { COMPANY_DOMAIN, NOT_INVITED_ERROR } from "@/lib/companyEmail";
 
 // Turn Supabase's technical messages into plain words.
 function friendlyError(message: string): string {
   const m = message.toLowerCase();
-  if (m.includes("database error saving new user")) return COMPANY_EMAIL_ERROR;
-  if (m.includes("invalid login credentials")) return "Wrong email or password. Please try again.";
-  if (m.includes("already registered") || m.includes("already been registered"))
-    return "An account with this email already exists. Try signing in instead.";
-  if (m.includes("email not confirmed"))
-    return "Please confirm your email first. Check your inbox for the confirmation link.";
+  if (m.includes("database error saving new user")) return NOT_INVITED_ERROR;
+  if (m.includes("provider is not enabled") || m.includes("unsupported provider"))
+    return "Google sign-in isn't switched on yet. Ask an admin to enable it in Supabase.";
   if (m.includes("rate limit") || m.includes("too many"))
     return "Too many attempts. Please wait a minute and try again.";
-  if (m.includes("password") && m.includes("characters")) return "Password must be at least 6 characters.";
-  if (m.includes("valid email") || m.includes("invalid email")) return "Please enter a valid email address.";
-  if (m.includes("signups not allowed")) return "New sign-ups are turned off. Ask an admin for access.";
   if (m.includes("fetch") || m.includes("network"))
     return "Couldn't reach the server. Check your internet connection and try again.";
   return message;
 }
 
-export default function AuthForm() {
-  const router = useRouter();
-  const [mode, setMode] = useState<Mode>("signin");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+export default function AuthForm({ initialError }: { initialError?: string }) {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError ?? null);
 
-  function switchMode(next: Mode) {
-    setMode(next);
+  async function onGoogle() {
     setError(null);
-    setNotice(null);
-  }
-
-  function validate(): string | null {
-    if (mode === "signup" && name.trim().length < 2) return "Please enter your full name.";
-    if (!EMAIL_RE.test(email.trim())) return "Please enter a valid work email address.";
-    if (!isCompanyEmail(email)) return COMPANY_EMAIL_ERROR;
-    if (password.length < 6) return "Password must be at least 6 characters.";
-    return null;
-  }
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setNotice(null);
-
-    const problem = validate();
-    if (problem) {
-      setError(problem);
-      return;
-    }
-
     setLoading(true);
     try {
       const supabase = createClient();
-      const cleanEmail = email.trim().toLowerCase();
-
-      if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase.auth.signUp({
-          email: cleanEmail,
-          password,
-          options: { data: { name: name.trim() } },
-        });
-        if (error) throw error;
-
-        // With email confirmation on, an existing address returns a fake user with no identities.
-        if (data.user && data.user.identities?.length === 0) {
-          throw new Error("User already registered");
-        }
-        if (!data.session) {
-          setNotice("Check your email to confirm your account, then sign in.");
-          setMode("signin");
-          setPassword("");
-          setLoading(false);
-          return;
-        }
-      }
-
-      router.push("/timesheet/dashboard");
-      router.refresh();
-      // Keep the "Signing in..." state while the page changes.
+      // "hd" only pre-selects the company account in Google's picker; the database is what enforces the rule.
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/timesheet/auth/callback`,
+          queryParams: { hd: COMPANY_DOMAIN, prompt: "select_account" },
+        },
+      });
+      if (error) throw error;
+      // The browser is now being sent to Google.
     } catch (err) {
       setError(friendlyError(err instanceof Error ? err.message : "Something went wrong. Please try again."));
       setLoading(false);
     }
   }
 
-  const isSignup = mode === "signup";
-
   return (
     <>
-      <div className="ts-tabs" role="tablist" aria-label="Sign in or create account">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={!isSignup}
-          className="ts-tab"
-          onClick={() => switchMode("signin")}
-          disabled={loading}
-        >
-          Sign in
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={isSignup}
-          className="ts-tab"
-          onClick={() => switchMode("signup")}
-          disabled={loading}
-        >
-          Create account
-        </button>
-      </div>
+      <CardHeader>
+        <CardTitle className="text-2xl font-semibold tracking-tight">Welcome back</CardTitle>
+        <CardDescription>
+          Sign in to the Vyntics Employee Management System with your @{COMPANY_DOMAIN} Google account.
+        </CardDescription>
+      </CardHeader>
 
-      <form onSubmit={onSubmit} noValidate className="ts-form">
-        {isSignup && (
-          <div className="ts-field">
-            <label htmlFor="ts-name">Full name</label>
-            <input
-              id="ts-name"
-              className="ts-input"
-              type="text"
-              autoComplete="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Your full name"
-            />
-          </div>
-        )}
-
-        <div className="ts-field">
-          <label htmlFor="ts-email">Work email</label>
-          <input
-            id="ts-email"
-            className="ts-input"
-            type="email"
-            autoComplete="email"
-            inputMode="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@vyntics.com"
-            aria-describedby="ts-email-hint"
-          />
-          <p id="ts-email-hint" className="ts-hint">
-            {COMPANY_EMAIL_HINT}
-          </p>
-        </div>
-
-        <div className="ts-field">
-          <label htmlFor="ts-password">Password</label>
-          <div className="ts-password">
-            <input
-              id="ts-password"
-              className="ts-input"
-              type={showPassword ? "text" : "password"}
-              autoComplete={isSignup ? "new-password" : "current-password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={isSignup ? "At least 6 characters" : "Your password"}
-            />
-            <button
-              type="button"
-              className="ts-password-toggle"
-              onClick={() => setShowPassword((s) => !s)}
-              aria-pressed={showPassword}
-            >
-              {showPassword ? "Hide" : "Show"}
-            </button>
-          </div>
-        </div>
+      <CardContent className="grid gap-4">
+        <Button type="button" variant="outline" size="lg" className="w-full" onClick={onGoogle} disabled={loading}>
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path fill="currentColor" d="M21.6 12.23c0-.71-.06-1.4-.18-2.05H12v3.87h5.39a4.6 4.6 0 0 1-2 3.02v2.5h3.23c1.89-1.74 2.98-4.3 2.98-7.34z" />
+            <path fill="currentColor" opacity="0.8" d="M12 22c2.7 0 4.96-.9 6.62-2.43l-3.23-2.5c-.9.6-2.04.95-3.39.95-2.6 0-4.8-1.76-5.59-4.12H3.07v2.58A10 10 0 0 0 12 22z" />
+            <path fill="currentColor" opacity="0.6" d="M6.41 13.9a6 6 0 0 1 0-3.8V7.52H3.07a10 10 0 0 0 0 8.96l3.34-2.58z" />
+            <path fill="currentColor" opacity="0.7" d="M12 5.98c1.47 0 2.79.5 3.83 1.5l2.87-2.87A9.96 9.96 0 0 0 12 2 10 10 0 0 0 3.07 7.52l3.34 2.58C7.2 7.74 9.4 5.98 12 5.98z" />
+          </svg>
+          {loading ? "Opening Google..." : "Continue with Google"}
+        </Button>
 
         <div aria-live="polite">
           {error && (
-            <p className="ts-alert" role="alert">
-              {error}
-            </p>
+            <Alert variant="destructive" role="alert">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
-          {notice && <p className="ts-success">{notice}</p>}
         </div>
 
-        <button type="submit" className="ts-btn ts-btn-block" disabled={loading}>
-          {loading ? (isSignup ? "Creating account..." : "Signing in...") : isSignup ? "Create account" : "Sign in"}
-        </button>
-      </form>
+        <p className="text-center text-sm text-muted-foreground">
+          Access is by invitation only. Ask an admin to add your @{COMPANY_DOMAIN} email.
+        </p>
+      </CardContent>
     </>
   );
 }

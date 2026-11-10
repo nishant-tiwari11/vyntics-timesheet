@@ -1,18 +1,20 @@
 import Link from "next/link";
+import { listAllowedEmails } from "@/lib/timesheet/access";
 import { listApprovedLeaveBetween, listEmployees, type Employee, type LeaveCover } from "@/lib/timesheet/admin";
-import { addDays, formatTime, formatYmd, isYmd, mondayOf, todayInOffice } from "@/lib/timesheet/dates";
+import { addDays, formatInstantDate, formatTime, formatYmd, isYmd, todayInOffice } from "@/lib/timesheet/dates";
 import { TimesheetError } from "@/lib/timesheet/errors";
-import { weekTotal } from "@/lib/timesheet/hours";
+import { offDatesBetween } from "@/lib/timesheet/holidays";
 import { listAllLogs } from "@/lib/timesheet/logs";
 import { logError } from "@/lib/timesheet/log";
 import { displayName } from "@/lib/timesheet/people";
 import { listAllRequests } from "@/lib/timesheet/requests";
-import type { RequestWithPerson, WeekWithPerson, WorkLogWithPerson } from "@/lib/timesheet/types";
-import { listAllWeeks } from "@/lib/timesheet/weeks";
+import type { RequestWithPerson, WorkLogWithPerson } from "@/lib/timesheet/types";
+import { FormField, Input } from "../../_components/Fields";
 import { SectionError } from "../dashboard/sections";
+import { AdminAddLog, AdminRowActions } from "./AdminLogControls";
+import { AddEmailsForm, RemoveEmailButton } from "./AccessControls";
 import EmployeesTable from "./EmployeesTable";
 import RequestsTable, { type RequestRowData } from "./RequestsTable";
-import WeeksTable, { type WeekRowData } from "./WeeksTable";
 
 const BASE = "/timesheet/admin";
 const fmt = (n: number) => String(Math.round(n * 100) / 100);
@@ -40,101 +42,6 @@ function LoadError({ message, retryHref }: { message: string; retryHref: string 
   );
 }
 
-function Stat({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
-  return (
-    <section className="ts-card" aria-labelledby={id}>
-      <h2 className="ts-h2" id={id}>
-        {title}
-      </h2>
-      <p className="ts-big">{children}</p>
-    </section>
-  );
-}
-
-// ------------------------------- Timesheets -------------------------------
-
-export async function TimesheetsTab({ adminId, weekParam }: { adminId: string; weekParam?: string }) {
-  const thisMonday = mondayOf(todayInOffice());
-  const weekStart = isYmd(weekParam) ? mondayOf(weekParam) : thisMonday;
-  const link = (w?: string) => `${BASE}?tab=timesheets${w ? `&week=${w}` : ""}`;
-
-  const res = await load<{ people: Employee[]; weeks: WeekWithPerson[] }>(async () => {
-    const [people, weeks] = await Promise.all([listEmployees(), listAllWeeks(weekStart)]);
-    return { people, weeks };
-  });
-
-  let rows: WeekRowData[] = [];
-  if (res.ok) {
-    const byUser = new Map(res.data.weeks.map((w) => [w.user_id, w]));
-    rows = res.data.people.map((p) => {
-      const w = byUser.get(p.id);
-      return {
-        userId: p.id,
-        name: p.name,
-        email: p.email,
-        isSelf: p.id === adminId,
-        weekId: w?.id ?? null,
-        status: w?.status ?? null,
-        total: w ? weekTotal(w.timesheet_rows) : 0,
-      };
-    });
-    // Needs-a-decision first, then A-Z.
-    rows.sort(
-      (a, b) => Number(b.status === "submitted") - Number(a.status === "submitted") || a.name.localeCompare(b.name)
-    );
-  }
-  const waiting = rows.filter((r) => r.status === "submitted").length;
-  const hours = rows.reduce((s, r) => s + r.total, 0);
-
-  return (
-    <>
-      <div className="ts-admin-bar">
-        <h2 className="ts-h2b">Week of {formatYmd(weekStart, { day: "numeric", month: "short", year: "numeric" })}</h2>
-        <nav className="ts-week-nav" aria-label="Choose week">
-          <Link href={link(addDays(weekStart, -7))} className="ts-btn ts-btn-ghost ts-btn-sm">
-            <span aria-hidden="true">←</span> Previous week
-          </Link>
-          <Link
-            href={link()}
-            className="ts-btn ts-btn-ghost ts-btn-sm"
-            aria-current={weekStart === thisMonday ? "page" : undefined}
-          >
-            This week
-          </Link>
-          <Link href={link(addDays(weekStart, 7))} className="ts-btn ts-btn-ghost ts-btn-sm">
-            Next week <span aria-hidden="true">→</span>
-          </Link>
-        </nav>
-      </div>
-
-      {!res.ok ? (
-        <LoadError message={res.error} retryHref={link(weekStart)} />
-      ) : (
-        <>
-          <div className="ts-summary">
-            <Stat id="a-emps" title="Employees">
-              {res.data.people.length}
-            </Stat>
-            <Stat id="a-wait" title="Waiting for approval">
-              {waiting}
-            </Stat>
-            <Stat id="a-hours" title="Hours logged this week">
-              {fmt(hours)} h
-            </Stat>
-          </div>
-          <section className="ts-card ts-flush" aria-label="Timesheets by employee">
-            {rows.length === 0 ? (
-              <p className="ts-muted ts-pad">There are no employees yet.</p>
-            ) : (
-              <WeeksTable rows={rows} weekStart={weekStart} />
-            )}
-          </section>
-        </>
-      )}
-    </>
-  );
-}
-
 // -------------------------------- Requests --------------------------------
 
 export async function RequestsTab({ adminId, filterParam }: { adminId: string; filterParam?: string }) {
@@ -159,6 +66,13 @@ export async function RequestsTab({ adminId, filterParam }: { adminId: string; f
     return { requests, leaves };
   });
 
+  // Public holidays inside the requested dates are not counted as leave days.
+  let offDays: string[] = [];
+  if (res.ok && res.data.requests.length > 0) {
+    const dates = res.data.requests.flatMap((r) => [r.from_date, r.to_date]).sort();
+    offDays = await offDatesBetween(dates[0], dates[dates.length - 1]).catch(() => []);
+  }
+
   const rows: RequestRowData[] = res.ok
     ? res.data.requests.map((r) => ({
         id: r.id,
@@ -166,6 +80,7 @@ export async function RequestsTab({ adminId, filterParam }: { adminId: string; f
         email: r.owner?.email ?? "",
         isSelf: r.user_id === adminId,
         type: r.type,
+        compOff: r.comp_off,
         from: r.from_date,
         to: r.to_date,
         reason: r.reason,
@@ -215,7 +130,7 @@ export async function RequestsTab({ adminId, filterParam }: { adminId: string; f
         </section>
       ) : (
         <section className="ts-card ts-flush" aria-label="Requests">
-          <RequestsTable rows={rows} />
+          <RequestsTable rows={rows} offDays={offDays} />
         </section>
       )}
     </>
@@ -252,11 +167,10 @@ export async function LogsTab({ dateParam }: { dateParam?: string }) {
           </Link>
           <form method="get" action={BASE} className="ts-date-form">
             <input type="hidden" name="tab" value="logs" />
-            <label htmlFor="log-date" className="ts-sr-only">
-              Choose a date
-            </label>
-            <input id="log-date" name="date" type="date" className="ts-input ts-date-input" defaultValue={date} required />
-            <button type="submit" className="ts-btn ts-btn-sm">
+            <FormField label="Choose a date" srOnlyLabel required>
+              <Input name="date" type="date" size="sm" className="ts-date-input" defaultValue={date} />
+            </FormField>
+            <button type="submit" className="ts-btn ts-btn-ghost ts-btn-sm">
               Go
             </button>
           </form>
@@ -270,6 +184,9 @@ export async function LogsTab({ dateParam }: { dateParam?: string }) {
           <Link href={link(addDays(date, 1))} className="ts-btn ts-btn-ghost ts-btn-sm">
             Next day <span aria-hidden="true">→</span>
           </Link>
+          {date <= today && (
+            <AdminAddLog employees={people.map((p) => ({ id: p.id, name: p.name }))} today={today} defaultDate={date} />
+          )}
         </div>
       </div>
 
@@ -305,6 +222,18 @@ export async function LogsTab({ dateParam }: { dateParam?: string }) {
                           <span>Added at {formatTime(e.created_at)}</span>
                         </p>
                       </div>
+                      <AdminRowActions
+                        ownerName={p.name}
+                        today={today}
+                        entry={{
+                          id: e.id,
+                          date: e.log_date,
+                          start: e.start_time?.slice(0, 5) ?? "",
+                          end: e.end_time?.slice(0, 5) ?? "",
+                          project: e.project ?? "",
+                          text: e.content,
+                        }}
+                      />
                     </li>
                   ))}
                 </ul>
@@ -318,7 +247,19 @@ export async function LogsTab({ dateParam }: { dateParam?: string }) {
               </h3>
               <ul className="ts-none-list">
                 {without.map((p) => (
-                  <li key={p.id}>{p.name}</li>
+                  <li key={p.id}>
+                    {p.name}{" "}
+                    {date <= today && (
+                      <AdminAddLog
+                        employees={people.map((x) => ({ id: x.id, name: x.name }))}
+                        today={today}
+                        defaultDate={date}
+                        defaultEmployeeId={p.id}
+                        label="Add entry"
+                        ghost
+                      />
+                    )}
+                  </li>
                 ))}
               </ul>
             </section>
@@ -351,5 +292,74 @@ export async function EmployeesTab({ adminId }: { adminId: string }) {
     <section className="ts-card ts-flush" aria-label="Employees">
       <EmployeesTable rows={res.data.map((p) => ({ ...p, isSelf: p.id === adminId }))} />
     </section>
+  );
+}
+
+// ---------------------------------- Access ----------------------------------
+
+export async function AccessTab() {
+  const res = await load(async () => {
+    const [allowed, people] = await Promise.all([listAllowedEmails(), listEmployees()]);
+    return { allowed, joined: new Set(people.map((p) => p.email.toLowerCase())) };
+  });
+
+  return (
+    <>
+      <section className="ts-card" aria-labelledby="access-title">
+        <h2 className="ts-h2b" id="access-title">
+          Who can sign in
+        </h2>
+        <p className="ts-muted ts-small ts-access-note">
+          Only @vyntics.com addresses on this list can create an account, with Google or a password. People who already
+          have an account are on it automatically.
+        </p>
+        <AddEmailsForm />
+      </section>
+
+      {!res.ok ? (
+        <LoadError message={res.error} retryHref={`${BASE}?tab=access`} />
+      ) : res.data.allowed.length === 0 ? (
+        <section className="ts-card">
+          <p className="ts-muted">No emails have been added yet.</p>
+        </section>
+      ) : (
+        <section className="ts-card ts-flush" aria-label="Allowed emails">
+          <div className="ts-table-wrap" tabIndex={0} role="region" aria-label="Allowed emails, scrolls sideways">
+            <table className="ts-table ts-logs-table">
+              <caption className="ts-sr-only">Email addresses allowed to sign in, newest first</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Email</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Added</th>
+                  <th scope="col">
+                    <span className="ts-sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {res.data.allowed.map((a) => {
+                  const joined = res.data.joined.has(a.email);
+                  return (
+                    <tr key={a.email}>
+                      <td data-label="Email">{a.email}</td>
+                      <td data-label="Status">
+                        <span className={`ts-pill ${joined ? "ts-pill-approved" : "ts-pill-pending"}`}>
+                          {joined ? "Joined" : "Invited"}
+                        </span>
+                      </td>
+                      <td data-label="Added" className="ts-nowrap">
+                        {formatInstantDate(a.created_at)}
+                      </td>
+                      <td className="ts-actions">{!joined && <RemoveEmailButton email={a.email} />}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+    </>
   );
 }

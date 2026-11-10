@@ -1,8 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Schibsted_Grotesk } from "next/font/google";
+import { Geist } from "next/font/google";
+import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
+import "./globals.css";
 import "./timesheet.css";
+import "./_components/fields.css";
+import "./_components/polish.css";
 
-const grotesk = Schibsted_Grotesk({
+const font = Geist({
   subsets: ["latin"],
   variable: "--ts-font",
   display: "swap",
@@ -16,17 +21,16 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0E6B66",
+  themeColor: "#0a0a0a",
 };
-
-// Runs before paint so there's no light/dark flash. Scoped to the portal wrapper only.
-const themeInit = `(function(){try{var t=localStorage.getItem('ts-theme');var el=document.getElementById('ts-root');if(t&&el)el.setAttribute('data-theme',t);}catch(e){}})();`;
 
 export default function TimesheetLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div id="ts-root" className={`ts-portal ${grotesk.variable}`} suppressHydrationWarning>
-      <script dangerouslySetInnerHTML={{ __html: themeInit }} />
-      {children}
+    <div id="ts-root" className={`ts-portal ${font.variable}`}>
+      <ThemeProvider fontFamily={font.style.fontFamily}>
+        {children}
+        <Toaster />
+      </ThemeProvider>
     </div>
   );
 }

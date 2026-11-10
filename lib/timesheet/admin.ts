@@ -1,7 +1,7 @@
 import "server-only";
 import { db, requireAdmin } from "./auth";
 import { TimesheetError, assertId, toError } from "./errors";
-import type { Person, WeekRow } from "./types";
+import type { Person } from "./types";
 
 export type Employee = {
   id: string;
@@ -28,20 +28,6 @@ export async function listEmployees(): Promise<Employee[]> {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** The project rows (Mon-Sun hours) of any one week. */
-export async function getWeekDetail(weekId: string): Promise<WeekRow[]> {
-  assertId(weekId, "week");
-  await requireAdmin();
-  const supabase = await db();
-  const { data, error } = await supabase
-    .from("timesheet_rows")
-    .select("*")
-    .eq("week_id", weekId)
-    .order("position", { ascending: true });
-  if (error) throw toError(error, "Couldn't load this timesheet. Please try again.");
-  return data;
-}
-
 /** Make someone an admin or remove their admin role. The database enforces the rules. */
 export async function setRole(userId: string, role: "employee" | "admin"): Promise<void> {
   assertId(userId, "person");
@@ -54,24 +40,31 @@ export async function setRole(userId: string, role: "employee" | "admin"): Promi
 }
 
 /** How many items wait for a decision, not counting the admin's own (they can't decide those). */
-export async function getAdminCounts(): Promise<{ timesheets: number; requests: number }> {
+export async function getAdminCounts(): Promise<{ requests: number; logs: number; compOff: number }> {
   const admin = await requireAdmin();
   const supabase = await db();
-  const [weeks, requests] = await Promise.all([
-    supabase
-      .from("timesheet_weeks")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "submitted")
-      .neq("user_id", admin.id),
+  const [requests, logs, compOff] = await Promise.all([
     supabase
       .from("requests")
       .select("id", { count: "exact", head: true })
       .eq("status", "pending")
       .neq("user_id", admin.id),
+    supabase
+      .from("work_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending")
+      .neq("user_id", admin.id),
+    // New comp-off requests, and approved ones whose time log changed and need a new decision.
+    supabase
+      .from("comp_off_requests")
+      .select("id", { count: "exact", head: true })
+      .or("status.eq.pending,needs_reapproval.eq.true")
+      .neq("user_id", admin.id),
   ]);
-  if (weeks.error) throw toError(weeks.error, "Couldn't load counts.");
   if (requests.error) throw toError(requests.error, "Couldn't load counts.");
-  return { timesheets: weeks.count ?? 0, requests: requests.count ?? 0 };
+  if (logs.error) throw toError(logs.error, "Couldn't load counts.");
+  if (compOff.error) throw toError(compOff.error, "Couldn't load counts.");
+  return { requests: requests.count ?? 0, logs: logs.count ?? 0, compOff: compOff.count ?? 0 };
 }
 
 export type LeaveCover = { user_id: string; from_date: string; to_date: string; owner: Person | null };

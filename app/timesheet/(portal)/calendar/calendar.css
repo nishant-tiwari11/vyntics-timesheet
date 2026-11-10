@@ -46,6 +46,13 @@
   background: var(--ts-surface);
   color: var(--ts-text);
 }
+a.ts-cal-day {
+  text-decoration: none;
+}
+a.ts-cal-day:focus-visible {
+  outline: 2px solid var(--ts-teal);
+  outline-offset: 2px;
+}
 .ts-cal-day:hover {
   border-color: var(--ts-teal);
 }
@@ -196,4 +203,29 @@
   .ts-summary-4 {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* Google Calendar events: gray and outlined, clearly apart from leave and WFH */
+.ts-gcal {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ts-gcal-chip {
+  display: block;
+  padding: 0 4px;
+  overflow: hidden;
+  border: 1px solid var(--ts-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ts-muted);
+  font-size: 11px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ts-gcal-more {
+  font-size: 10px;
+  color: var(--ts-muted);
 }

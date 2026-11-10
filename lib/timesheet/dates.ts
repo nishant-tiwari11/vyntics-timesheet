@@ -59,6 +59,35 @@ export function daysInclusive(from: string, to: string): number {
   return Math.round(ms / 86_400_000) + 1;
 }
 
+/** Saturday and Sunday are the company's weekly off days; logging on them is optional. */
+export function isWeekend(ymd: string): boolean {
+  const p = parts(ymd);
+  if (!p) return false;
+  const dow = new Date(Date.UTC(p[0], p[1] - 1, p[2])).getUTCDay();
+  return dow === 0 || dow === 6;
+}
+
+/**
+ * Days from `from` to `to` that are not Saturday or Sunday and not in `offDays` (public holidays and festivals),
+ * so neither count as leave.
+ */
+export function workingDays(from: string, to: string, offDays: Iterable<string> = []): number {
+  const off = new Set(offDays);
+  const total = daysInclusive(from, to);
+  let n = 0;
+  for (let i = 0; i < total; i++) {
+    const d = addDays(from, i);
+    if (!isWeekend(d) && !off.has(d)) n += 1;
+  }
+  return n;
+}
+
+/** "3 working days", "1 working day" or "No working days" (a request that only covers days off). */
+export function workingDaysLabel(from: string, to: string, offDays: Iterable<string> = []): string {
+  const n = workingDays(from, to, offDays);
+  return n === 0 ? "Days off only" : `${n} working ${n === 1 ? "day" : "days"}`;
+}
+
 /** First and last day of the month containing `ymd`. */
 export function monthRange(ymd: string): { start: string; end: string } {
   const p = parts(ymd);

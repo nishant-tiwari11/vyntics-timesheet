@@ -67,14 +67,14 @@ export default function EmployeesTable({ rows }: { rows: EmployeeRowData[] }) {
                       (r.role === "employee" ? (
                         <ConfirmAction
                           label="Make admin"
-                          question={`Make ${first} an admin? They will be able to approve timesheets and requests.`}
+                          question={`Make ${first} an admin? They will be able to approve requests and see everyone's work logs.`}
                           confirmLabel="Yes, make admin"
                           onConfirm={() => change(r, "admin")}
                         />
                       ) : (
                         <ConfirmAction
                           label="Remove admin"
-                          question={`Remove ${first} as an admin? They will no longer be able to approve timesheets or requests.`}
+                          question={`Remove ${first} as an admin? They will no longer be able to approve requests or see everyone's work logs.`}
                           confirmLabel="Yes, remove admin"
                           danger
                           onConfirm={() => change(r, "employee")}

@@ -1,0 +1,197 @@
+/* Form fields: one set of rules for every input, select and textarea in the portal.
+   Loaded for the whole portal (see layout.tsx), so a field looks the same on every page. */
+
+.ts-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* A field = label above, control, then a hint or an error underneath */
+.ts-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.ts-field > label,
+.ts-label {
+  min-height: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+.ts-req {
+  margin-left: 2px;
+  color: var(--ts-danger);
+}
+.ts-hint,
+.ts-field-error {
+  margin: 0;
+  min-height: 18px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ts-muted);
+}
+.ts-field-error {
+  color: var(--ts-danger);
+  font-weight: 600;
+}
+.ts-field-success {
+  color: var(--ts-green);
+  font-weight: 600;
+}
+
+/* Two fields side by side; one under the other on small screens */
+.ts-row-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 12px;
+}
+@media (max-width: 520px) {
+  .ts-row-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The box itself */
+.ts-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--input);
+  border-radius: 8px;
+  background: var(--ts-surface);
+  color: var(--ts-text);
+  font: inherit;
+  font-size: 16px; /* 16px stops iOS zooming into the field */
+  line-height: 1.4;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+.ts-input::placeholder {
+  color: var(--ts-muted);
+  opacity: 0.8;
+}
+.ts-input:hover:not(:disabled, [readonly]) {
+  border-color: color-mix(in srgb, var(--ts-muted) 70%, var(--ts-border));
+}
+.ts-input:focus,
+.ts-input:focus-visible {
+  outline: 2px solid var(--ts-teal);
+  outline-offset: 0;
+  border-color: var(--ts-teal);
+}
+.ts-input:disabled {
+  background: var(--ts-bg);
+  color: var(--ts-muted);
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+.ts-input[readonly] {
+  background: var(--ts-bg);
+  cursor: default;
+}
+.ts-input[aria-invalid="true"] {
+  border-color: var(--ts-danger);
+  background: color-mix(in srgb, var(--ts-danger-soft) 40%, var(--ts-surface));
+}
+.ts-input[aria-invalid="true"]:focus {
+  outline-color: var(--ts-danger);
+  border-color: var(--ts-danger);
+}
+.ts-input.is-valid {
+  border-color: var(--ts-green);
+}
+
+/* Smaller version for filters and toolbars */
+.ts-input-sm {
+  min-height: 36px;
+  font-size: 14px;
+}
+/* Sits inside a sentence ("Showing [10] items per page") */
+.ts-input-inline {
+  width: auto;
+  margin: 0 8px;
+}
+
+/* Dates and times: same height on every browser (iOS Safari shrinks them otherwise) */
+.ts-input[type="date"],
+.ts-input[type="time"] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  text-align: left;
+}
+.ts-input[type="date"]::-webkit-date-and-time-value,
+.ts-input[type="time"]::-webkit-date-and-time-value {
+  min-height: 1.4em;
+  text-align: left;
+}
+.ts-input[type="date"]::-webkit-calendar-picker-indicator,
+.ts-input[type="time"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}
+
+/* Dropdowns keep the browser's own list (it always opens on top of everything); we only fix the box */
+select.ts-input {
+  padding-right: 8px;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+select.ts-input:disabled {
+  cursor: not-allowed;
+}
+
+/* Text areas grow downward and never get a fixed height */
+textarea.ts-input {
+  min-height: 92px;
+  padding: 10px 12px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+/* Character counter / helper row under a field */
+.ts-hint-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Fields inside toolbars and filter rows: no extra spacing, they size to their content */
+.ts-selects .ts-field,
+.ts-lc-filters .ts-field,
+.ts-date-form .ts-field {
+  flex: 0 0 auto;
+  gap: 0;
+}
+.ts-lc-filters .ts-field.ts-lc-search {
+  flex: 1 1 220px;
+}
+.ts-lc-filters .ts-input,
+.ts-selects .ts-input {
+  width: auto;
+  min-width: 120px;
+}
+.ts-lc-filters .ts-lc-search .ts-input {
+  width: 100%;
+}
+@media (max-width: 520px) {
+  .ts-selects,
+  .ts-lc-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .ts-selects .ts-field,
+  .ts-lc-filters .ts-field {
+    flex: 1 1 auto;
+  }
+  .ts-selects .ts-input,
+  .ts-lc-filters .ts-input {
+    width: 100%;
+  }
+}

@@ -1,22 +1,11 @@
-import { addDays, daysInclusive, formatRange, formatYmd, todayInOffice } from "@/lib/timesheet/dates";
-import { dayTotals, weekTotal } from "@/lib/timesheet/hours";
-import type { Request } from "@/lib/timesheet/types";
+import { formatRange, isWeekend, todayInOffice, workingDaysLabel } from "@/lib/timesheet/dates";
+import { Skeleton } from "../../_components/Skeleton";
 import CancelButton from "./CancelButton";
-import { loadMonthHours, loadRequests, loadWeek } from "./data";
-
-const TARGET_HOURS = 40;
-const DAY_TARGET = 8;
-
-const WEEK_STATUS = {
-  draft: "Draft",
-  sent_back: "Sent back",
-  submitted: "Submitted",
-  approved: "Approved",
-} as const;
+import { DAY_TARGET, loadOffDates, loadRequests, loadSnapshot, loadWeekStats } from "./data";
 
 const TYPE_LABEL = { leave: "Leave", wfh: "WFH" } as const;
 
-const fmtHours = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(1)} h`;
+const fmtHours = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(1)}h`;
 
 // ---------------------------- Shared states ----------------------------
 
@@ -32,7 +21,7 @@ export function CardSkeleton({ title, tall }: { title: string; tall?: boolean })
   return (
     <section className="ts-card" aria-busy="true" aria-label={`${title}, loading`}>
       <h2 className="ts-h2">{title}</h2>
-      <div className="ts-skel" style={{ height: tall ? 96 : 40 }} />
+      <Skeleton height={tall ? 96 : 40} />
       <span className="ts-sr-only" role="status">
         Loading {title}…
       </span>
@@ -40,177 +29,110 @@ export function CardSkeleton({ title, tall }: { title: string; tall?: boolean })
   );
 }
 
-// ---------------------------- Summary cards ----------------------------
+// ---------------------------- Stat cards ----------------------------
 
-export async function WeekCard() {
-  const res = await loadWeek();
+function Icon({ children }: { children: React.ReactNode }) {
   return (
-    <section className="ts-card" aria-labelledby="card-week">
-      <h2 className="ts-h2" id="card-week">
-        This week
-      </h2>
-      {!res.ok ? (
-        <SectionError message={res.error} />
-      ) : (
-        (() => {
-          const total = res.data.week ? weekTotal(res.data.week.timesheet_rows) : 0;
-          const status = res.data.week?.status ?? "draft";
-          const pct = Math.min((total / TARGET_HOURS) * 100, 100);
-          return (
-            <>
-              <p className="ts-big">
-                {fmtHours(total)} <span className="ts-muted">of {TARGET_HOURS} h</span>
-                <span className={`ts-chip ts-chip-${status}`}>{WEEK_STATUS[status]}</span>
-              </p>
-              <div
-                className="ts-progress"
-                role="progressbar"
-                aria-label="Hours this week"
-                aria-valuemin={0}
-                aria-valuemax={TARGET_HOURS}
-                aria-valuenow={Math.min(total, TARGET_HOURS)}
-                aria-valuetext={`${total} of ${TARGET_HOURS} hours`}
-              >
-                <div className="ts-progress-fill" style={{ width: `${pct}%` }} />
-              </div>
-            </>
-          );
-        })()
-      )}
-    </section>
+    <span className="ts-stat-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        {children}
+      </svg>
+    </span>
   );
 }
 
-export async function MonthCard() {
-  const res = await loadMonthHours();
-  const month = formatYmd(todayInOffice(), { month: "long", year: "numeric" });
+function Stat({ tone, icon, value, of, label }: { tone: string; icon: React.ReactNode; value: string; of?: string; label: string }) {
   return (
-    <section className="ts-card" aria-labelledby="card-month">
-      <h2 className="ts-h2" id="card-month">
-        This month
-      </h2>
-      {!res.ok ? (
-        <SectionError message={res.error} />
-      ) : (
-        <>
-          <p className="ts-big">{fmtHours(res.data)}</p>
-          <p className="ts-muted ts-small">{month}</p>
-        </>
-      )}
-    </section>
+    <li className={`ts-stat ts-stat-${tone}`}>
+      <Icon>{icon}</Icon>
+      <p className="ts-stat-value">
+        {value}
+        {of && <span className="ts-stat-of">/{of}</span>}
+      </p>
+      <p className="ts-stat-label">{label}</p>
+    </li>
   );
 }
 
-export async function RequestsCard() {
-  const res = await loadRequests();
+export async function StatCards() {
+  const res = await loadWeekStats();
+  if (!res.ok) return <SectionError message={res.error} />;
+  const { hours, target, met, under, elapsed } = res.data;
   return (
-    <section className="ts-card" aria-labelledby="card-requests">
-      <h2 className="ts-h2" id="card-requests">
-        Leave and WFH
-      </h2>
-      {!res.ok ? (
-        <SectionError message={res.error} />
-      ) : (
-        (() => {
-          const today = todayInOffice();
-          const pending = res.data.filter((r) => r.status === "pending").length;
-          const next = res.data
-            .filter((r) => r.status === "approved" && r.to_date >= today)
-            .sort((a, b) => a.from_date.localeCompare(b.from_date))[0];
-          return (
-            <>
-              <p className="ts-big">
-                {pending} <span className="ts-muted">pending</span>
-              </p>
-              <p className="ts-small">
-                {next ? (
-                  <>
-                    <span className="ts-muted">Next approved: </span>
-                    {TYPE_LABEL[next.type]}, {formatRange(next.from_date, next.to_date)}
-                  </>
-                ) : (
-                  <span className="ts-muted">Nothing approved coming up.</span>
-                )}
-              </p>
-            </>
-          );
-        })()
-      )}
-    </section>
+    <ul className="ts-stats" aria-label="This week">
+      <Stat
+        tone="a"
+        icon={<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>}
+        value={fmtHours(hours)}
+        label="Logged this week"
+      />
+      <Stat
+        tone="b"
+        icon={<><path d="M3 17l6-6 4 4 8-8" /><path d="M15 7h6v6" /></>}
+        value={fmtHours(target)}
+        label="Target this week"
+      />
+      <Stat
+        tone="c"
+        icon={<><circle cx="12" cy="12" r="9" /><path d="M8 12.5l3 3 5-6" /></>}
+        value={String(met)}
+        of={String(elapsed)}
+        label="Days met target"
+      />
+      <Stat
+        tone="d"
+        icon={<><path d="M3 7l6 6 4-4 8 8" /><path d="M15 17h6v-6" /></>}
+        value={String(under)}
+        of={String(elapsed)}
+        label="Days under target"
+      />
+    </ul>
   );
 }
 
-// ---------------------------- Week strip ----------------------------
+// ---------------------------- Today's snapshot (admin) ----------------------------
 
-export async function WeekStrip() {
-  const [weekRes, reqRes] = await Promise.all([loadWeek(), loadRequests()]);
+export async function SnapshotRow() {
+  const res = await loadSnapshot();
+  if (!res.ok) return <SectionError message={res.error} />;
+  if (res.data.length === 0) return <p className="ts-muted">There are no employees yet.</p>;
+
+  // People who still need to log come first.
+  const people = [...res.data].sort(
+    (a, b) => Number(a.onLeave) - Number(b.onLeave) || a.hours - b.hours || a.name.localeCompare(b.name)
+  );
+  // Saturday and Sunday are off: nobody is "under", and anyone who works still shows their hours.
+  const weekend = isWeekend(todayInOffice());
+  const holiday = res.data.some((p) => p.holiday);
   return (
-    <section className="ts-card" aria-labelledby="card-strip">
-      <h2 className="ts-h2" id="card-strip">
-        This week
-      </h2>
-      {!weekRes.ok ? (
-        <SectionError message={weekRes.error} />
-      ) : (
-        (() => {
-          const { weekStart, week } = weekRes.data;
-          const today = todayInOffice();
-          const hours = dayTotals(week?.timesheet_rows);
-          const requests = reqRes.ok
-            ? reqRes.data.filter((r) => r.status === "pending" || r.status === "approved")
-            : [];
-          return (
-            <>
-              {!reqRes.ok && (
-                <p className="ts-small ts-muted" role="status">
-                  Leave and WFH tags couldn&apos;t be loaded.
-                </p>
-              )}
-              <ol className="ts-strip">
-                {hours.map((h, i) => {
-                  const date = addDays(weekStart, i);
-                  const req: Request | undefined = requests.find((r) => r.from_date <= date && date <= r.to_date);
-                  const weekend = i >= 5;
-                  const isToday = date === today;
-                  const long = formatYmd(date, { weekday: "long", day: "numeric", month: "long" });
-                  const label =
-                    `${long}${isToday ? " (today)" : ""}: ${h} hours` +
-                    (req ? `, ${TYPE_LABEL[req.type]}${req.status === "pending" ? " (pending approval)" : ""}` : "");
-                  return (
-                    <li
-                      key={date}
-                      className={`ts-day${weekend ? " is-weekend" : ""}${isToday ? " is-today" : ""}`}
-                      aria-label={label}
-                      aria-current={isToday ? "date" : undefined}
-                    >
-                      <span className="ts-day-name" aria-hidden="true">
-                        {formatYmd(date, { weekday: "short" })}
-                      </span>
-                      <span className="ts-day-date" aria-hidden="true">
-                        {formatYmd(date, { day: "numeric" })}
-                      </span>
-                      <span className="ts-day-bar" aria-hidden="true">
-                        <span className="ts-day-fill" style={{ height: `${Math.min(h / DAY_TARGET, 1) * 100}%` }} />
-                      </span>
-                      <span className="ts-day-hours" aria-hidden="true">
-                        {h}h
-                      </span>
-                      <span className="ts-day-tag-slot" aria-hidden="true">
-                        {req && (
-                          <span className={`ts-tag ts-tag-${req.type}${req.status === "pending" ? " is-pending" : ""}`}>
-                            {TYPE_LABEL[req.type]}
-                          </span>
-                        )}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ol>
-            </>
-          );
-        })()
-      )}
-    </section>
+    <ul className="ts-snap-row">
+      {people.map((p) => {
+        const state = p.onLeave ? "leave" : p.hours >= DAY_TARGET ? "met" : weekend || holiday ? "off" : "under";
+        const label = { leave: "Leave", met: "Met", under: "Under", off: holiday && !weekend ? "Holiday" : "Weekly off" }[state];
+        return (
+          <li key={p.id} className="ts-snap">
+            <p className="ts-snap-top">
+              <span className="ts-snap-name">{p.name}</span>
+              <span className="ts-snap-hours">
+                {fmtHours(p.hours)}
+                <span className="ts-muted">/{DAY_TARGET}h</span>
+              </span>
+            </p>
+            <span className={`ts-pill ts-pill-${state}`}>{label}</span>
+            <div
+              className={`ts-meter ts-meter-${state}`}
+              role="progressbar"
+              aria-label={`${p.name}, hours today`}
+              aria-valuemin={0}
+              aria-valuemax={DAY_TARGET}
+              aria-valuenow={Math.min(p.hours, DAY_TARGET)}
+            >
+              <span style={{ width: `${Math.min(p.hours / DAY_TARGET, 1) * 100}%` }} />
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -220,6 +142,8 @@ const REQUEST_STATUS = { pending: "Pending", approved: "Approved", rejected: "Re
 
 export async function RequestsTable() {
   const res = await loadRequests();
+  const dates = res.ok ? res.data.flatMap((r) => [r.from_date, r.to_date]).sort() : [];
+  const offDays = dates.length ? await loadOffDates(dates[0], dates[dates.length - 1]) : [];
   return (
     <section className="ts-card" aria-labelledby="card-table">
       <h2 className="ts-h2" id="card-table">
@@ -234,7 +158,12 @@ export async function RequestsTable() {
             .filter((r) => r.status !== "cancelled")
             .sort((a, b) => b.created_at.localeCompare(a.created_at));
           if (rows.length === 0) {
-            return <p className="ts-muted">You haven&apos;t made any requests yet.</p>;
+            return (
+              <div className="ts-empty">
+                <strong>No requests yet</strong>
+                <p>Leave and work from home requests you send will be listed here with their status.</p>
+              </div>
+            );
           }
           return (
             <div className="ts-table-wrap">
@@ -253,13 +182,12 @@ export async function RequestsTable() {
                 </thead>
                 <tbody>
                   {rows.map((r) => {
-                    const n = daysInclusive(r.from_date, r.to_date);
                     const range = formatRange(r.from_date, r.to_date);
                     return (
                       <tr key={r.id}>
-                        <td data-label="Type">{r.type === "leave" ? "Leave" : "Work from home"}</td>
+                        <td data-label="Type">{r.comp_off ? "Comp-off" : r.type === "leave" ? "Leave" : "Work from home"}</td>
                         <td data-label="Dates">
-                          {range} <span className="ts-muted">· {n} {n === 1 ? "day" : "days"}</span>
+                          {range} <span className="ts-muted">· {workingDaysLabel(r.from_date, r.to_date, offDays)}</span>
                         </td>
                         <td data-label="Reason">{r.reason || <span className="ts-muted">—</span>}</td>
                         <td data-label="Status">
