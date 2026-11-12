@@ -29,7 +29,7 @@ function toFields(input: AdminLogInput): LogFields {
 
 // Time logs show on several pages, and a change can create or change comp-off, so refresh them all.
 function refresh() {
-  for (const path of ["/timesheet/admin", "/timesheet/dashboard", "/timesheet/calendar", "/timesheet/events", "/timesheet/leave"]) {
+  for (const path of ["/timesheet/admin", "/timesheet/dashboard", "/timesheet/worklog", "/timesheet/calendar", "/timesheet/events", "/timesheet/leave"]) {
     revalidatePath(path);
   }
 }

@@ -5,10 +5,15 @@ import { toast } from "sonner";
 import { PROJECTS } from "@/lib/timesheet/projects";
 import { EDIT_WINDOW_DAYS, LOCKED_MESSAGE, earliestEditable, isLocked } from "@/lib/timesheet/rules";
 import { FormField, Input, Select, Textarea } from "../../_components/Fields";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { DayInfo } from "@/lib/timesheet/compOff";
 import { adminAddLogAction, adminUpdateLogAction } from "../admin/logActions";
 import { dayInfoAction } from "../leave/compOffActions";
+import { dayLogsAction, logHintsAction } from "../worklog/actions";
+import { clock12, fmtDuration } from "../worklog/model";
+import { useModal } from "./ModalContext";
 import { addLogAction, updateLogAction } from "./actions";
 
 const MAX = 500;
@@ -26,16 +31,24 @@ export type LogDraft = {
   noCompOff?: boolean;
 };
 
+/** Starting values for a new entry (Duplicate, or Fix and resubmit). */
+export type LogPrefill = Omit<LogDraft, "id">;
+
+const minutesOf = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+
 // One form for adding and for editing. `initial` means edit. Hours are worked out from the start and end time.
 export default function WorkLogForm({
   today,
   initial,
+  prefill,
   defaultDate,
   admin,
   onSaved,
 }: {
   today: string;
   initial?: LogDraft;
+  /** Fill a NEW entry with these values (it is not an edit). */
+  prefill?: LogPrefill;
   /** The date an empty (add) form starts on. Defaults to today. */
   defaultDate?: string;
   /** Admin mode: any past date, and (when adding) a choice of employee. */
@@ -43,12 +56,25 @@ export default function WorkLogForm({
   onSaved?: () => void;
 }) {
   const textRef = useRef<HTMLTextAreaElement>(null);
-  const [date, setDate] = useState(initial?.date ?? defaultDate ?? today);
-  const [project, setProject] = useState<string>(initial?.project || PROJECTS[0]);
-  const [start, setStart] = useState(initial?.start ?? "");
-  const [end, setEnd] = useState(initial?.end ?? "");
-  const [text, setText] = useState(initial?.text ?? "");
-  const [noCompOff, setNoCompOff] = useState(initial?.noCompOff ?? false);
+  const seed = initial ?? prefill;
+  // What the form starts with. For a brand-new entry, the last project and usual times arrive a moment later
+  // (see below) and become the starting point too, so they don't count as unsaved input.
+  const [base, setBase] = useState({
+    date: seed?.date ?? defaultDate ?? today,
+    project: seed?.project || PROJECTS[0],
+    start: seed?.start ?? "",
+    end: seed?.end ?? "",
+    text: seed?.text ?? "",
+    noCompOff: seed?.noCompOff ?? false,
+  });
+  const [date, setDate] = useState(base.date);
+  const [project, setProject] = useState<string>(base.project);
+  const [start, setStart] = useState(base.start);
+  const [end, setEnd] = useState(base.end);
+  const [text, setText] = useState(base.text);
+  const [noCompOff, setNoCompOff] = useState(base.noCompOff);
+  const [others, setOthers] = useState<{ id: string; start: string; end: string; project: string }[]>([]);
+  const touched = useRef(false);
   const [employeeId, setEmployeeId] = useState(admin?.employeeId ?? "");
   const [day, setDay] = useState<DayInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +83,50 @@ export default function WorkLogForm({
   const [pending, startTransition] = useTransition();
 
   const isAdminMode = !!admin;
+  const modal = useModal();
+
+  // Tell the window whether there is unsaved input, so closing it can ask first.
+  const dirty =
+    date !== base.date ||
+    project !== base.project ||
+    start !== base.start ||
+    end !== base.end ||
+    text !== base.text ||
+    noCompOff !== base.noCompOff;
+  const setDirty = modal?.setDirty;
+  useEffect(() => {
+    setDirty?.(dirty);
+  }, [dirty, setDirty]);
+
+  // Smart defaults: a new entry starts with the project you used last and your usual start and end time.
+  const wantsHints = !initial && !prefill && !isAdminMode;
+  useEffect(() => {
+    if (!wantsHints) return;
+    let live = true;
+    logHintsAction().then((res) => {
+      if (!live || !res.ok || touched.current) return;
+      const { project: p, start: s, end: e } = res.hints;
+      setBase((b) => ({ ...b, project: p ?? b.project, start: s ?? b.start, end: e && s && e > s ? e : b.end }));
+      if (p) setProject(p);
+      if (s) setStart(s);
+      if (e && s && e > s) setEnd(e);
+    });
+    return () => {
+      live = false;
+    };
+  }, [wantsHints]);
+
+  // Your other entries on the chosen day, to warn when the times overlap.
+  useEffect(() => {
+    let live = true;
+    if (!date || isAdminMode) return;
+    dayLogsAction(date).then((res) => {
+      if (live) setOthers(res.ok ? res.entries : []);
+    });
+    return () => {
+      live = false;
+    };
+  }, [date, isAdminMode]);
 
   // Is the chosen day a week off or a holiday, and is there already a comp-off request for it?
   useEffect(() => {
@@ -71,6 +141,13 @@ export default function WorkLogForm({
   }, [date, isAdminMode]);
 
   const empty = text.trim().length === 0;
+  const timesReady = !!start && !!end;
+  const endBeforeStart = timesReady && end <= start;
+  const minutes = timesReady && !endBeforeStart ? minutesOf(end) - minutesOf(start) : null;
+  const overlaps =
+    timesReady && !endBeforeStart
+      ? others.filter((o) => o.id !== initial?.id && start < o.end && end > o.start)
+      : [];
   const clear = (k: keyof FieldErrors) => setErrors((prev) => (prev[k] ? { ...prev, [k]: undefined } : prev));
 
   // Each message sits under the box it is about; the first box with a problem gets the focus.
@@ -134,10 +211,18 @@ export default function WorkLogForm({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="ts-form">
+    <form
+      onSubmit={onSubmit}
+      onKeyDown={(e) => {
+        // Enter inside a single-line box must not save by accident; the Add time log button saves.
+        if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") e.preventDefault();
+      }}
+      noValidate
+      className="ts-form"
+    >
       {admin?.employees && !initial && (
         <FormField label="Employee" required error={errors.employee}>
-          <Select name="employee" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} disabled={pending}>
+          <Select name="employee" autoFocus value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} disabled={pending}>
             <option value="">Choose an employee</option>
             {admin.employees.map((p) => (
               <option key={p.id} value={p.id}>
@@ -152,6 +237,7 @@ export default function WorkLogForm({
           <Input
             name="date"
             type="date"
+            autoFocus={!(admin?.employees && !initial)}
             value={date}
             min={admin ? undefined : earliestEditable(today)}
             max={today}
@@ -163,7 +249,10 @@ export default function WorkLogForm({
           />
         </FormField>
         <FormField label="Project">
-          <Select name="project" value={project} onChange={(e) => setProject(e.target.value)} disabled={pending}>
+          <Select name="project" value={project} onChange={(e) => {
+              touched.current = true;
+              setProject(e.target.value);
+            }} disabled={pending}>
             {PROJECTS.map((p) => (
               <option key={p} value={p}>
                 {p}
@@ -176,16 +265,33 @@ export default function WorkLogForm({
       <div className="ts-row-2">
         <FormField label="Start time" required error={errors.start}>
           <Input name="start" type="time" value={start} onChange={(e) => {
+              touched.current = true;
               setStart(e.target.value);
               clear("start");
             }} disabled={pending} />
         </FormField>
-        <FormField label="End time" required error={errors.end}>
+        <FormField label="End time" required error={errors.end ?? (endBeforeStart ? "The end time must be after the start time." : undefined)}>
           <Input name="end" type="time" value={end} onChange={(e) => {
+              touched.current = true;
               setEnd(e.target.value);
               clear("end");
             }} disabled={pending} />
         </FormField>
+      </div>
+
+      <div aria-live="polite" className="grid gap-1.5 text-sm">
+        {minutes !== null && (
+          <p>
+            <span className="text-muted-foreground">Duration: </span>
+            <strong>{fmtDuration(minutes / 60)}</strong>
+          </p>
+        )}
+        {overlaps.length > 0 && (
+          <p role="note" className="rounded-md border border-dashed px-3 py-2">
+            <strong>Overlaps another entry.</strong> You already have{" "}
+            {overlaps.map((o) => `${clock12(o.start)} – ${clock12(o.end)}${o.project ? ` (${o.project})` : ""}`).join(" and ")} that day. You can still save.
+          </p>
+        )}
       </div>
 
       <FormField
@@ -250,9 +356,15 @@ export default function WorkLogForm({
         )}
       </div>
 
-      <button type="submit" className="ts-btn ts-btn-block" disabled={pending}>
-        {pending ? "Saving..." : initial ? "Save changes" : "Add time log"}
-      </button>
+      <div className="flex justify-end gap-2 pt-1">
+        <Button type="button" variant="outline" onClick={() => modal?.requestClose()} disabled={pending}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={pending}>
+          {pending && <Loader2 className="animate-spin" aria-hidden="true" />}
+          {pending ? "Saving..." : initial ? "Save changes" : "Add time log"}
+        </Button>
+      </div>
     </form>
   );
 }

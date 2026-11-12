@@ -262,6 +262,124 @@ export async function listMyHoursByDate(from: string, to: string): Promise<Recor
   return byDate;
 }
 
+// ---------------------------- Work log page helpers ----------------------------
+
+/** Every entry between two dates (inclusive), newest day first. `total` is the real count, so a cut-off can be shown. */
+export async function listLogsInRange(opts: {
+  scope: "mine" | "all";
+  from: string;
+  to: string;
+}): Promise<{ rows: WorkLogWithPerson[]; total: number }> {
+  const from = assertDate(opts.from, "start date");
+  const to = assertDate(opts.to, "end date");
+  const me = opts.scope === "all" ? await requireAdmin() : await requireUser();
+  const supabase = await db();
+
+  let query = supabase
+    .from("work_logs")
+    .select("*, owner:profiles!work_logs_user_id_fkey(full_name, email)", { count: "exact" })
+    .gte("log_date", from)
+    .lte("log_date", to);
+  if (opts.scope === "mine") query = query.eq("user_id", me.id);
+
+  const { data, error, count } = await query
+    .order("log_date", { ascending: false })
+    .order("start_time", { ascending: true })
+    .limit(1000);
+  if (error) throw toError(error, "Couldn't load time logs. Please try again.");
+  return { rows: data, total: count ?? data.length };
+}
+
+/** Your own entries on one day (for the overlap warning in the form). */
+export async function listMyLogsOnDate(date: string): Promise<{ id: string; start: string; end: string; project: string }[]> {
+  const day = assertDate(date, "date");
+  const me = await requireUser();
+  const supabase = await db();
+  const { data, error } = await supabase
+    .from("work_logs")
+    .select("id, start_time, end_time, project")
+    .eq("user_id", me.id)
+    .eq("log_date", day)
+    .order("start_time", { ascending: true })
+    .limit(50);
+  if (error) throw toError(error, "Couldn't check your other entries for that day.");
+  return data.flatMap((r) =>
+    r.start_time && r.end_time ? [{ id: r.id, start: r.start_time.slice(0, 5), end: r.end_time.slice(0, 5), project: r.project ?? "" }] : []
+  );
+}
+
+export type LogHints = {
+  /** The project you used last. */
+  project: string | null;
+  /** Your most usual start and end time ("HH:MM"). */
+  start: string | null;
+  end: string | null;
+  /** The most recent earlier day (within the edit window) that has entries, for "Copy yesterday's entries". */
+  previousDay: { date: string; count: number } | null;
+  todayCount: number;
+};
+
+const mostCommon = (values: string[]): string | null => {
+  const counts = new Map<string, number>();
+  for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1);
+  let best: string | null = null;
+  for (const [v, n] of counts) if (best === null || n > (counts.get(best) ?? 0)) best = v;
+  return best;
+};
+
+/** What to pre-fill for you, worked out from your last entries. */
+export async function getLogHints(): Promise<LogHints> {
+  const me = await requireUser();
+  const supabase = await db();
+  const today = todayInOffice();
+  const { data, error } = await supabase
+    .from("work_logs")
+    .select("log_date, project, start_time, end_time")
+    .eq("user_id", me.id)
+    .order("log_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(60);
+  if (error) throw toError(error, "Couldn't load your recent entries.");
+
+  const earliest = earliestEditable(today);
+  const earlier = data.filter((r) => r.log_date < today && r.log_date >= earliest);
+  const previousDate = earlier[0]?.log_date ?? null;
+  return {
+    project: data.find((r) => r.project && isProject(r.project))?.project ?? null,
+    start: mostCommon(data.flatMap((r) => (r.start_time ? [r.start_time.slice(0, 5)] : []))),
+    end: mostCommon(data.flatMap((r) => (r.end_time ? [r.end_time.slice(0, 5)] : []))),
+    previousDay: previousDate ? { date: previousDate, count: earlier.filter((r) => r.log_date === previousDate).length } : null,
+    todayCount: data.filter((r) => r.log_date === today).length,
+  };
+}
+
+/** Copy your entries from an earlier day to today, as new pending entries. Returns how many were copied. */
+export async function copyLogsToToday(fromDate: string): Promise<number> {
+  const from = assertDate(fromDate, "date");
+  const today = todayInOffice();
+  if (from >= today) throw new TimesheetError("Choose an earlier day to copy from.");
+  const me = await requireUser();
+  const supabase = await db();
+  const { data, error } = await supabase
+    .from("work_logs")
+    .select("content, project, start_time, end_time")
+    .eq("user_id", me.id)
+    .eq("log_date", from)
+    .order("start_time", { ascending: true })
+    .limit(20);
+  if (error) throw toError(error, "Couldn't read that day's entries.");
+
+  const copies = data.flatMap((r) =>
+    r.start_time && r.end_time
+      ? [cleanFields({ entry: r.content, logDate: today, start: r.start_time.slice(0, 5), end: r.end_time.slice(0, 5), project: r.project ?? "" })]
+      : []
+  );
+  if (copies.length === 0) throw new TimesheetError("There are no entries to copy from that day.");
+  const { error: insertError } = await supabase.from("work_logs").insert(copies.map((c) => ({ user_id: me.id, ...c })));
+  if (insertError) throw toError(insertError, "Couldn't copy the entries. Please try again.");
+  return copies.length;
+}
+
 /** Approve or reject someone else's entry. The database refuses decisions on your own entries. */
 export async function decideLog(id: string, decision: "approved" | "rejected"): Promise<void> {
   assertId(id, "entry");

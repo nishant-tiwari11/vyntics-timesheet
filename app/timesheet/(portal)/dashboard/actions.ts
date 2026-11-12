@@ -75,6 +75,7 @@ export async function addLogAction(input: LogInput): Promise<ActionResult> {
   try {
     await addLog(toFields(input));
     revalidatePath("/timesheet/dashboard");
+    revalidatePath("/timesheet/worklog");
     revalidatePath("/timesheet/leave");
     revalidatePath("/timesheet/admin");
     return { ok: true };
@@ -87,6 +88,7 @@ export async function updateLogAction(id: string, input: LogInput): Promise<Acti
   try {
     await updateLog(id, toFields(input));
     revalidatePath("/timesheet/dashboard");
+    revalidatePath("/timesheet/worklog");
     revalidatePath("/timesheet/leave");
     revalidatePath("/timesheet/admin");
     return { ok: true };
@@ -99,6 +101,7 @@ export async function deleteLogAction(id: string): Promise<ActionResult> {
   try {
     await deleteLog(id);
     revalidatePath("/timesheet/dashboard");
+    revalidatePath("/timesheet/worklog");
     revalidatePath("/timesheet/leave");
     revalidatePath("/timesheet/admin");
     return { ok: true };
@@ -111,6 +114,7 @@ export async function decideLogAction(id: string, decision: "approved" | "reject
   try {
     await decideLog(id, decision);
     revalidatePath("/timesheet/dashboard");
+    revalidatePath("/timesheet/worklog");
     revalidatePath("/timesheet/admin");
     return { ok: true };
   } catch (e) {

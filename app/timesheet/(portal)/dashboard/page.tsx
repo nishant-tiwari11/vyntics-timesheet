@@ -30,6 +30,7 @@ export default async function DashboardPage({
   const pageNumber = Number(one(raw.page));
   const sizeNumber = Number(one(raw.size));
   const query: LogQuery = {
+    base: "/timesheet/dashboard",
     range: RANGES.find((r) => r.id === one(raw.range))?.id ?? "week",
     status: STATUS_FILTERS.find((s) => s.id === one(raw.status))?.id ?? "all",
     size: PAGE_SIZES.find((n) => n === sizeNumber) ?? DEFAULT_PAGE_SIZE,

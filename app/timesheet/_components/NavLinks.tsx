@@ -74,6 +74,7 @@ const ADMIN_LINKS: { href: string; label: string; icon: IconName }[] = [
 
 export function titleFor(pathname: string): string {
   if (pathname.startsWith("/timesheet/leave")) return "Leave & WFH";
+  if (pathname.startsWith("/timesheet/worklog")) return "Work log";
   if (pathname.startsWith("/timesheet/salary")) return "My Salary";
   if (pathname.startsWith("/timesheet/payroll")) return "Payroll";
   if (pathname.startsWith("/timesheet/events")) return "Events";
@@ -89,7 +90,6 @@ export function PageTitle() {
 export default function NavLinks({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
   const links = isAdmin ? [...LINKS, ...ADMIN_LINKS] : LINKS;
-  // /worklog redirects to the dashboard, so only the Dashboard link is ever "current" there.
   const current = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
