@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { COMPANY_DOMAIN, NOT_INVITED_ERROR } from "@/lib/companyEmail";
+import { InAppBrowserNotice } from "./InAppBrowserNotice";
 
 // Turn Supabase's technical messages into plain words.
 function friendlyError(message: string): string {
@@ -55,6 +56,7 @@ export default function AuthForm({ initialError }: { initialError?: string }) {
       </CardHeader>
 
       <CardContent className="grid gap-4">
+        <InAppBrowserNotice />
         <Button type="button" variant="outline" size="lg" className="w-full" onClick={onGoogle} disabled={loading}>
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
             <path fill="currentColor" d="M21.6 12.23c0-.71-.06-1.4-.18-2.05H12v3.87h5.39a4.6 4.6 0 0 1-2 3.02v2.5h3.23c1.89-1.74 2.98-4.3 2.98-7.34z" />
