@@ -74,7 +74,7 @@ export default function AuthForm({ initialError }: { initialError?: string }) {
         </div>
 
         <p className="text-center text-sm text-muted-foreground">
-          Access is by invitation only. Ask an admin to add your @{COMPANY_DOMAIN} email.
+          Use your @{COMPANY_DOMAIN} Google account. Other accounts can't sign in.
         </p>
       </CardContent>
     </>

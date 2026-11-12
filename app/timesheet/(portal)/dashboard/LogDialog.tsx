@@ -35,7 +35,7 @@ export function Modal({
   return (
     <ModalContext.Provider value={api}>
       <Dialog open onOpenChange={(open) => !open && requestClose()}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription className={description ? undefined : "sr-only"}>{description ?? title}</DialogDescription>
@@ -94,7 +94,7 @@ export function AddLogButton({
         <Button
           type="button"
           size="icon"
-          className="fixed right-4 bottom-4 z-40 size-14 rounded-full shadow-lg md:hidden"
+          className="fixed right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 size-14 rounded-full shadow-lg md:hidden"
           aria-label="Add time log"
           onClick={() => setOpen(true)}
         >

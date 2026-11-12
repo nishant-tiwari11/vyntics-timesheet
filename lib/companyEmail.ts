@@ -4,7 +4,7 @@ export const COMPANY_DOMAIN = "vyntics.com";
 const COMPANY_EMAIL_RE = new RegExp(`^[^@\\s]+@${COMPANY_DOMAIN.replace(/\./g, "\\.")}$`);
 
 export const COMPANY_EMAIL_ERROR = `Only @${COMPANY_DOMAIN} email addresses can use this portal.`;
-export const NOT_INVITED_ERROR = `This email can't sign up. Use your @${COMPANY_DOMAIN} work email, and ask an admin to add it first.`;
+export const NOT_INVITED_ERROR = `This account can't sign in. Use your @${COMPANY_DOMAIN} Google work account.`;
 export const COMPANY_EMAIL_HINT = `Use your @${COMPANY_DOMAIN} work email.`;
 
 export function isCompanyEmail(email: string | null | undefined): boolean {

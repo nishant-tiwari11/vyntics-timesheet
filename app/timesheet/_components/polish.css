@@ -319,3 +319,30 @@
 .ts-portal .ts-dialog {
   margin: auto;
 }
+
+/* ---------- Phones: nothing may push the page wider than the screen ---------- */
+.ts-portal {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+.ts-portal .ts-content,
+.ts-portal .ts-main {
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  /* A wide child (a long word, a table) scrolls inside its own box instead of widening the page. */
+  .ts-portal .ts-main {
+    overflow-x: clip;
+    overflow-wrap: anywhere;
+  }
+  /* Keep content clear of the notch and rounded corners in landscape. */
+  .ts-portal .ts-side,
+  .ts-portal .ts-topbar,
+  .ts-portal .ts-main {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+  .ts-portal .ts-main {
+    padding-bottom: max(96px, calc(48px + env(safe-area-inset-bottom)));
+  }
+}
