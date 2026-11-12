@@ -41,6 +41,7 @@ export function WorkLogFilters({ query, today }: { query: WorkQuery; today: stri
 
   const active = hasFilters(query);
   const exportHref = workHref(query, { page: 1 }, today, "/timesheet/worklog/export");
+  const csvHref = `${exportHref}${exportHref.includes("?") ? "&" : "?"}format=csv`;
 
   return (
     <form
@@ -101,7 +102,12 @@ export function WorkLogFilters({ query, today }: { query: WorkQuery; today: stri
         )}
         <Button asChild variant="outline" size="sm" className="ml-auto max-md:min-h-11">
           <a href={exportHref} download>
-            <Download aria-hidden="true" /> Export CSV
+            <Download aria-hidden="true" /> Export Excel
+          </a>
+        </Button>
+        <Button asChild variant="ghost" size="sm" className="max-md:min-h-11">
+          <a href={csvHref} download>
+            CSV
           </a>
         </Button>
       </div>
