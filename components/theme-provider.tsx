@@ -1,18 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
-import { ThemeProvider as NextThemesProvider } from "next-themes";
 
-// The portal is light only: the theme is forced to light, so an old saved dark choice or the device's dark mode is ignored.
+// The portal is light only, so there is no theme switching any more (and no theme library).
 // Pop-ups (dialogs, menus, sheets) render outside the portal wrapper, so the font is also set on <html>.
 export function ThemeProvider({ children, fontFamily }: { children: React.ReactNode; fontFamily?: string }) {
   useEffect(() => {
+    document.documentElement.classList.remove("dark"); // an old saved dark choice must not apply
     if (fontFamily) document.documentElement.style.setProperty("--ts-font", fontFamily);
   }, [fontFamily]);
 
-  return (
-    <NextThemesProvider attribute="class" forcedTheme="light" enableSystem={false} storageKey="ts-theme" disableTransitionOnChange>
-      {children}
-    </NextThemesProvider>
-  );
+  return <>{children}</>;
 }
