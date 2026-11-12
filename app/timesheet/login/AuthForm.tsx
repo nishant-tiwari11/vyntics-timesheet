@@ -74,7 +74,7 @@ export default function AuthForm({ initialError }: { initialError?: string }) {
         </div>
 
         <p className="text-center text-sm text-muted-foreground">
-          Use your @{COMPANY_DOMAIN} Google account. Other accounts can't sign in.
+          Use your @{COMPANY_DOMAIN} Google account. Other accounts can&apos;t sign in.
         </p>
       </CardContent>
     </>
