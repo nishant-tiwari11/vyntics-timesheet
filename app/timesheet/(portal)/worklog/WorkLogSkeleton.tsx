@@ -1,4 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { GridSkeleton } from "./timesheet/GridSkeleton";
 
 // Placeholders shaped like the real page, so nothing jumps when the data arrives:
 // four summary cards, then the grouped list (a day header and rows, twice).
@@ -47,27 +48,21 @@ export function ListSkeleton() {
   );
 }
 
-/** The whole page: header, period bar, filters, cards, list. Used while the first load happens. */
+/** The whole page: title and view switch, toolbar, quick-add bar, the grid, then the entries list. */
 export function WorkLogPageSkeleton() {
   return (
-    <div className="ts-page ts-dash grid gap-5" aria-busy="true" aria-label="Loading the Work log">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="grid gap-2">
-          <Skeleton className="h-8 w-40" />
-          <Skeleton className="h-4 w-56" />
-        </div>
-        <div className="flex gap-2">
-          <Skeleton className="h-9 w-48" />
-          <Skeleton className="h-9 w-36" />
-        </div>
+    <div className="ts-page ts-dash grid gap-5" aria-busy="true" aria-label="Loading the Timesheet">
+      <div className="flex items-center justify-between gap-3 border-b pb-3">
+        <Skeleton className="h-7 w-32" />
+        <Skeleton className="h-9 w-48" />
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-9 w-40" />
-        <Skeleton className="h-6 w-36" />
+      <div className="flex flex-wrap items-center gap-3">
+        <Skeleton className="h-9 w-32" />
+        <Skeleton className="h-9 w-60" />
+        <Skeleton className="ml-auto h-9 w-32" />
       </div>
-      <SummarySkeleton />
-      <Skeleton className="h-[116px] w-full" />
+      <Skeleton className="h-11 w-full max-w-[720px] rounded-full" />
+      <GridSkeleton />
       <ListSkeleton />
     </div>
   );
