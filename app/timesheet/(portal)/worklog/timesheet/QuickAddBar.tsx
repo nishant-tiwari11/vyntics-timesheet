@@ -2,21 +2,20 @@
 
 import { useState } from "react";
 import { ArrowRight, Minimize2, Sparkles } from "lucide-react";
-import { PROJECTS } from "@/lib/timesheet/projects";
 import { DEFAULT_START, MAX_CELL_MINUTES, toClock, toMinutes } from "./gridModel";
 import { parseQuickAdd } from "./quickAdd";
 import { useTrackTime } from "./TrackTime";
 
 // "What would you like to add to your timesheet?" Type a sentence and the Track time window opens with the
 // day, the length of time and the project filled in. Nothing is saved until you press Save there.
-export function QuickAddBar({ today }: { today: string }) {
+export function QuickAddBar({ today, projects }: { today: string; projects: string[] }) {
   const open = useTrackTime();
   const [text, setText] = useState("");
   const [collapsed, setCollapsed] = useState(false);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const found = parseQuickAdd(text, today);
+    const found = parseQuickAdd(text, today, projects);
     const date = found.date ?? today;
     if (found.minutes === null) {
       open({ date });
@@ -24,7 +23,7 @@ export function QuickAddBar({ today }: { today: string }) {
       const start = Math.min(toMinutes(DEFAULT_START), MAX_CELL_MINUTES - found.minutes);
       open({
         date,
-        prefill: { date, start: toClock(start), end: toClock(start + found.minutes), project: found.project ?? PROJECTS[0], text: "" },
+        prefill: { date, start: toClock(start), end: toClock(start + found.minutes), project: found.project ?? projects[0] ?? "", text: "" },
       });
     }
     setText("");

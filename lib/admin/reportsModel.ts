@@ -3,7 +3,6 @@
 
 import { csvCell } from "@/app/timesheet/(portal)/worklog/model";
 import { addDays, formatYmd, isWeekend, isYmd, mondayOf, monthRange, workingDays } from "@/lib/timesheet/dates";
-import { PROJECTS } from "@/lib/timesheet/projects";
 
 export const REPORTS = [
   { id: "hours", label: "Hours" },
@@ -79,7 +78,7 @@ export function parseReportQuery(raw: Record<string, string | string[] | undefin
     from,
     to,
     employee: employee && UUID.test(employee) ? employee : "all",
-    project: project && (PROJECTS as readonly string[]).includes(project) ? project : "all",
+    project: project && project !== "all" && project.length <= 60 ? project : "all",
     group: GROUPS.find((g) => g.id === one(raw.group))?.id ?? "employee",
   };
 }

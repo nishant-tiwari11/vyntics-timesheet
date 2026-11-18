@@ -19,7 +19,7 @@ describe("admin navigation", () => {
   });
   it("marks the sections that aren't built yet (no link), and every built one has a link", () => {
     const soon = ADMIN_NAV.filter((i) => !i.href).map((i) => i.id);
-    expect(soon).toEqual(["projects", "settings"]);
+    expect(soon).toEqual(["settings"]);
   });
   it("knows which item is open from the address", () => {
     expect(activeAdminNav("/timesheet/admin", null)).toBe("overview");
@@ -32,6 +32,7 @@ describe("admin navigation", () => {
     expect(activeAdminNav("/timesheet/admin/access", null)).toBe("users");
     expect(activeAdminNav("/timesheet/admin/documents", null)).toBe("documents");
     expect(activeAdminNav("/timesheet/admin/reports", null)).toBe("reports");
+    expect(activeAdminNav("/timesheet/admin/projects", null)).toBe("projects");
     expect(activeAdminNav("/timesheet/admin/audit", null)).toBe("audit");
     expect(activeAdminNav("/timesheet/payroll/runs", null)).toBe("payroll");
     expect(activeAdminNav("/timesheet/admin", "nonsense")).toBeNull();

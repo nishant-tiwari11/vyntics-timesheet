@@ -10,7 +10,7 @@ import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
 import { todayInOffice } from "@/lib/timesheet/dates";
 import { TimesheetError } from "@/lib/timesheet/errors";
 import { logError } from "@/lib/timesheet/log";
-import { PROJECTS } from "@/lib/timesheet/projects";
+import { allProjectNames } from "@/lib/timesheet/projectList";
 
 export const metadata = { title: "Reports" };
 
@@ -141,6 +141,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const today = todayInOffice();
   const query = parseReportQuery(await searchParams, today);
   let people: Person[] = [];
+  const projects = await allProjectNames();
   try {
     people = await loadReportPeople();
   } catch (e) {
@@ -202,7 +203,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
               Project
               <select name="project" defaultValue={query.project} className={field}>
                 <option value="all">All projects</option>
-                {PROJECTS.map((p) => (
+                {projects.map((p) => (
                   <option key={p} value={p}>
                     {p}
                   </option>

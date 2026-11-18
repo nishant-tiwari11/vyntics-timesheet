@@ -51,7 +51,10 @@ describe("periods", () => {
 describe("the address", () => {
   it("falls back to defaults for anything odd", () => {
     const query = q({ view: "year", status: "x", project: "Nope", sort: "zzz", page: "-3", size: "7", date: "nonsense", from: "2026-13-40" });
-    expect(query).toMatchObject({ view: "week", status: "all", project: "all", sort: "date", page: 1, size: 25, date: TODAY, from: "" });
+    // The project list is in the database now, so any name is kept (an unknown one just matches nothing); too long is dropped.
+    expect(query).toMatchObject({ view: "week", status: "all", project: "Nope", sort: "date", page: 1, size: 25, date: TODAY, from: "" });
+    expect(q({ project: "x".repeat(61) }).project).toBe("all");
+    expect(q({ project: "all" }).project).toBe("all");
   });
 
   it("leaves defaults out and round-trips the rest", () => {

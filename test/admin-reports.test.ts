@@ -22,8 +22,11 @@ describe("report query", () => {
   it("reads what is asked for and ignores nonsense", () => {
     const q = parseReportQuery({ report: "under", from: "2026-10-01", to: "2026-10-31", employee: ID, project: "Internal", group: "project" }, TODAY);
     expect(q).toEqual({ report: "under", from: "2026-10-01", to: "2026-10-31", employee: ID, project: "Internal", group: "project" });
-    const bad = parseReportQuery({ report: "x", from: "nope", to: "2026-13-99", employee: "../etc", project: "Secret", group: "zzz" }, TODAY);
+    const bad = parseReportQuery({ report: "x", from: "nope", to: "2026-13-99", employee: "../etc", group: "zzz" }, TODAY);
     expect(bad).toMatchObject({ report: "hours", from: "2026-11-01", employee: "all", project: "all", group: "employee" });
+    // The project list is in the database now, so any name (up to 60 characters) is kept; an unknown one simply matches nothing.
+    expect(parseReportQuery({ project: "Research" }, TODAY).project).toBe("Research");
+    expect(parseReportQuery({ project: "x".repeat(61) }, TODAY).project).toBe("all");
   });
   it("swaps dates given the wrong way round and caps the range", () => {
     expect(parseReportQuery({ from: "2026-11-10", to: "2026-11-01" }, TODAY)).toMatchObject({ from: "2026-11-01", to: "2026-11-10" });

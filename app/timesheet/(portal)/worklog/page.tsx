@@ -2,6 +2,7 @@ import "../dashboard/dashboard.css";
 import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
 import { todayInOffice } from "@/lib/timesheet/dates";
+import { activeProjectNames, allProjectNames } from "@/lib/timesheet/projectList";
 import { CopyYesterdayButton } from "./CopyYesterdayButton";
 import { loadWorkLog } from "./data";
 import { LogList } from "./LogList";
@@ -26,7 +27,7 @@ export default async function WorkLogPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const [user, raw] = await Promise.all([getCurrentUser(), searchParams]);
+  const [user, raw, projects, everyProject] = await Promise.all([getCurrentUser(), searchParams, activeProjectNames(), allProjectNames()]);
   const today = todayInOffice();
   const parsed = parseWorkQuery(raw, today);
   const admin = user?.role === "admin";
@@ -49,10 +50,10 @@ export default async function WorkLogPage({
           </div>
         </div>
 
-        <QuickAddBar today={today} />
+        <QuickAddBar today={today} projects={projects} />
 
         <Suspense key={`grid-${key}`} fallback={<GridSkeleton days={query.view === "day" ? 1 : 7} />}>
-          <TimesheetGrid query={query} days={eachDay(period.from, period.to)} />
+          <TimesheetGrid query={query} days={eachDay(period.from, period.to)} projects={projects} />
         </Suspense>
 
         <section aria-labelledby="entries-title" className="grid gap-4 border-t pt-5">
@@ -65,7 +66,7 @@ export default async function WorkLogPage({
             </div>
             {!admin && <CopyYesterdayButton today={today} />}
           </div>
-          <WorkLogFilters query={query} today={today} />
+          <WorkLogFilters query={query} today={today} projects={everyProject} />
           <Suspense key={`list-${key}`} fallback={<ListSkeleton />}>
             <LogList query={query} />
           </Suspense>
@@ -75,7 +76,7 @@ export default async function WorkLogPage({
   );
 }
 
-async function TimesheetGrid({ query, days }: { query: WorkQuery; days: string[] }) {
+async function TimesheetGrid({ query, days, projects }: { query: WorkQuery; days: string[]; projects: string[] }) {
   const res = await loadWorkLog(query);
   if (!res.ok) {
     return (
@@ -94,7 +95,7 @@ async function TimesheetGrid({ query, days }: { query: WorkQuery; days: string[]
           This period has more than 1,000 entries, so some are missing from the totals. Choose a shorter period.
         </p>
       )}
-      <LazyGrid view={query.view === "day" ? "day" : "week"} days={days} entries={entries} myId={me.id} today={today} />
+      <LazyGrid view={query.view === "day" ? "day" : "week"} days={days} entries={entries} myId={me.id} today={today} projects={projects} />
     </>
   );
 }

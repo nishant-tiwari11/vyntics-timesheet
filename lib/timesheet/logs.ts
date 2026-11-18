@@ -2,7 +2,7 @@ import { COPY_LOOKBACK_DAYS, LOCKED_MESSAGE, earliestEditable, isLocked } from "
 import "server-only";
 import { db, requireAdmin, requireUser } from "./auth";
 import { TimesheetError, assertDate, assertId, toError } from "./errors";
-import { isProject } from "./projects";
+import { activeProjectNames, assertProject } from "./projectList";
 import { addDays, todayInOffice } from "./dates";
 import type { LogStatus, WorkLog, WorkLogWithPerson } from "./types";
 
@@ -42,15 +42,20 @@ function cleanFields(input: LogFields, admin = false) {
   if (minutes(end) <= minutes(start)) throw new TimesheetError("The end time must be after the start time.");
   const hours = Math.round(((minutes(end) - minutes(start)) / 60) * 100) / 100;
 
-  if (!isProject(input.project)) throw new TimesheetError("Please choose a project from the list.");
-
-  const base = { log_date: day, content, hours, start_time: start, end_time: end, project: input.project };
+  // The project is checked against the list in the database by checkedFields below.
+  const base = { log_date: day, content, hours, start_time: start, end_time: end, project: typeof input.project === "string" ? input.project.trim() : "" };
   return typeof input.noCompOff === "boolean" ? { ...base, no_comp_off: input.noCompOff } : base;
+}
+
+/** cleanFields, and the project must be one that can be chosen now (not archived), which is read from the database. */
+async function checkedFields(input: LogFields, admin = false) {
+  const fields = cleanFields(input, admin);
+  return { ...fields, project: await assertProject(input.project) };
 }
 
 /** Add a time log. New entries start as pending. */
 export async function addLog(input: LogFields): Promise<WorkLog> {
-  const fields = cleanFields(input);
+  const fields = await checkedFields(input);
   const me = await requireUser();
   const supabase = await db();
   const { data, error } = await supabase
@@ -65,7 +70,7 @@ export async function addLog(input: LogFields): Promise<WorkLog> {
 /** Change one of your own entries. Only pending entries can be edited; the database enforces it too. */
 export async function updateLog(id: string, input: LogFields): Promise<void> {
   assertId(id, "entry");
-  const fields = cleanFields(input);
+  const fields = await checkedFields(input);
   const me = await requireUser();
   const supabase = await db();
   const { data, error } = await supabase
@@ -102,7 +107,7 @@ export async function deleteLog(id: string): Promise<void> {
 /** Admin: add a time log for an employee on any past date. It is approved straight away (the database does that). */
 export async function adminAddLog(userId: string, input: LogFields): Promise<void> {
   assertId(userId, "employee");
-  const fields = cleanFields(input, true);
+  const fields = await checkedFields(input, true);
   await requireAdmin();
   const supabase = await db();
   const { error } = await supabase.from("work_logs").insert({ user_id: userId, ...fields });
@@ -112,7 +117,7 @@ export async function adminAddLog(userId: string, input: LogFields): Promise<voi
 /** Admin: change anyone's time log, whatever its status or date. */
 export async function adminUpdateLog(id: string, input: LogFields): Promise<void> {
   assertId(id, "entry");
-  const fields = cleanFields(input, true);
+  const fields = await checkedFields(input, true);
   await requireAdmin();
   const supabase = await db();
   const { data, error } = await supabase.from("work_logs").update(fields).eq("id", id).select("id");
@@ -345,8 +350,9 @@ export async function getLogHints(): Promise<LogHints> {
   const earliest = addDays(today, -COPY_LOOKBACK_DAYS);
   const earlier = data.filter((r) => r.log_date < today && r.log_date >= earliest);
   const previousDate = earlier[0]?.log_date ?? null;
+  const active = new Set(await activeProjectNames());
   return {
-    project: data.find((r) => r.project && isProject(r.project))?.project ?? null,
+    project: data.find((r) => r.project && active.has(r.project))?.project ?? null,
     start: mostCommon(data.flatMap((r) => (r.start_time ? [r.start_time.slice(0, 5)] : []))),
     end: mostCommon(data.flatMap((r) => (r.end_time ? [r.end_time.slice(0, 5)] : []))),
     previousDay: previousDate ? { date: previousDate, count: earlier.filter((r) => r.log_date === previousDate).length } : null,
@@ -370,12 +376,14 @@ export async function copyLogsToToday(fromDate: string): Promise<number> {
     .limit(20);
   if (error) throw toError(error, "Couldn't read that day's entries.");
 
+  // An entry whose project has since been archived isn't copied: new entries must use a project that can still be chosen.
+  const active = new Set(await activeProjectNames());
   const copies = data.flatMap((r) =>
-    r.start_time && r.end_time
+    r.start_time && r.end_time && r.project && active.has(r.project)
       ? [cleanFields({ entry: r.content, logDate: today, start: r.start_time.slice(0, 5), end: r.end_time.slice(0, 5), project: r.project ?? "" })]
       : []
   );
-  if (copies.length === 0) throw new TimesheetError("There are no entries to copy from that day.");
+  if (copies.length === 0) throw new TimesheetError("There are no entries to copy from that day (entries for an archived project are skipped).");
   const { error: insertError } = await supabase.from("work_logs").insert(copies.map((c) => ({ user_id: me.id, ...c })));
   if (insertError) throw toError(insertError, "Couldn't copy the entries. Please try again.");
   return copies.length;

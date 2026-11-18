@@ -16,7 +16,7 @@ const ADMIN = "/timesheet/admin";
 export const ADMIN_NAV: AdminNavItem[] = [
   { id: "overview", label: "Overview", href: ADMIN },
   { id: "users", label: "Users & Roles", href: `${ADMIN}/access`, path: `${ADMIN}/access`, tabs: ["employees"] },
-  { id: "projects", label: "Projects" },
+  { id: "projects", label: "Projects", href: `${ADMIN}/projects`, path: `${ADMIN}/projects` },
   { id: "holidays", label: "Holidays & Leave Policy", href: `${ADMIN}?tab=holidays`, tabs: ["holidays"] },
   { id: "approvals", label: "Approvals", href: `${ADMIN}?tab=requests`, tabs: ["requests", "logs", "compoff"] },
   { id: "payroll", label: "Payroll & Expenses", href: "/timesheet/payroll", path: "/timesheet/payroll" },

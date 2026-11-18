@@ -2,7 +2,6 @@
 // Pure code (no server-only imports), so the server page, the client filters and the tests can all use it.
 
 import { addDays, formatRange, formatYmd, isYmd, mondayOf, monthRange } from "@/lib/timesheet/dates";
-import { PROJECTS } from "@/lib/timesheet/projects";
 
 export const WORKLOG_PATH = "/timesheet/worklog";
 
@@ -69,7 +68,8 @@ export function parseWorkQuery(raw: Record<string, string | string[] | undefined
     date: isYmd(one(raw.date)) ? (one(raw.date) as string) : today,
     from: isYmd(from) ? from : "",
     to: isYmd(to) ? to : "",
-    project: (PROJECTS as readonly string[]).includes(project ?? "") ? (project as string) : "all",
+    // Any project name (the list lives in the database and can change); an unknown name just matches nothing.
+    project: project && project !== "all" && project.length <= 60 ? project : "all",
     status: STATUS_OPTIONS.find((s) => s.id === one(raw.status))?.id ?? "all",
     q: (one(raw.q) ?? "").trim().slice(0, 60),
     sort: SORTS.find((s) => s.id === one(raw.sort))?.id ?? "date",

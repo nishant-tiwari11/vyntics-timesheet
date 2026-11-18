@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { Plus, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PROJECTS } from "@/lib/timesheet/projects";
 import { addLogAction, deleteLogAction, updateLogAction, type ActionResult } from "../../dashboard/actions";
 import type { Entry } from "../model";
 import { STICKY, buildRows, fmtMinutes, gridColumns, planSave } from "./gridModel";
@@ -18,12 +17,14 @@ export type GridProps = {
   entries: Entry[];
   myId: string;
   today: string;
+  /** The projects that can be chosen now (archived ones are left out). */
+  projects: string[];
 };
 
 // The grid itself: a header with the days, one row per project, a totals row, and the Submit button. Typing in a
 // box saves through the same add / change / delete actions the Track time window uses, and the totals follow at
 // once; if a save fails the box goes back to what it was and a message says why.
-export default function WeekGrid({ days, entries, myId, today }: GridProps) {
+export default function WeekGrid({ days, entries, myId, today, projects }: GridProps) {
   const [extra, setExtra] = useState<string[]>([]);
   // Hours typed but not yet confirmed by the server, by "project|date". Cleared when fresh data arrives.
   const [typed, setTyped] = useState<Record<string, number>>({});
@@ -34,11 +35,11 @@ export default function WeekGrid({ days, entries, myId, today }: GridProps) {
     setTyped({});
   }
 
-  const rows = buildRows({ entries, myId, days, today, extra });
+  const rows = buildRows({ entries, myId, days, today, extra, projects });
   const minutesFor = (project: string, date: string, saved: number) => typed[`${project}|${date}`] ?? saved;
   const dayTotals = days.map((d, i) => rows.reduce((sum, r) => sum + minutesFor(r.project, d, r.cells[i].minutes), 0));
   const grand = dayTotals.reduce((a, b) => a + b, 0);
-  const addable = PROJECTS.filter((p) => !rows.some((r) => r.project === p));
+  const addable = projects.filter((p) => !rows.some((r) => r.project === p));
   const wide = days.length > 1;
 
   async function commit(project: string, date: string, minutes: number) {

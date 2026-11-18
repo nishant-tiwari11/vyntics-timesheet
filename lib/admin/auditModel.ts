@@ -5,7 +5,7 @@ import { addDays, isYmd } from "@/lib/timesheet/dates";
 
 export const SOURCES = [
   { id: "all", label: "Everything" },
-  { id: "users", label: "Users & access" },
+  { id: "users", label: "Access & settings" },
   { id: "approvals", label: "Approvals" },
   { id: "documents", label: "Documents" },
   { id: "expenses", label: "Expenses" },

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { addDays, formatYmd, isWeekend, mondayOf, workingDaysLabel } from "@/lib/timesheet/dates";
-import { PROJECTS } from "@/lib/timesheet/projects";
 import { updateLogAction } from "./actions";
 import {
   CAL_VIEWS,
@@ -69,7 +68,7 @@ export default function LogCalendar({
   const [moveError, setMoveError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const projects = useMemo(() => [...new Set<string>([...PROJECTS, ...events.map((e) => e.project).filter(Boolean)])], [events]);
+  const projects = useMemo(() => [...new Set<string>(events.map((e) => e.project).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [events]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

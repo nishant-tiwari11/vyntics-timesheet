@@ -22,7 +22,7 @@ function latest(weekday: number, today: string): string {
   return addDays(today, -((dayOfWeek(today) - weekday + 7) % 7));
 }
 
-export function parseQuickAdd(text: string, today: string): QuickAdd {
+export function parseQuickAdd(text: string, today: string, projects: readonly string[] = PROJECTS): QuickAdd {
   const t = text.toLowerCase();
 
   let minutes: number | null = null;
@@ -46,6 +46,6 @@ export function parseQuickAdd(text: string, today: string): QuickAdd {
     if (named >= 0) date = latest(named, today);
   }
 
-  const project = PROJECTS.find((p) => t.includes(p.toLowerCase())) ?? null;
+  const project = projects.find((p) => t.includes(p.toLowerCase())) ?? null;
   return { minutes, date, project };
 }

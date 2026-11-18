@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { assertDate, TimesheetError } from "@/lib/timesheet/errors";
 import { logError } from "@/lib/timesheet/log";
+import { requireUser } from "@/lib/timesheet/auth";
 import { copyLogsToToday, getLogHints, listMyLogsOnDate, type LogHints } from "@/lib/timesheet/logs";
+import { activeProjectNames } from "@/lib/timesheet/projectList";
 
 // Small helpers for the Work log page and its add form. Every one of them works only on the signed-in user's own entries.
 
@@ -13,6 +15,16 @@ function fail(e: unknown): { ok: false; error: string } {
   if (e instanceof TimesheetError) return { ok: false, error: e.message };
   logError("work log action", e);
   return { ok: false, error: "Something went wrong. Please try again." };
+}
+
+/** The projects that can be chosen for a new entry now (the list admins manage on Admin -> Projects). */
+export async function projectNamesAction(): Promise<Result<{ projects: string[] }>> {
+  try {
+    await requireUser();
+    return { ok: true, projects: await activeProjectNames() };
+  } catch (e) {
+    return fail(e);
+  }
 }
 
 /** What to pre-fill in the add form, and which earlier day "Copy yesterday's entries" would copy. */

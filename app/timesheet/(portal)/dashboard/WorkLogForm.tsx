@@ -11,12 +11,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import type { DayInfo } from "@/lib/timesheet/compOff";
 import { adminAddLogAction, adminUpdateLogAction } from "../admin/logActions";
 import { dayInfoAction } from "../leave/compOffActions";
-import { dayLogsAction, logHintsAction } from "../worklog/actions";
+import { dayLogsAction, logHintsAction, projectNamesAction } from "../worklog/actions";
 import { clock12, fmtDuration } from "../worklog/model";
 import { useModal } from "./ModalContext";
 import { addLogAction, updateLogAction } from "./actions";
 
 const MAX = 500;
+
+// The projects can change (admins manage them), so the form asks for the current list when it opens. Until it arrives, and if it
+// can't be read, the built-in names are shown. A list that arrived once is kept for the next time the form opens.
+let knownProjects: string[] | null = null;
 
 type FieldErrors = Partial<Record<"date" | "start" | "end" | "text" | "employee", string>>;
 
@@ -73,6 +77,7 @@ export default function WorkLogForm({
   const [end, setEnd] = useState(base.end);
   const [text, setText] = useState(base.text);
   const [noCompOff, setNoCompOff] = useState(base.noCompOff);
+  const [projects, setProjects] = useState<string[]>(knownProjects ?? [...PROJECTS]);
   const [others, setOthers] = useState<{ id: string; start: string; end: string; project: string }[]>([]);
   const touched = useRef(false);
   const [employeeId, setEmployeeId] = useState(admin?.employeeId ?? "");
@@ -97,6 +102,24 @@ export default function WorkLogForm({
   useEffect(() => {
     setDirty?.(dirty);
   }, [dirty, setDirty]);
+
+  // The current list of projects. If the project the form started with can't be chosen any more (it was archived), a new entry
+  // starts on the first one instead, and that isn't counted as something the person typed.
+  useEffect(() => {
+    let live = true;
+    projectNamesAction().then((res) => {
+      if (!live || !res.ok || res.projects.length === 0) return;
+      knownProjects = res.projects;
+      setProjects(res.projects);
+      if (initial || touched.current) return;
+      const first = res.projects[0];
+      setProject((cur) => (res.projects.includes(cur) ? cur : first));
+      setBase((b) => (res.projects.includes(b.project) ? b : { ...b, project: first }));
+    });
+    return () => {
+      live = false;
+    };
+  }, [initial]);
 
   // Smart defaults: a new entry starts with the project you used last and your usual start and end time.
   const wantsHints = !initial && !prefill && !isAdminMode;
@@ -253,7 +276,7 @@ export default function WorkLogForm({
               touched.current = true;
               setProject(e.target.value);
             }} disabled={pending}>
-            {PROJECTS.map((p) => (
+            {(projects.includes(project) || !project ? projects : [project, ...projects]).map((p) => (
               <option key={p} value={p}>
                 {p}
               </option>

@@ -6,7 +6,7 @@
 // backend changes (an entry still has a start, an end, a description and a project).
 
 import { addDays } from "@/lib/timesheet/dates";
-import { isProject, PROJECTS } from "@/lib/timesheet/projects";
+import { PROJECTS } from "@/lib/timesheet/projects";
 import { LOCKED_MESSAGE, isLocked } from "@/lib/timesheet/rules";
 import type { LogInput } from "../../dashboard/actions";
 import type { Entry } from "../model";
@@ -67,12 +67,15 @@ export type GridRow = {
   locked: boolean;
 };
 
-function cellOf(project: string, date: string, mine: Entry[], today: string): Cell {
+function cellOf(project: string, date: string, mine: Entry[], today: string, projects: readonly string[]): Cell {
   const entries = mine.filter((e) => e.project === project && e.date === date && e.status !== "rejected");
   const minutes = entries.reduce((sum, e) => sum + entryMinutes(e), 0);
   const base = { date, minutes, entries };
   if (date > today) return { ...base, state: "future", reason: "You can't log time for a future date." };
-  if (!isProject(project)) return { ...base, state: "locked", reason: "This entry has no project. Edit it in the entries list below." };
+  if (!projects.includes(project)) {
+    const reason = project ? "This project has been archived, so its hours can't be changed here." : "This entry has no project. Edit it in the entries list below.";
+    return { ...base, state: "locked", reason };
+  }
   if (isLocked(date, today)) return { ...base, state: "locked", reason: LOCKED_MESSAGE };
   if (entries.some((e) => e.status === "approved")) return { ...base, state: "locked", reason: "Approved entries can't be changed." };
   if (entries.length > 1) return { ...base, state: "multi", reason: "This cell has several entries. Change them in the entries list below." };
@@ -83,12 +86,16 @@ function cellOf(project: string, date: string, mine: Entry[], today: string): Ce
  * The grid's rows: every project that has an entry in the period (in the order of the project list), plus the
  * projects the person added by hand. Only the signed-in user's own entries count.
  */
-export function buildRows(opts: { entries: Entry[]; myId: string; days: string[]; today: string; extra?: string[] }): GridRow[] {
+export function buildRows(opts: { entries: Entry[]; myId: string; days: string[]; today: string; extra?: string[]; projects?: readonly string[] }): GridRow[] {
+  const projects = opts.projects ?? PROJECTS;
   const mine = opts.entries.filter((e) => e.userId === opts.myId);
   const used = new Set(mine.map((e) => e.project));
-  const names = [...PROJECTS.filter((p) => used.has(p) || opts.extra?.includes(p)), ...(used.has("") ? [""] : [])];
+  // The projects that can be chosen (in their order) that have hours or were added by hand, then any archived project that still
+  // has hours in these days (shown locked, so no hours ever go missing from the totals), then entries with no project.
+  const archived = [...used].filter((n) => n && !projects.includes(n)).sort();
+  const names = [...projects.filter((p) => used.has(p) || opts.extra?.includes(p)), ...archived, ...(used.has("") ? [""] : [])];
   return names.map((project) => {
-    const cells = opts.days.map((d) => cellOf(project, d, mine, opts.today));
+    const cells = opts.days.map((d) => cellOf(project, d, mine, opts.today, projects));
     const open = cells.filter((c) => c.state !== "future");
     return {
       project,

@@ -13,7 +13,7 @@ const Day = dynamic(() => import("./DayGrid"), { loading: () => <GridSkeleton da
 export function LazyGrid({ view, ...props }: Omit<GridProps, "days"> & { view: "day" | "week"; days: string[] }) {
   return (
     <ChunkBoundary label="the timesheet">
-      {view === "day" ? <Day date={props.days[0]} entries={props.entries} myId={props.myId} today={props.today} /> : <Week {...props} />}
+      {view === "day" ? <Day date={props.days[0]} entries={props.entries} myId={props.myId} today={props.today} projects={props.projects} /> : <Week {...props} />}
     </ChunkBoundary>
   );
 }

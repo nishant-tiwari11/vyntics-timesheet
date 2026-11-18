@@ -4,13 +4,12 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Download, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PROJECTS } from "@/lib/timesheet/projects";
 import { FormField, Input, Select } from "../../_components/Fields";
 import { STATUS_OPTIONS, clearedFilters, hasFilters, workHref, type StatusId, type WorkQuery } from "./query";
 
 // Project, status, date range and search. Every change goes into the address (so it can be bookmarked and survives
 // a refresh) and goes back to page 1. Typing in the search box waits a moment before it searches.
-export function WorkLogFilters({ query, today }: { query: WorkQuery; today: string }) {
+export function WorkLogFilters({ query, today, projects }: { query: WorkQuery; today: string; /** Every project name, archived ones too (old entries can still be filtered). */ projects: string[] }) {
   const router = useRouter();
   const [busy, startTransition] = useTransition();
 
@@ -68,7 +67,7 @@ export function WorkLogFilters({ query, today }: { query: WorkQuery; today: stri
       <FormField label="Project">
         <Select value={query.project} onChange={(e) => go({ project: e.target.value })}>
           <option value="all">All projects</option>
-          {PROJECTS.map((p) => (
+          {projects.map((p) => (
             <option key={p} value={p}>
               {p}
             </option>
