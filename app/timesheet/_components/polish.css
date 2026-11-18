@@ -346,3 +346,37 @@
     padding-bottom: max(96px, calc(48px + env(safe-area-inset-bottom)));
   }
 }
+
+/* ---------- Small site-wide refinements ---------- */
+/* The scrollbar's space is always kept, so a page that is short or long doesn't shift sideways when you move between pages. */
+html {
+  scrollbar-gutter: stable;
+}
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+.ts-portal {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+/* Headings break evenly instead of leaving one word alone on the last line; paragraphs avoid a lone last word. */
+.ts-portal :is(h1, h2, h3) {
+  text-wrap: balance;
+}
+.ts-portal p {
+  text-wrap: pretty;
+}
+/* Selected text stays black and white like the rest of the theme. */
+.ts-portal ::selection {
+  background: var(--foreground);
+  color: var(--background);
+}
+/* Plain links and disclosure rows get the same visible focus ring as buttons. :where() keeps this at zero specificity, so
+   components that draw their own ring (the shadcn buttons) are not given a second one. */
+:where(.ts-portal) :where(a, summary):focus-visible {
+  outline: 2px solid var(--ts-teal);
+  outline-offset: 2px;
+  border-radius: 4px;
+}

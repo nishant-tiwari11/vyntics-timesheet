@@ -3,7 +3,6 @@ import { PDFDocument, StandardFonts, rgb, type PDFPage } from "pdf-lib";
 import type { PDFFont } from "pdf-lib";
 import { offerLetter, DEFAULT_OFFER_TEMPLATE, type OfferFields } from "./offerLetter";
 import { fitInside, pngSize } from "./pngInfo";
-import { addSignaturePlaceholder, signPdfBytes } from "./signPdf";
 
 // The offer letter as a PDF: A4, black on white. The standard PDF fonts can't draw every character, so anything outside
 // Latin-1 becomes "?" (the rupee sign is already written "INR" by checkOffer and checkTemplate).
@@ -43,8 +42,6 @@ export type OfferPdfOptions = {
   signature?: Uint8Array;
   /** PNG bytes of the company seal, drawn beside the signature block. */
   seal?: Uint8Array;
-  /** Sign the finished PDF with the server's certificate (see signPdf.ts). */
-  digitalSign?: boolean;
 };
 
 export async function buildOfferPdf(fields: OfferFields, template: string = DEFAULT_OFFER_TEMPLATE, options: OfferPdfOptions = {}): Promise<Uint8Array> {
@@ -136,11 +133,6 @@ export async function buildOfferPdf(fields: OfferFields, template: string = DEFA
         block(rest, 4);
       } else block(b, 4);
     });
-  }
-  if (options.digitalSign) {
-    addSignaturePlaceholder(doc, { name: fields.signatoryName || fields.company, reason: `Offer letter for ${safe(fields.name)}`, location: fields.company });
-    // The signature is calculated over the exact bytes, so the PDF must be written without compressed object streams.
-    return signPdfBytes(await doc.save({ useObjectStreams: false }));
   }
   return doc.save();
 }

@@ -1,12 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { IMAGE_KINDS, type ImageKind } from "@/lib/documents/docxTemplate";
 import { IMAGE_MAX_BYTES, readSigningImage, removeSigningImage, saveSigningImage, signingImageStatus } from "@/lib/documents/signingAssets";
-import { certificateConfigured } from "@/lib/documents/signPdf";
 import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
 import { logError } from "@/lib/timesheet/log";
 
-// The signature and company seal pictures, and whether a signing certificate is set up. Admins only.
-//   GET                       → { signature: boolean, seal: boolean, certificate: boolean }
+// The signature and company seal pictures. Admins only.
+//   GET                       → { signature: boolean, seal: boolean }
 //   GET ?kind=seal&image=1    → the picture itself (for the preview)
 //   POST multipart kind, file → upload or replace
 //   DELETE ?kind=seal         → remove
@@ -32,10 +31,10 @@ export async function GET(request: NextRequest) {
     return new NextResponse(Buffer.from(bytes), { headers: { ...HEADERS, "Content-Type": "image/png" } });
   }
   try {
-    return json({ ok: true, ...(await signingImageStatus()), certificate: certificateConfigured() });
+    return json({ ok: true, ...(await signingImageStatus()) });
   } catch (e) {
     logError("signing assets status", e);
-    return json({ ok: true, signature: false, seal: false, certificate: certificateConfigured() });
+    return json({ ok: true, signature: false, seal: false });
   }
 }
 

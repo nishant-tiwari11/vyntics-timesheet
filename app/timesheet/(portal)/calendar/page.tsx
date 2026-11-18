@@ -47,56 +47,60 @@ export default async function CalendarPage({
   const next = shiftMonth(year, month, 1);
   const title = formatYmd(grid.first, { month: "long", year: "numeric" });
 
-  let data: MonthData | null = null;
-  let error: string | null = null;
-  try {
-    data = await getMonthData(year, month);
-  } catch (e) {
-    if (!(e instanceof TimesheetError)) logError("calendar", e);
-    error = e instanceof TimesheetError ? e.message : "Something went wrong. Please try again.";
-  }
-
-  // ---- Google Calendar (optional): status, and the person's own events when "Show Google events" is on ----
+  // Everything the page needs is fetched at the same time, not one after another: the month's data, your Google events
+  // (a call to Google's servers, the slowest part) and the holidays. Each one fails on its own, so a problem with one
+  // never takes the others down.
   const configured = googleConfig() !== null;
-  let connected = false;
-  let showGoogle = false;
-  let googleError: string | null = null;
-  const googleByDate = new Map<string, GoogleEvent[]>();
-  if (configured) {
+
+  async function loadGoogle() {
+    const result = { connected: false, showGoogle: false, googleError: null as string | null, googleByDate: new Map<string, GoogleEvent[]>() };
+    if (!configured) return result;
     try {
-      connected = await isConnected();
-      showGoogle = connected && first(sp.gcal) === "1";
-      if (showGoogle) {
+      result.connected = await isConnected();
+      result.showGoogle = result.connected && first(sp.gcal) === "1";
+      if (result.showGoogle) {
         const me = await requireUser();
         const token = await accessTokenFor(me.id);
         if (!token) {
-          connected = false; // Google access was removed; the card now offers to connect again
-          showGoogle = false;
+          result.connected = false; // Google access was removed; the card now offers to connect again
+          result.showGoogle = false;
         } else {
           for (const ev of await listEvents(token, grid.gridStart, grid.gridEnd)) {
             const last = ev.to < grid.gridEnd ? ev.to : grid.gridEnd;
             for (let d = ev.from > grid.gridStart ? ev.from : grid.gridStart; d <= last; d = addDays(d, 1)) {
-              const list = googleByDate.get(d);
+              const list = result.googleByDate.get(d);
               if (list) list.push(ev);
-              else googleByDate.set(d, [ev]);
+              else result.googleByDate.set(d, [ev]);
             }
           }
         }
       }
     } catch (e) {
       logError("google-calendar", e);
-      googleError = "Couldn't load your Google events.";
+      result.googleError = "Couldn't load your Google events.";
     }
+    return result;
   }
-  const gq = showGoogle ? "&gcal=1" : "";
 
-  // Holidays and festivals for the visible weeks. If they can't load, the calendar still works without them.
+  const [loaded, google, holidays] = await Promise.all([
+    getMonthData(year, month)
+      .then((d): { data: MonthData | null; error: string | null } => ({ data: d, error: null }))
+      .catch((e): { data: MonthData | null; error: string | null } => {
+        if (!(e instanceof TimesheetError)) logError("calendar", e);
+        return { data: null, error: e instanceof TimesheetError ? e.message : "Something went wrong. Please try again." };
+      }),
+    loadGoogle(),
+    // Holidays and festivals for the visible weeks. If they can't load, the calendar still works without them.
+    listHolidaysBetween(grid.gridStart, grid.gridEnd).catch((e): Holiday[] => {
+      logError("holidays", e);
+      return [];
+    }),
+  ]);
+  const { data, error } = loaded;
+  const { connected, showGoogle, googleError, googleByDate } = google;
+  const gq = showGoogle ? "&gcal=1" : "";
   const holidayByDate = new Map<string, Holiday>();
-  try {
-    for (const h of await listHolidaysBetween(grid.gridStart, grid.gridEnd)) holidayByDate.set(h.date, h);
-  } catch (e) {
-    logError("holidays", e);
-  }
+  for (const h of holidays) holidayByDate.set(h.date, h);
 
   // ---- Derived values (only when data loaded) ----
   const cover = new Map<string, Cover>();

@@ -1,35 +1,17 @@
-import forge from "node-forge";
 import JSZip from "jszip";
 import { PDFDocument } from "pdf-lib";
 import sharp from "sharp";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { docxPlaceholders, fillDocx } from "@/lib/documents/docxTemplate";
 import { checkOffer, offerDefaults, placeholderValues } from "@/lib/documents/offerLetter";
 import { buildOfferPdf } from "@/lib/documents/offerPdf";
 import { fitInside, pngSize } from "@/lib/documents/pngInfo";
-import { certificateConfigured } from "@/lib/documents/signPdf";
 import { detectKind } from "@/lib/documents/sniff";
 
 const r = checkOffer({ ...offerDefaults("2026-11-18", "Asha Rao"), designation: "Engineer", signatoryName: "Priya Shah" });
 if (!r.ok) throw new Error("setup");
 
 const png = (w: number, h: number) => sharp({ create: { width: w, height: h, channels: 4, background: { r: 20, g: 40, b: 160, alpha: 0.6 } } }).png().toBuffer();
-
-/** A throwaway self-signed certificate, only for these tests. */
-function testP12(password: string): string {
-  const keys = forge.pki.rsa.generateKeyPair(2048);
-  const cert = forge.pki.createCertificate();
-  cert.publicKey = keys.publicKey;
-  cert.serialNumber = "01";
-  cert.validity.notBefore = new Date(Date.now() - 86_400_000);
-  cert.validity.notAfter = new Date(Date.now() + 86_400_000 * 30);
-  const attrs = [{ name: "commonName", value: "Test Signer" }];
-  cert.setSubject(attrs);
-  cert.setIssuer(attrs);
-  cert.sign(keys.privateKey, forge.md.sha256.create());
-  const der = forge.asn1.toDer(forge.pkcs12.toPkcs12Asn1(keys.privateKey, [cert], password, { algorithm: "3des" })).getBytes();
-  return Buffer.from(der, "binary").toString("base64");
-}
 
 describe("picture helpers", () => {
   it("reads a PNG's size from its header", async () => {
@@ -53,54 +35,6 @@ describe("signature and seal on the PDF letter", () => {
   it("ignores bytes that aren't a PNG instead of failing", async () => {
     const pdf = await buildOfferPdf(r.data, undefined, { signature: new Uint8Array([1, 2, 3, 4]) });
     expect(Buffer.from(pdf.slice(0, 5)).toString()).toBe("%PDF-");
-  });
-});
-
-describe("digital signature on the PDF", () => {
-  const saved = { b64: process.env.SIGNING_P12_BASE64, pw: process.env.SIGNING_P12_PASSWORD };
-  afterEach(() => {
-    process.env.SIGNING_P12_BASE64 = saved.b64;
-    process.env.SIGNING_P12_PASSWORD = saved.pw;
-    if (saved.b64 === undefined) delete process.env.SIGNING_P12_BASE64;
-    if (saved.pw === undefined) delete process.env.SIGNING_P12_PASSWORD;
-  });
-  beforeAll(() => {
-    delete process.env.SIGNING_P12_BASE64;
-    delete process.env.SIGNING_P12_PASSWORD;
-  });
-
-  it("is off until both settings exist", () => {
-    expect(certificateConfigured()).toBe(false);
-    process.env.SIGNING_P12_BASE64 = "abc";
-    expect(certificateConfigured()).toBe(false);
-  });
-
-  it("refuses to sign with no certificate", async () => {
-    await expect(buildOfferPdf(r.data, undefined, { digitalSign: true })).rejects.toThrow(/isn't set up/);
-  });
-
-  it("signs the PDF with a certificate: a signature is embedded over the whole file", async () => {
-    process.env.SIGNING_P12_BASE64 = testP12("secret-pw");
-    process.env.SIGNING_P12_PASSWORD = "secret-pw";
-    const pdf = await buildOfferPdf(r.data, undefined, { digitalSign: true });
-    const text = Buffer.from(pdf).toString("latin1");
-    expect(text.startsWith("%PDF-")).toBe(true);
-    expect(text).toContain("/ByteRange");
-    expect(text).toContain("adbe.pkcs7.detached");
-    // The placeholder was replaced: the signature contents are real hex, not the zero padding.
-    const contents = /\/Contents\s*<([0-9a-fA-F]+)>/.exec(text)?.[1] ?? "";
-    expect(contents.replace(/0+$/, "").length).toBeGreaterThan(200);
-    // Still a readable PDF.
-    expect((await PDFDocument.load(pdf)).getPageCount()).toBe(1);
-  }, 60_000);
-
-  it("gives a plain message (never the certificate or password) when the certificate is wrong", async () => {
-    process.env.SIGNING_P12_BASE64 = Buffer.from("not a certificate").toString("base64");
-    process.env.SIGNING_P12_PASSWORD = "top-secret-password";
-    const err = await buildOfferPdf(r.data, undefined, { digitalSign: true }).catch((e: Error) => e);
-    expect(err).toBeInstanceOf(Error);
-    expect((err as Error).message).not.toContain("top-secret-password");
-    expect((err as Error).message).toMatch(/certificate/i);
   });
 });
 

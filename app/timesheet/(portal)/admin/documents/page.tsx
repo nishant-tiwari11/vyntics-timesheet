@@ -12,7 +12,7 @@ import { AdminDocuments } from "./AdminDocuments";
 export const metadata = { title: "Documents (admin)" };
 
 // HR's view of everyone's documents: filters, verification, ZIP download, missing documents, activity, and which
-// managers may see sensitive documents. Admin only (middleware.ts blocks others; this checks again on every load).
+// managers may see sensitive documents. Admin only (proxy.ts blocks others; this checks again on every load).
 export default async function AdminDocumentsPage() {
   const me = await getCurrentUser();
   if (me?.role !== "admin") redirect("/timesheet/dashboard");

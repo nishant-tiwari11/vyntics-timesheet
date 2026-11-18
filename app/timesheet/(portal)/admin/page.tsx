@@ -31,7 +31,7 @@ export default async function AdminPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  // middleware.ts already blocks non-admins; this is the server-side check on every load.
+  // proxy.ts already blocks non-admins; this is the server-side check on every load.
   const me = await getCurrentUser();
   if (me?.role !== "admin") redirect("/timesheet/dashboard");
 

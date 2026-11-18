@@ -2,7 +2,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import { DOC_BUCKET, KIND_MIME } from "@/lib/documents/config";
 import { fillDocx } from "@/lib/documents/docxTemplate";
 import { readSigningImage } from "@/lib/documents/signingAssets";
-import { certificateConfigured } from "@/lib/documents/signPdf";
 import { checkOffer, checkTemplate, placeholderValues } from "@/lib/documents/offerLetter";
 import { loadOfferTemplate, readTemplateFile } from "@/lib/documents/offerTemplate";
 import { buildOfferPdf } from "@/lib/documents/offerPdf";
@@ -12,13 +11,12 @@ import { createClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/timesheet/log";
 
 // POST /api/documents/offer-letter   { userId, fields, template?: string, save?: boolean, visibility?: "employee" | "hr_only",
-//                                      signature?: boolean, seal?: boolean, digitalSign?: boolean }
+//                                      signature?: boolean, seal?: boolean }
 // Admins only. Makes the offer letter from the saved template plus the details given:
 //   * if an admin uploaded their own Word template, that file is filled in and the letter is a .docx (formatting kept);
 //   * otherwise the wording (the one sent with the request, so what is on screen is what you get, or else the saved one)
 //     is typeset as a PDF.
-// `signature` / `seal` add the uploaded pictures (when they exist); `digitalSign` signs the PDF with the server's certificate
-// (PDF only; Word files can't be signed this way). Without `save` the file comes back as a download. With `save` it is stored on the employee's profile as an "Offer Letter"
+// `signature` / `seal` add the uploaded pictures (when they exist). Without `save` the file comes back as a download. With `save` it is stored on the employee's profile as an "Offer Letter"
 // document, the same way an upload is (private bucket, audit entry), and the new document's id comes back.
 const HEADERS = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
 const fail = (error: string, status: number) => NextResponse.json({ ok: false, error }, { status, headers: HEADERS });
@@ -28,7 +26,7 @@ export async function POST(request: NextRequest) {
   if (!me) return fail("Please sign in again.", 401);
   if (me.role !== "admin") return fail("Only admins can do that.", 403);
 
-  const body = (await request.json().catch(() => null)) as { userId?: unknown; fields?: unknown; template?: unknown; save?: unknown; visibility?: unknown; signature?: unknown; seal?: unknown; digitalSign?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as { userId?: unknown; fields?: unknown; template?: unknown; save?: unknown; visibility?: unknown; signature?: unknown; seal?: unknown } | null;
   if (!body || typeof body.fields !== "object" || body.fields === null) return fail("Fill in the letter details first.", 400);
   const checked = checkOffer(body.fields as Record<string, unknown>);
   if (!checked.ok) return fail(checked.error, 400);
@@ -47,8 +45,6 @@ export async function POST(request: NextRequest) {
     let ext: "pdf" | "docx";
     const signature = body.signature === true ? await readSigningImage("signature") : null;
     const seal = body.seal === true ? await readSigningImage("seal") : null;
-    if (body.digitalSign === true && saved.kind === "docx") return fail("A Word letter can't be digitally signed. Save it as a PDF from Word, or use the built-in PDF letter.", 400);
-    if (body.digitalSign === true && !certificateConfigured()) return fail("Digital signing isn't set up on this server yet.", 400);
     if (saved.kind === "docx") {
       const template = await readTemplateFile(saved.fileKey);
       if (!template) return fail("Couldn't read the uploaded Word template. Upload it again.", 500);
@@ -56,7 +52,7 @@ export async function POST(request: NextRequest) {
       mime = KIND_MIME.docx;
       ext = "docx";
     } else {
-      file = await buildOfferPdf(checked.data, wording, { ...(signature ? { signature } : {}), ...(seal ? { seal } : {}), digitalSign: body.digitalSign === true });
+      file = await buildOfferPdf(checked.data, wording, { ...(signature ? { signature } : {}), ...(seal ? { seal } : {}) });
       mime = KIND_MIME.pdf;
       ext = "pdf";
     }
@@ -104,8 +100,6 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ ok: true, id: data }, { headers: HEADERS });
   } catch (e) {
-    // Signing problems come with a plain message the admin can act on (never the certificate or its password).
-    if (e instanceof Error && /^(The signing certificate|Digital signing)/.test(e.message)) return fail(e.message, 400);
     logError("offer letter", e);
     return fail("Something went wrong. Please try again.", 500);
   }
