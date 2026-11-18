@@ -21,8 +21,8 @@ export const ADMIN_NAV: AdminNavItem[] = [
   { id: "approvals", label: "Approvals", href: `${ADMIN}?tab=requests`, tabs: ["requests", "logs", "compoff"] },
   { id: "payroll", label: "Payroll & Expenses", href: "/timesheet/payroll", path: "/timesheet/payroll" },
   { id: "documents", label: "Documents", href: `${ADMIN}/documents`, path: `${ADMIN}/documents` },
-  { id: "reports", label: "Reports" },
-  { id: "audit", label: "Audit Log" },
+  { id: "reports", label: "Reports", href: `${ADMIN}/reports`, path: `${ADMIN}/reports` },
+  { id: "audit", label: "Audit Log", href: `${ADMIN}/audit`, path: `${ADMIN}/audit` },
   { id: "settings", label: "Settings" },
 ];
 
