@@ -137,3 +137,12 @@ export function planSave(cell: Cell, minutes: number, project: string, others: P
 
 /** The days shown: seven for a week, one for a day. */
 export const weekDays = (monday: string) => Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+
+// Layout shared by the grid and its loading skeleton. It lives here, not in TimesheetRow, because that file is a
+// client component and the skeleton is rendered on the server (a server component can't call a client function).
+
+/** The column sizes shared by the header, every row and the totals row, so they line up. */
+export const gridColumns = (days: number) => `minmax(240px,1fr) 44px repeat(${days}, 88px) 80px 48px`;
+
+/** The first column is stuck to the left while the rest scrolls sideways on a small screen. */
+export const STICKY = "sticky left-0 z-10";

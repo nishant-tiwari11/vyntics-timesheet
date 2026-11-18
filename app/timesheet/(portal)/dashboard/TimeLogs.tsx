@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { UserAvatar } from "../../_components/UserAvatar";
 import { requestsByDay } from "@/lib/timesheet/compOff";
 import { formatYmd, isWeekend, todayInOffice } from "@/lib/timesheet/dates";
 import { offDatesBetween } from "@/lib/timesheet/holidays";
@@ -156,9 +157,7 @@ export default async function TimeLogs({
                       <td data-label={isAdmin ? "Employee" : "Date"} className="ts-nowrap">
                         {isAdmin ? (
                           <span className="ts-person">
-                            <span className="ts-avatar ts-avatar-sm" aria-hidden="true">
-                              {who.charAt(0).toUpperCase()}
-                            </span>
+                            <UserAvatar userId={row.user_id} name={who} className="size-[26px] text-xs" />
                             <span className="ts-person-text">
                               {who}
                               <span className="ts-person-date">{date}</span>

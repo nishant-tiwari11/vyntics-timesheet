@@ -36,6 +36,12 @@ const ICONS = {
       <path d="M12 7v5l3 2" />
     </>
   ),
+  expenses: (
+    <>
+      <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
+      <path d="M9 8h6M9 12h6" />
+    </>
+  ),
   salary: (
     <>
       <path d="M4 7h16v11H4z" />
@@ -47,6 +53,12 @@ const ICONS = {
       <rect x="3" y="6" width="18" height="12" rx="2" />
       <circle cx="12" cy="12" r="2.5" />
       <path d="M6 9.5v.01M18 14.5v.01" />
+    </>
+  ),
+  team: (
+    <>
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 5.2a3 3 0 0 1 0 5.6M18 14.4c1.8.8 3 2.6 3 5.6" />
     </>
   ),
   admin: (
@@ -65,8 +77,10 @@ const LINKS: { href: string; label: string; icon: IconName }[] = [
   { href: "/timesheet/worklog", label: "Work log", icon: "worklog" },
   { href: "/timesheet/calendar", label: "Calendar", icon: "calendar" },
   { href: "/timesheet/events", label: "Events", icon: "events" },
+  { href: "/timesheet/expenses", label: "Expenses", icon: "expenses" },
   { href: "/timesheet/salary", label: "My Salary", icon: "salary" },
 ];
+const TEAM_LINK: { href: string; label: string; icon: IconName } = { href: "/timesheet/team", label: "Team", icon: "team" };
 const ADMIN_LINKS: { href: string; label: string; icon: IconName }[] = [
   { href: "/timesheet/payroll", label: "Payroll", icon: "payroll" },
   { href: "/timesheet/admin", label: "Admin", icon: "admin" },
@@ -76,10 +90,13 @@ export function titleFor(pathname: string): string {
   if (pathname.startsWith("/timesheet/leave")) return "Leave & WFH";
   if (pathname.startsWith("/timesheet/worklog")) return "Work log";
   if (pathname.startsWith("/timesheet/salary")) return "My Salary";
+  if (pathname.startsWith("/timesheet/expenses")) return "Expenses";
+  if (pathname.startsWith("/timesheet/team")) return "Team";
   if (pathname.startsWith("/timesheet/payroll")) return "Payroll";
   if (pathname.startsWith("/timesheet/events")) return "Events";
   if (pathname.startsWith("/timesheet/calendar")) return "Calendar";
   if (pathname.startsWith("/timesheet/admin")) return "Admin";
+  if (pathname.startsWith("/timesheet/profile")) return "Profile";
   return "Dashboard";
 }
 
@@ -87,9 +104,9 @@ export function PageTitle() {
   return <span className="ts-topbar-title">{titleFor(usePathname())}</span>;
 }
 
-export default function NavLinks({ isAdmin }: { isAdmin: boolean }) {
+export default function NavLinks({ isAdmin, isManager = false }: { isAdmin: boolean; isManager?: boolean }) {
   const pathname = usePathname();
-  const links = isAdmin ? [...LINKS, ...ADMIN_LINKS] : LINKS;
+  const links = isAdmin ? [...LINKS, TEAM_LINK, ...ADMIN_LINKS] : isManager ? [...LINKS, TEAM_LINK] : LINKS;
   const current = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (

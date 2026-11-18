@@ -12,6 +12,9 @@
 //  * Work on a weekly off or holiday is EITHER paid (setting "pay") OR earns comp-off (setting "comp-off"), never both:
 //    a day that already has approved comp-off credit is never paid.
 //  * Every line is rounded half up to the paise, so the lines always add up exactly to the totals.
+//  * Approved EXPENSE reimbursements are paid back on top of salary: net = gross - deductions + reimbursement. They are
+//    NOT part of gross, so tax, PF/ESI and every percentage-of-gross rule ignore them. The exception is a category an
+//    admin marked taxable: those are paid as an ordinary earning (inside gross) and count towards percentage-of-gross.
 
 import { type Paise, mulDivRound, percentOf, proRate } from "./money";
 
@@ -49,6 +52,19 @@ export type Adjustment = {
   amount: Paise;
 };
 
+/** One approved expense claim that is being paid with this month's salary. Only the approved amount is here. */
+export type ExpenseItem = {
+  claimId: string;
+  /** What people see, e.g. "EXP-00012". */
+  claimCode: string;
+  /** The day the money was spent, YYYY-MM-DD. */
+  date: string;
+  category: string;
+  description: string;
+  amount: Paise;
+  taxable: boolean;
+};
+
 /** What happened on one day, taken from approved data only. */
 export type DayFact = {
   /** YYYY-MM-DD */
@@ -80,6 +96,8 @@ export type EngineInput = {
   /** One entry for every date from period.start to period.end. */
   days: DayFact[];
   adjustments: Adjustment[];
+  /** Approved expense claims to pay back with this month's salary (none when left out). */
+  expenses?: ExpenseItem[];
   /** Extra loss-of-pay days an admin adds for this month (an unreported absence, for example). */
   manualLopDays?: number;
 };
@@ -113,6 +131,10 @@ export type Payslip = {
   deductions: Line[];
   gross: Paise;
   totalDeductions: Paise;
+  /** Expense reimbursement paid on top of gross (not taxable, not in gross). Zero when there is none. */
+  reimbursement: Paise;
+  /** Every expense included, taxable or not, for the payslip breakdown. Old stored payslips don't have this. */
+  expenses: ExpenseItem[];
   roundingAdjustment: Paise;
   net: Paise;
   warnings: string[];
@@ -122,6 +144,7 @@ const hours = (hundredths: number) => hundredths / 100;
 
 export function computePayslip(input: EngineInput): Payslip {
   const { settings: s, structure, components, employment, days, adjustments } = input;
+  const expenses = input.expenses ?? [];
   const warnings: string[] = [];
 
   const inEmployment = (d: string) => d >= employment.joinedOn && (employment.leftOn === null || d <= employment.leftOn);
@@ -235,12 +258,17 @@ export function computePayslip(input: EngineInput): Payslip {
   for (const a of adjustments.filter((x) => x.kind !== "deduction")) {
     earnings.push({ code: a.kind, label: a.label, amount: a.amount });
   }
+
+  // Expenses in a category marked taxable are ordinary earnings. The rest are reimbursed outside gross (see below).
+  const taxableExpenses = expenses.filter((x) => x.taxable).reduce((n, x) => n + x.amount, 0);
+  if (taxableExpenses > 0) earnings.push({ code: "expense_taxable", label: "Expense reimbursement (taxable)", amount: taxableExpenses });
+  const reimbursement = expenses.filter((x) => !x.taxable).reduce((n, x) => n + x.amount, 0);
   const gross = earnings.reduce((n, l) => n + l.amount, 0);
 
   // Deductions. Fixed structure deductions and fixed components are monthly amounts, not pro-rated.
   if (structure && structure.deductions > 0) deductions.push({ code: "fixed_deductions", label: "Fixed deductions", amount: structure.deductions });
   for (const c of components.filter((x) => x.enabled && x.kind === "deduction")) {
-    const base = c.percentOf === "gross" ? earnedGross : basic;
+    const base = c.percentOf === "gross" ? earnedGross + taxableExpenses : basic;
     deductions.push({ code: c.code, label: c.name, amount: c.calc === "fixed" ? c.amount : percentOf(base, c.percentBp) });
   }
   for (const a of adjustments.filter((x) => x.kind === "deduction")) {
@@ -248,7 +276,7 @@ export function computePayslip(input: EngineInput): Payslip {
   }
 
   const totalDeductions = deductions.reduce((n, l) => n + l.amount, 0);
-  let net = gross - totalDeductions;
+  let net = gross - totalDeductions + reimbursement;
   let roundingAdjustment = 0;
   if (s.roundNetToRupee) {
     const rounded = mulDivRound(net, 1, 100) * 100;
@@ -278,6 +306,8 @@ export function computePayslip(input: EngineInput): Payslip {
     deductions,
     gross,
     totalDeductions,
+    reimbursement,
+    expenses,
     roundingAdjustment,
     net,
     warnings,

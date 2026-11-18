@@ -357,6 +357,87 @@ export type Database = {
             referencedColumns: ["id"];
           }];
       };
+      expense_categories: {
+        Row: { id: string; name: string; limit_paise: number | null; taxable: boolean; enabled: boolean; created_at: string };
+        Insert: { id?: string; name: string; limit_paise?: number | null; taxable?: boolean; enabled?: boolean; created_at?: string };
+        Update: { id?: string; name?: string; limit_paise?: number | null; taxable?: boolean; enabled?: boolean; created_at?: string };
+        Relationships: [];
+      };
+      expense_claims: {
+        Row: {
+          id: string;
+          claim_no: number;
+          user_id: string;
+          category_id: string;
+          expense_date: string;
+          description: string;
+          claimed_paise: number;
+          approved_paise: number | null;
+          status: string;
+          payroll_month: string | null;
+          payroll_run_id: string | null;
+          taxable: boolean;
+          decided_by: string | null;
+          decided_at: string | null;
+          decision_note: string | null;
+          reimbursed_on: string | null;
+          reimbursed_month: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string;
+          category_id: string;
+          expense_date: string;
+          description: string;
+          claimed_paise: number;
+          status?: string;
+        };
+        Update: {
+          category_id?: string;
+          expense_date?: string;
+          description?: string;
+          claimed_paise?: number;
+          status?: string;
+        };
+        Relationships: [];
+      };
+      expense_events: {
+        Row: { id: number; claim_id: string; actor_id: string | null; action: string; detail: string | null; created_at: string };
+        Insert: { claim_id: string; actor_id?: string | null; action: string; detail?: string | null };
+        Update: { detail?: string | null };
+        Relationships: [];
+      };
+      allowed_users: {
+        Row: {
+          email: string;
+          name: string | null;
+          role: Database["public"]["Enums"]["user_role"];
+          status: string;
+          expires_on: string | null;
+          login_method: string;
+          seeded: boolean;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: { email: string; name?: string | null; role?: Database["public"]["Enums"]["user_role"]; status?: string; expires_on?: string | null; login_method?: string; seeded?: boolean };
+        Update: { name?: string | null; role?: Database["public"]["Enums"]["user_role"]; status?: string; expires_on?: string | null; login_method?: string };
+        Relationships: [];
+      };
+      access_settings: {
+        Row: { singleton: boolean; allowed_domains: string[]; updated_at: string };
+        Insert: { singleton?: boolean; allowed_domains?: string[] };
+        Update: { allowed_domains?: string[] };
+        Relationships: [];
+      };
+      access_audit: {
+        Row: { id: number; actor_id: string | null; actor_email: string; action: string; target: string | null; detail: string | null; created_at: string };
+        Insert: { actor_id?: string | null; actor_email?: string; action: string; target?: string | null; detail?: string | null };
+        Update: { detail?: string | null };
+        Relationships: [];
+      };
       payslips: {
         Row: {
           id: string;
@@ -685,6 +766,10 @@ export type Database = {
           full_name: string | null;
           role: Database["public"]["Enums"]["user_role"];
           created_at: string;
+          manager_id: string | null;
+          status: string;
+          access_expires_on: string | null;
+          last_login_at: string | null;
         };
         Insert: {
           id: string;
@@ -692,6 +777,10 @@ export type Database = {
           full_name?: string | null;
           role?: Database["public"]["Enums"]["user_role"];
           created_at?: string;
+          manager_id?: string | null;
+          status?: string;
+          access_expires_on?: string | null;
+          last_login_at?: string | null;
         };
         Update: {
           id?: string;
@@ -699,6 +788,10 @@ export type Database = {
           full_name?: string | null;
           role?: Database["public"]["Enums"]["user_role"];
           created_at?: string;
+          manager_id?: string | null;
+          status?: string;
+          access_expires_on?: string | null;
+          last_login_at?: string | null;
         };
         Relationships: [];
       };
@@ -922,6 +1015,20 @@ export type Database = {
     };
     Views: { [_ in never]: never };
     Functions: {
+      access_add_user: { Args: { p_email: string; p_name: string; p_role: string; p_expires: string | null; p_method: string; p_seeded: boolean; p_only_if_missing: boolean }; Returns: undefined };
+      access_update_user: { Args: { p_email: string; p_role: string | null; p_status: string | null; p_expires: string | null; p_clear_expiry: boolean }; Returns: undefined };
+      access_remove_user: { Args: { p_email: string }; Returns: undefined };
+      access_set_manager: { Args: { p_email: string; p_manager_email: string }; Returns: undefined };
+      access_set_password: { Args: { p_email: string; p_password: string }; Returns: undefined };
+      access_create_password_user: { Args: { p_email: string; p_name: string; p_role: string; p_password: string; p_expires: string | null }; Returns: undefined };
+      access_after_login: { Args: never; Returns: string };
+      access_login_locked: { Args: { p_email: string; p_ip: string | null }; Returns: number };
+      access_login_failed: { Args: { p_email: string; p_ip: string | null }; Returns: number };
+      access_login_ok: { Args: { p_email: string; p_ip: string | null }; Returns: undefined };
+      expense_approve: { Args: { p_claim: string; p_amount: number; p_month: string; p_note: string }; Returns: string };
+      expense_reject: { Args: { p_claim: string; p_note: string }; Returns: undefined };
+      expense_remove_from_run: { Args: { p_claim: string }; Returns: undefined };
+      expense_sync_run: { Args: { p_run: string }; Returns: number };
       payroll_review_run: { Args: { p_run: string; p_reviewed: boolean }; Returns: undefined };
       payroll_finalize_run: { Args: { p_run: string; p_payslips: Json }; Returns: number };
       payroll_mark_paid: { Args: { p_run: string; p_paid_on: string }; Returns: undefined };
@@ -952,7 +1059,7 @@ export type Database = {
       log_status: "pending" | "approved" | "rejected";
       request_status: "pending" | "approved" | "rejected" | "cancelled";
       request_type: "leave" | "wfh";
-      user_role: "employee" | "admin";
+      user_role: "employee" | "admin" | "manager" | "viewer";
       week_status: "draft" | "submitted" | "approved" | "sent_back";
     };
     CompositeTypes: { [_ in never]: never };

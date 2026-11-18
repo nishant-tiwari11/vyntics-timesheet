@@ -8,7 +8,7 @@ import { getAdminCounts } from "@/lib/timesheet/admin";
 import { AdminTableSkeleton } from "../../_components/skeletons";
 import { CompOffTab } from "./CompOffTab";
 import { HolidaysTab } from "./HolidaysTab";
-import { AccessTab, EmployeesTab, LogsTab, RequestsTab } from "./tabs";
+import { EmployeesTab, LogsTab, RequestsTab } from "./tabs";
 
 export const metadata = { title: "Admin" };
 
@@ -19,6 +19,7 @@ const TABS = [
   { id: "holidays", label: "Holidays" },
   { id: "compoff", label: "Comp-off" },
   { id: "access", label: "Access" },
+  { id: "documents", label: "Documents" },
 ] as const;
 
 type Params = { tab?: string; filter?: string; date?: string; year?: string; type?: string };
@@ -37,6 +38,9 @@ export default async function AdminPage({
   const raw = await searchParams;
   const p: Params = { tab: one(raw.tab), filter: one(raw.filter), date: one(raw.date), year: one(raw.year), type: one(raw.type) };
   const tab = TABS.find((t) => t.id === p.tab)?.id ?? "requests";
+  // The old email list is replaced by the full Access page (roles, passwords, expiry, audit log).
+  if (tab === "access") redirect("/timesheet/admin/access");
+  if (tab === "documents") redirect("/timesheet/admin/documents");
 
   let counts: { requests: number; compOff: number } | null = null;
   try {
@@ -78,7 +82,6 @@ export default async function AdminPage({
         {tab === "employees" && <EmployeesTab adminId={me.id} />}
         {tab === "holidays" && <HolidaysTab yearParam={p.year} typeParam={p.type} />}
         {tab === "compoff" && <CompOffTab filterParam={p.filter} />}
-        {tab === "access" && <AccessTab />}
       </Suspense>
     </div>
   );

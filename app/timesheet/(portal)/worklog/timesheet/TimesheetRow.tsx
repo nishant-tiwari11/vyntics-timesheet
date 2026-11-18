@@ -5,19 +5,13 @@ import { Clock, Lock, LockOpen, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatYmd, isWeekend } from "@/lib/timesheet/dates";
-import { fmtMinutes, type GridRow } from "./gridModel";
+import { STICKY, fmtMinutes, gridColumns, type GridRow } from "./gridModel";
 import { HourCell } from "./HourCell";
-
-/** The column sizes shared by the header, every row and the totals row, so they line up. */
-export const gridColumns = (days: number) => `minmax(240px,1fr) 44px repeat(${days}, 88px) 80px 48px`;
 
 /** "[Tue 17 Nov]" for screen readers and tooltips. */
 export const dayName = (ymd: string) => formatYmd(ymd, { weekday: "short", day: "numeric", month: "short" });
 
 const STATUS = { pending: "Pending", approved: "Approved", rejected: "Rejected" } as const;
-
-/** The first column is stuck to the left while the rest scrolls sideways on a small screen. */
-export const STICKY = "sticky left-0 z-10";
 
 // One project: its name and latest note, a notes button, one hour box per day, the row total and a lock.
 export function TimesheetRow({

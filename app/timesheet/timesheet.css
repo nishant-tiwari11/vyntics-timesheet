@@ -346,6 +346,7 @@
     border: 0;
   }
   .ts-side-user .ts-avatar,
+  .ts-side-user .ts-side-avatar,
   .ts-side-who {
     display: none;
   }

@@ -83,7 +83,9 @@ function drawSlip(doc: PDFDocument, slip: PayslipDetail, fonts: { regular: PDFFo
     }
     return yy;
   };
-  y = Math.min(column("Earnings", slip.earnings, leftX), column("Deductions", slip.deductionLines, rightX));
+  // The expense reimbursement is listed under Earnings but is not part of gross pay (it is added after deductions).
+  const earningLines = slip.reimbursement > 0 ? [...slip.earnings, { code: "expense_reimbursement", label: "Expense reimbursement (not in gross)", amount: slip.reimbursement }] : slip.earnings;
+  y = Math.min(column("Earnings", earningLines, leftX), column("Deductions", slip.deductionLines, rightX));
   rule(2);
 
   text("Gross pay", M, 10);
@@ -92,6 +94,11 @@ function drawSlip(doc: PDFDocument, slip: PayslipDetail, fonts: { regular: PDFFo
   text("Total deductions", M, 10);
   right(money(slip.deductions, slip.currency), W - M);
   y -= 15;
+  if (slip.reimbursement > 0) {
+    text("Expense reimbursement", M, 10);
+    right(money(slip.reimbursement, slip.currency), W - M);
+    y -= 15;
+  }
   if (slip.roundingAdjustment !== 0) {
     text("Rounding", M, 10);
     right(money(slip.roundingAdjustment, slip.currency), W - M);
@@ -100,6 +107,26 @@ function drawSlip(doc: PDFDocument, slip: PayslipDetail, fonts: { regular: PDFFo
   text("Net pay", M, 13, bold);
   right(money(slip.net, slip.currency), W - M, 13, bold);
   rule(6);
+
+  if (slip.expenses.length > 0) {
+    text("Expense reimbursement", M, 11, bold);
+    y -= 16;
+    const SHOWN = 8;
+    for (const e of slip.expenses.slice(0, SHOWN)) {
+      const amount = money(e.amount, slip.currency);
+      const left = `${e.claimCode}  ${dayLabel(e.date)}  ${e.category}${e.taxable ? " (taxable)" : ""}: ${e.description}`;
+      text(fit(regular, left, 9, W - 2 * M - regular.widthOfTextAtSize(amount, 9) - 12), M, 9);
+      right(amount, W - M, 9);
+      y -= 13;
+    }
+    if (slip.expenses.length > SHOWN) {
+      text(`and ${slip.expenses.length - SHOWN} more claims. See the payslip in the portal for the full list.`, M, 9, regular, gray);
+      y -= 13;
+    }
+    text("Total expenses", M, 10, bold);
+    right(money(slip.expenses.reduce((n, e) => n + e.amount, 0), slip.currency), W - M, 10, bold);
+    rule(6);
+  }
 
   text("Attendance summary", M, 11, bold);
   y -= 18;

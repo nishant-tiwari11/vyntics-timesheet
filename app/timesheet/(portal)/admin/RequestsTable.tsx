@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import { formatRange, workingDaysLabel } from "@/lib/timesheet/dates";
+import { UserAvatar } from "../../_components/UserAvatar";
 import { decideRequestAction } from "./actions";
 import ResultMessage, { type Result } from "./ResultMessage";
 
 export type RequestRowData = {
   id: string;
+  /** The person the request is from. */
+  userId: string;
   name: string;
   email: string;
   isSelf: boolean;
@@ -61,8 +64,13 @@ export default function RequestsTable({ rows, offDays = [] }: { rows: RequestRow
               return (
                 <tr key={r.id}>
                   <th scope="row" className="ts-afirst">
-                    <span className="ts-aname">{r.name}</span>
-                    <span className="ts-asub">{r.email}</span>
+                    <span className="flex items-center gap-2">
+                      <UserAvatar userId={r.userId} name={r.name} className="size-8 text-xs" />
+                      <span className="min-w-0">
+                        <span className="ts-aname">{r.name}</span>
+                        <span className="ts-asub">{r.email}</span>
+                      </span>
+                    </span>
                   </th>
                   <td>{r.compOff ? "Comp-off" : r.type === "leave" ? "Leave" : "Work from home"}</td>
                   <td>

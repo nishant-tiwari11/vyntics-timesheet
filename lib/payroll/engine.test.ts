@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computePayslip, type Adjustment, type Component, type DayFact, type EngineInput, type PayrollSettings } from "./engine";
+import { computePayslip, type Adjustment, type Component, type DayFact, type EngineInput, type ExpenseItem, type PayrollSettings } from "./engine";
 import { formatMoney, mulDivRound, parseMoney, percentOf, proRate, toRupeeText } from "./money";
 
 // November 2026: 30 days. Saturdays and Sundays are weekly offs (1, 7, 8, 14, 15, 21, 22, 28, 29), so there are 21 working days.
@@ -357,5 +357,64 @@ describe("no salary structure", () => {
     expect(p.gross).toBe(0);
     expect(p.net).toBe(0);
     expect(p.warnings.join(" ")).toContain("salary structure");
+  });
+});
+
+describe("expense reimbursement", () => {
+  const item = (over: Partial<ExpenseItem> = {}): ExpenseItem => ({
+    claimId: "c1",
+    claimCode: "EXP-00001",
+    date: "2026-11-05",
+    category: "Travel",
+    description: "Taxi to the client",
+    amount: rupees(1500),
+    taxable: false,
+    ...over,
+  });
+  const pf: Component = { code: "pf", name: "PF", kind: "deduction", calc: "percent", amount: 0, percentBp: 1200, percentOf: "gross", enabled: true };
+
+  it("changes nothing when there are no expenses", () => {
+    const base = run();
+    expect(base.reimbursement).toBe(0);
+    expect(base.expenses).toEqual([]);
+    expect(run({ expenses: [] })).toEqual(base);
+  });
+
+  it("is paid on top of net pay and kept out of gross", () => {
+    const base = run();
+    const p = run({ expenses: [item(), item({ claimId: "c2", amount: rupees(500) })] });
+    expect(p.reimbursement).toBe(rupees(2000));
+    expect(p.gross).toBe(base.gross);
+    expect(p.totalDeductions).toBe(base.totalDeductions);
+    expect(p.net).toBe(base.net + rupees(2000));
+    expect(p.expenses).toHaveLength(2);
+  });
+
+  it("does not change percentage-of-gross deductions (PF) for a non-taxable claim", () => {
+    const base = run({ components: [pf] });
+    const p = run({ components: [pf], expenses: [item()] });
+    expect(line(p.deductions, "pf")).toBe(line(base.deductions, "pf"));
+  });
+
+  it("treats a taxable category as ordinary earnings that count towards percentage-of-gross", () => {
+    const base = run({ components: [pf] });
+    const p = run({ components: [pf], expenses: [item({ taxable: true, amount: rupees(10000) })] });
+    expect(p.reimbursement).toBe(0);
+    expect(line(p.earnings, "expense_taxable")).toBe(rupees(10000));
+    expect(p.gross).toBe(base.gross + rupees(10000));
+    expect(line(p.deductions, "pf")).toBe((line(base.deductions, "pf") ?? 0) + rupees(1200));
+    expect(p.net).toBe(p.gross - p.totalDeductions);
+  });
+
+  it("rounds net to the rupee including the reimbursement", () => {
+    const p = run({ expenses: [item({ amount: 12345 })] }, { roundNetToRupee: true });
+    expect(p.net % 100).toBe(0);
+    expect(p.net).toBe(p.gross - p.totalDeductions + p.reimbursement + p.roundingAdjustment);
+  });
+
+  it("is still paid in a month with no salary structure", () => {
+    const p = run({ structure: null, expenses: [item()] });
+    expect(p.gross).toBe(0);
+    expect(p.net).toBe(rupees(1500));
   });
 });

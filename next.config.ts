@@ -11,10 +11,11 @@ const portalHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  experimental: { agentUpgrade: "security" },
   async headers() {
     return [
       {
-        source: "/timesheet/:path*",
+        source: "/timesheet/:path((?!avatar/).*)",
         headers: portalHeaders,
       },
     ];

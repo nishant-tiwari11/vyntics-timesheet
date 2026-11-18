@@ -1,5 +1,7 @@
 // What an employee sees of a payslip. Plain data, shared by the server and the browser (no server-only code).
 
+import type { ExpenseItem } from "./engine";
+
 export type SlipLine = { code: string; label: string; amount: number };
 
 export type PayslipListItem = {
@@ -21,6 +23,10 @@ export type PayslipListItem = {
 export type PayslipDetail = PayslipListItem & {
   employee: { name: string; email: string; department: string };
   earnings: SlipLine[];
+  /** Expense claims paid back with this salary (all of them, taxable or not), for the payslip breakdown. */
+  expenses: ExpenseItem[];
+  /** The part of those that is paid on top of gross (the non-taxable claims). Net = gross - deductions + this. */
+  reimbursement: number;
   deductionLines: SlipLine[];
   roundingAdjustment: number;
   attendance: {

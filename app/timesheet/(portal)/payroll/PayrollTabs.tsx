@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 const TABS = [
   { href: "/timesheet/payroll/structures", label: "Salary structures" },
   { href: "/timesheet/payroll/runs", label: "Payroll runs" },
+  { href: "/timesheet/payroll/expenses", label: "Expenses" },
   { href: "/timesheet/payroll/queries", label: "Queries" },
   { href: "/timesheet/payroll/settings", label: "Settings" },
 ];

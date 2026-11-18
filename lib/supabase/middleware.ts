@@ -1,6 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { isCompanyEmail } from "../companyEmail";
 import type { Database } from "./types";
 import { supabaseEnv } from "./env";
 
@@ -41,12 +40,9 @@ export async function updateSession(request: NextRequest) {
   const onLogin = path === LOGIN;
   const onAdmin = path === ADMIN || path.startsWith(`${ADMIN}/`);
 
-  // Signed in with a non-company email: end the session. `response` now carries the cleared cookies.
-  if (user && !isCompanyEmail(user.email)) {
-    await supabase.auth.signOut();
-    return onLogin ? response : redirectKeepingCookies(request, LOGIN, response);
-  }
-
+  // Who may be signed in is decided by the database (company-domain Google account, or on the admin's list; see
+  // supabase/step24_access.sql) and re-checked on every page by the portal layout, which signs out anyone whose access
+  // has been switched off. So this only has to separate "signed in" from "not signed in".
   let result = response;
   if (!user && !onLogin) {
     result = redirectKeepingCookies(request, LOGIN, response);

@@ -1,13 +1,14 @@
 import "server-only";
 import { db, requireAdmin } from "./auth";
 import { TimesheetError, assertId, toError } from "./errors";
+import type { Role } from "@/lib/access/config";
 import type { Person } from "./types";
 
 export type Employee = {
   id: string;
   name: string;
   email: string;
-  role: "employee" | "admin";
+  role: Role;
   created_at: string;
 };
 

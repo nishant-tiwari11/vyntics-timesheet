@@ -44,7 +44,18 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
   }
 
   const { run, rows, runWarnings, locked, currency } = detail;
-  const totals = rows.reduce((t, r) => ({ employees: t.employees + 1, gross: t.gross + r.payslip.gross, deductions: t.deductions + r.payslip.totalDeductions, net: t.net + r.payslip.net }), { employees: 0, gross: 0, deductions: 0, net: 0 });
+  const totals = rows.reduce(
+    (t, r) => ({
+      employees: t.employees + 1,
+      gross: t.gross + r.payslip.gross,
+      deductions: t.deductions + r.payslip.totalDeductions,
+      reimbursement: t.reimbursement + r.payslip.expenses.reduce((n, e) => n + e.amount, 0),
+      claims: t.claims + r.payslip.expenses.length,
+      net: t.net + r.payslip.net,
+    }),
+    { employees: 0, gross: 0, deductions: 0, reimbursement: 0, claims: 0, net: 0 },
+  );
+  const withExpenses = rows.filter((r) => r.payslip.expenses.length > 0);
   const title = formatYmd(`${run.month}-01`, { month: "long", year: "numeric" });
 
   return (
@@ -64,7 +75,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
         </p>
       </div>
 
-      <RunActions runId={run.id} status={run.status} currency={currency} totals={totals} warnings={runWarnings} today={todayInOffice()} />
+      <RunActions runId={run.id} status={run.status} currency={currency} totals={{ employees: totals.employees, gross: totals.gross, net: totals.net, reimbursement: totals.reimbursement, claims: totals.claims }} warnings={runWarnings} today={todayInOffice()} />
 
       {locked ? (
         <p role="note" className="rounded-lg border border-dashed p-3 text-sm">
@@ -80,11 +91,12 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
         )
       )}
 
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {[
           ["Employees", String(totals.employees)],
           ["Gross", formatMoney(totals.gross, currency)],
           ["Deductions", formatMoney(totals.deductions, currency)],
+          ["Expenses", formatMoney(totals.reimbursement, currency)],
           ["Net pay", formatMoney(totals.net, currency)],
         ].map(([label, value]) => (
           <div key={label} className="rounded-lg border p-3">
@@ -110,6 +122,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
                 <TableHead className="text-right">LOP / absent</TableHead>
                 <TableHead className="text-right">Gross</TableHead>
                 <TableHead className="text-right">Deductions</TableHead>
+                <TableHead className="text-right">Expenses</TableHead>
                 <TableHead className="text-right">Net pay</TableHead>
                 <TableHead>
                   <span className="sr-only">Actions</span>
@@ -136,6 +149,18 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{formatMoney(r.payslip.gross, currency)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatMoney(r.payslip.totalDeductions, currency)}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {r.payslip.expenses.length === 0 ? (
+                      "-"
+                    ) : (
+                      <>
+                        {formatMoney(r.payslip.expenses.reduce((n, e) => n + e.amount, 0), currency)}
+                        <Link href={`/timesheet/payroll/expenses?run=${run.id}&q=${encodeURIComponent(r.email)}`} className="block text-xs underline underline-offset-4">
+                          {r.payslip.expenses.length} {r.payslip.expenses.length === 1 ? "claim" : "claims"}
+                        </Link>
+                      </>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">{formatMoney(r.payslip.net, currency)}</TableCell>
                   <TableCell className="text-right">
                     <EmployeeDetails runId={run.id} row={r} currency={currency} locked={locked} />
@@ -145,6 +170,62 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
             </TableBody>
           </Table>
         </div>
+      )}
+
+      {withExpenses.length > 0 && (
+        <section aria-label="Expense reimbursements in this run" className="grid gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-base font-semibold">Expense reimbursements</h3>
+              <p className="text-sm text-muted-foreground">
+                {locked
+                  ? "Paid out in this run. These claims are Reimbursed and locked."
+                  : "A preview of what is added to net pay. When you finalize, these claims become Reimbursed with this month and are locked."}
+              </p>
+            </div>
+            <Link href={`/timesheet/payroll/expenses?run=${run.id}`} className="text-sm underline underline-offset-4">
+              Open expense details
+            </Link>
+          </div>
+          <div className="overflow-x-auto rounded-lg border">
+            <Table>
+              <caption className="sr-only">Expense claims paid with this payroll run</caption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Employee</TableHead>
+                  <TableHead>Claim</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {withExpenses.flatMap((r) =>
+                  r.payslip.expenses.map((e) => (
+                    <TableRow key={e.claimId}>
+                      <TableCell className="font-medium">{r.name}</TableCell>
+                      <TableCell className="whitespace-nowrap">{e.claimCode}</TableCell>
+                      <TableCell className="whitespace-nowrap">{day(e.date)}</TableCell>
+                      <TableCell>
+                        {e.category}
+                        {e.taxable ? " (taxable)" : ""}
+                      </TableCell>
+                      <TableCell className="max-w-64 break-words whitespace-normal">{e.description}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatMoney(e.amount, currency)}</TableCell>
+                    </TableRow>
+                  )),
+                )}
+                <TableRow>
+                  <TableCell colSpan={5} className="font-semibold">
+                    Total
+                  </TableCell>
+                  <TableCell className="text-right font-semibold tabular-nums">{formatMoney(totals.reimbursement, currency)}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </section>
       )}
     </section>
   );

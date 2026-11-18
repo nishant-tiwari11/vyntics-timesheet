@@ -26,6 +26,8 @@ const slip: PayslipDetail = {
     { code: "pf", label: "Provident fund", amount: 360000 },
     { code: "professional_tax", label: "Professional tax", amount: 20000 },
   ],
+  expenses: [],
+  reimbursement: 0,
   roundingAdjustment: 0,
   attendance: { baseDays: 30, workingDays: 21, presentDays: 21, wfhDays: 2, paidLeaveDays: 0, compOffLeaveDays: 0, lopDays: 0, absentDays: 0, holidayWorkedDays: 1, compOffEarnedDays: 1, overtimeHours: 0 },
 };
@@ -37,6 +39,20 @@ describe("payslip PDF", () => {
     expect(bytes.length).toBeGreaterThan(1000);
     const loaded = await PDFDocument.load(bytes);
     expect(loaded.getPageCount()).toBe(2);
+  });
+
+  it("lists reimbursed expenses on the payslip, even a long list, without failing", async () => {
+    const expenses = Array.from({ length: 15 }, (_, i) => ({
+      claimId: `c${i}`,
+      claimCode: `EXP-${String(i + 1).padStart(5, "0")}`,
+      date: "2026-11-05",
+      category: "Travel",
+      description: "Taxi to the client office ₹ ✓ with a very long description that goes on and on to check it is cut to fit the page",
+      amount: 150000,
+      taxable: false,
+    }));
+    const bytes = await buildPayslipsPdf([{ ...slip, expenses, reimbursement: 2250000, net: slip.net + 2250000 }], "x");
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBe(1);
   });
 
   it("does not fail on characters the standard fonts can't draw", async () => {

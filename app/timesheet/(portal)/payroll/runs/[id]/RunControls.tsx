@@ -21,6 +21,7 @@ import {
   setManualLopAction,
   setReviewedAction,
 } from "../../runsActions";
+import { removeFromRunAction } from "../../expensesActions";
 
 // ---------------------------- Workflow buttons ----------------------------
 
@@ -35,7 +36,7 @@ export function RunActions({
   runId: string;
   status: RunStatus;
   currency: string;
-  totals: { employees: number; gross: number; net: number };
+  totals: { employees: number; gross: number; net: number; reimbursement: number; claims: number };
   warnings: string[];
   today: string;
 }) {
@@ -118,6 +119,12 @@ export function RunActions({
               <p className="text-sm">
                 Gross <strong className="tabular-nums">{formatMoney(totals.gross, currency)}</strong> · Net <strong className="tabular-nums">{formatMoney(totals.net, currency)}</strong>
               </p>
+              {totals.claims > 0 && (
+                <p className="text-sm" role="note">
+                  Includes <strong className="tabular-nums">{formatMoney(totals.reimbursement, currency)}</strong> of expense reimbursement for {totals.claims} {totals.claims === 1 ? "claim" : "claims"}. They are marked
+                  Reimbursed with this month when you finalize, and locked.
+                </p>
+              )}
               {warnings.length > 0 && (
                 <ul className="list-disc space-y-1 rounded-md border border-dashed p-3 pl-7 text-sm" role="note">
                   {warnings.map((w) => (
@@ -312,6 +319,51 @@ export function EmployeeDetails({ runId, row, currency, locked }: { runId: strin
             {lines("Earnings", p.earnings)}
             {lines("Deductions", p.deductions)}
           </div>
+          {p.expenses.length > 0 && (
+            <div className="grid gap-1.5 rounded-md border p-3">
+              <h3 className="text-sm font-semibold">
+                Expense Reimbursement{" "}
+                <span className="font-normal text-muted-foreground">
+                  ({locked ? "locked, already paid out in this run" : "added after deductions, not part of gross unless the category is taxable"})
+                </span>
+              </h3>
+              <ul className="grid gap-1.5 text-sm">
+                {p.expenses.map((e) => (
+                  <li key={e.claimId} className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="min-w-0 break-words">
+                      <span className="font-medium">{e.claimCode}</span> · {e.date} · {e.category}
+                      {e.taxable ? " (taxable)" : ""}: {e.description}
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <span className="tabular-nums">{formatMoney(e.amount, currency)}</span>
+                      {!locked && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          disabled={pending}
+                          aria-label={`Remove ${e.claimCode} from this payroll`}
+                          onClick={() =>
+                            startTransition(async () => {
+                              const res = await removeFromRunAction(e.claimId);
+                              if (!res.ok) toast.error(res.error);
+                              else toast.success("Moved to the next payroll.");
+                            })
+                          }
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="flex justify-between gap-3 border-t pt-1.5 text-sm font-medium">
+                <span>Total</span>
+                <span className="tabular-nums">{formatMoney(p.expenses.reduce((n, e) => n + e.amount, 0), currency)}</span>
+              </p>
+            </div>
+          )}
           <p className="flex flex-wrap justify-between gap-2 border-t pt-3 text-sm">
             <span>
               Gross <strong className="tabular-nums">{formatMoney(p.gross, currency)}</strong>
@@ -319,6 +371,11 @@ export function EmployeeDetails({ runId, row, currency, locked }: { runId: strin
             <span>
               Deductions <strong className="tabular-nums">{formatMoney(p.totalDeductions, currency)}</strong>
             </span>
+            {p.reimbursement > 0 && (
+              <span>
+                Expenses <strong className="tabular-nums">{formatMoney(p.reimbursement, currency)}</strong>
+              </span>
+            )}
             <span>
               Net pay <strong className="tabular-nums">{formatMoney(p.net, currency)}</strong>
             </span>

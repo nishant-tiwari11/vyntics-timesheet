@@ -63,6 +63,9 @@ function toDetail(item: PayslipListItem, snapshot: StoredSnapshot): PayslipDetai
     ...item,
     employee: { name: snapshot.employee.name, email: snapshot.employee.email, department: snapshot.employee.department },
     earnings: p.earnings,
+    // Payslips stored before expenses existed have neither field.
+    expenses: p.expenses ?? [],
+    reimbursement: p.reimbursement ?? 0,
     deductionLines: p.deductions,
     roundingAdjustment: p.roundingAdjustment ?? 0,
     attendance: {

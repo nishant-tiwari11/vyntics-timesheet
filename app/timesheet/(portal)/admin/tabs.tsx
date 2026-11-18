@@ -13,6 +13,7 @@ import { FormField, Input } from "../../_components/Fields";
 import { SectionError } from "../dashboard/sections";
 import { AdminAddLog, AdminRowActions } from "./AdminLogControls";
 import { AddEmailsForm, RemoveEmailButton } from "./AccessControls";
+import { UserAvatar } from "../../_components/UserAvatar";
 import EmployeesTable from "./EmployeesTable";
 import RequestsTable, { type RequestRowData } from "./RequestsTable";
 
@@ -76,6 +77,7 @@ export async function RequestsTab({ adminId, filterParam }: { adminId: string; f
   const rows: RequestRowData[] = res.ok
     ? res.data.requests.map((r) => ({
         id: r.id,
+        userId: r.user_id,
         name: displayName(r.owner),
         email: r.owner?.email ?? "",
         isSelf: r.user_id === adminId,
@@ -206,7 +208,8 @@ export async function LogsTab({ dateParam }: { dateParam?: string }) {
             return (
               <section key={p.id} className="ts-card" aria-labelledby={`log-${p.id}`}>
                 <div className="ts-log-day-head">
-                  <h3 className="ts-h3" id={`log-${p.id}`}>
+                  <h3 className="ts-h3 flex items-center gap-2" id={`log-${p.id}`}>
+                    <UserAvatar userId={p.id} name={p.name} className="size-7 text-xs" />
                     {p.name}
                   </h3>
                   {total > 0 && <span className="ts-muted ts-small">{fmt(total)} h logged</span>}

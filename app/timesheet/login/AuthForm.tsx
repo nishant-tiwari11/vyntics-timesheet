@@ -1,12 +1,16 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 import { COMPANY_DOMAIN, NOT_INVITED_ERROR } from "@/lib/companyEmail";
 import { InAppBrowserNotice } from "./InAppBrowserNotice";
+import { signInWithPasswordAction } from "./passwordAction";
 
 // Turn Supabase's technical messages into plain words.
 function friendlyError(message: string): string {
@@ -22,20 +26,41 @@ function friendlyError(message: string): string {
 }
 
 export default function AuthForm({ initialError }: { initialError?: string }) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(initialError ?? null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [signingIn, setSigningIn] = useState(false);
+
+  async function onPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!email.trim() || !password) return setError("Enter your email and password.");
+    setSigningIn(true);
+    const res = await signInWithPasswordAction({ email, password });
+    if (res.ok) {
+      router.replace("/timesheet/dashboard");
+      router.refresh();
+      return;
+    }
+    setPassword("");
+    setError(res.error);
+    setSigningIn(false);
+  }
 
   async function onGoogle() {
     setError(null);
     setLoading(true);
     try {
       const supabase = createClient();
-      // "hd" only pre-selects the company account in Google's picker; the database is what enforces the rule.
+      // No "hd" (hosted domain) hint: it would make Google's picker show only company accounts, and people an admin added
+      // by hand (a Gmail address, a client's address) must be able to pick theirs. The database enforces who gets in.
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/timesheet/auth/callback`,
-          queryParams: { hd: COMPANY_DOMAIN, prompt: "select_account" },
+          queryParams: { prompt: "select_account" },
         },
       });
       if (error) throw error;
@@ -51,7 +76,7 @@ export default function AuthForm({ initialError }: { initialError?: string }) {
       <CardHeader>
         <CardTitle className="text-2xl font-semibold tracking-tight">Welcome back</CardTitle>
         <CardDescription>
-          Sign in to the Vyntics Employee Management System with your @{COMPANY_DOMAIN} Google account.
+          Sign in to the Vyntics Employee Management System with your @{COMPANY_DOMAIN} Google account, or with the email and password an admin gave you.
         </CardDescription>
       </CardHeader>
 
@@ -67,6 +92,26 @@ export default function AuthForm({ initialError }: { initialError?: string }) {
           {loading ? "Opening Google..." : "Continue with Google"}
         </Button>
 
+        <div className="flex items-center gap-3 text-xs text-muted-foreground" aria-hidden="true">
+          <span className="h-px flex-1 bg-border" />
+          or
+          <span className="h-px flex-1 bg-border" />
+        </div>
+
+        <form onSubmit={onPassword} noValidate className="grid gap-3" aria-label="Sign in with email and password">
+          <div className="grid gap-1.5">
+            <Label htmlFor="login-email">Email</Label>
+            <Input id="login-email" type="email" autoComplete="username" maxLength={200} value={email} onChange={(e) => setEmail(e.target.value)} disabled={signingIn} className="max-md:min-h-11" />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="login-password">Password</Label>
+            <Input id="login-password" type="password" autoComplete="current-password" maxLength={200} value={password} onChange={(e) => setPassword(e.target.value)} disabled={signingIn} className="max-md:min-h-11" />
+          </div>
+          <Button type="submit" size="lg" className="w-full" disabled={signingIn || loading}>
+            {signingIn ? "Signing in..." : "Sign in with email"}
+          </Button>
+        </form>
+
         <div aria-live="polite">
           {error && (
             <Alert variant="destructive" role="alert">
@@ -76,7 +121,7 @@ export default function AuthForm({ initialError }: { initialError?: string }) {
         </div>
 
         <p className="text-center text-sm text-muted-foreground">
-          Use your @{COMPANY_DOMAIN} Google account. Other accounts can&apos;t sign in.
+          No access? Contact your admin. Only company accounts and people an admin has added can sign in.
         </p>
       </CardContent>
     </>

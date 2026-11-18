@@ -5,6 +5,8 @@ import { TimesheetError, assertDate, assertId, toError } from "@/lib/timesheet/e
 import { listHolidaysBetween } from "@/lib/timesheet/holidays";
 import { isDayOff } from "@/lib/timesheet/holidayTypes";
 import { displayName } from "@/lib/timesheet/people";
+import { logError } from "@/lib/timesheet/log";
+import { listRunExpenses, syncRunExpenses } from "@/lib/expenses/server";
 import type { Json } from "@/lib/supabase/types";
 import { computePayslip, type Adjustment, type Component, type DayFact, type Payslip, type PayrollSettings, type Structure } from "./engine";
 import { MAX_PAISE } from "./money";
@@ -106,6 +108,13 @@ export async function createRun(month: string): Promise<string> {
     throw toError(error, "Couldn't create the payroll run. Please try again.");
   }
   await audit("run_created", "payroll_run", data.id, `Created the run for ${month}`);
+  // Approved expenses waiting for this month are added to the new run. If that fails the run still exists, and the
+  // expenses simply stay "Approved" until someone moves them, so this must not fail the whole request.
+  try {
+    await syncRunExpenses(data.id);
+  } catch (e) {
+    logError("payroll-run-expenses", e);
+  }
   return data.id;
 }
 
@@ -134,7 +143,7 @@ async function computeRows(
   const supabase = await db();
   const { period_start: start, period_end: end } = run;
 
-  const [people, details, structures, hours, requests, compEarned, compOpen, pendingLogs, pendingReq, adjustments, inputs, holidays] = await Promise.all([
+  const [people, details, structures, hours, requests, compEarned, compOpen, pendingLogs, pendingReq, adjustments, inputs, holidays, runExpenses] = await Promise.all([
     supabase.from("profiles").select("id, full_name, email, created_at").order("full_name", { ascending: true }),
     supabase.from("employee_details").select("user_id, joined_on, left_on, department"),
     supabase.from("salary_structures").select("user_id, effective_from, basic_paise, hra_paise, allowances_paise, deductions_paise").lte("effective_from", end).order("effective_from", { ascending: false }).limit(20000),
@@ -147,6 +156,7 @@ async function computeRows(
     supabase.from("payroll_adjustments").select("id, user_id, kind, label, amount_paise").eq("run_id", run.id).order("created_at", { ascending: true }),
     supabase.from("payroll_run_inputs").select("user_id, manual_lop_days").eq("run_id", run.id),
     listHolidaysBetween(start, end).catch(() => []),
+    listRunExpenses(run.id),
   ]);
   for (const r of [people, details, structures, hours, requests, compEarned, compOpen, pendingLogs, pendingReq, adjustments, inputs]) {
     if (r.error) throw toError(r.error, "Couldn't gather the payroll data. Please try again.");
@@ -245,6 +255,7 @@ async function computeRows(
       employment: { joinedOn: emp.joinedOn, leftOn: emp.leftOn },
       days,
       adjustments: adj.map((a) => ({ kind: a.kind, label: a.label, amount: a.amount })),
+      expenses: runExpenses.byUser.get(p.id) ?? [],
       manualLopDays: lopBy.get(p.id) ?? 0,
     });
 
@@ -263,6 +274,12 @@ async function computeRows(
   const noStructure = rows.filter((r) => !structureBy.has(r.userId));
   if (noStructure.length > 0) runWarnings.push(`${noStructure.length} ${noStructure.length === 1 ? "employee has" : "employees have"} no salary structure and will get no salary.`);
   if (rows.length === 0) runWarnings.push("No employee was employed during this month.");
+  // An expense linked to this run for someone who isn't being paid in it can't be paid, and would stop the run from finalizing.
+  const paidIds = new Set(rows.map((r) => r.userId));
+  const stray = runExpenses.all.filter((x) => !paidIds.has(x.userId));
+  if (stray.length > 0) {
+    runWarnings.push(`${stray.map((x) => x.code).join(", ")} ${stray.length === 1 ? "is" : "are"} in this run for someone who isn't being paid in it. Remove ${stray.length === 1 ? "it" : "them"} from the payroll before finalizing.`);
+  }
   return { rows, runWarnings };
 }
 
@@ -311,7 +328,8 @@ export async function getRunDetail(runId: string): Promise<RunDetail> {
           name: snap.employee.name,
           email: snap.employee.email,
           department: snap.employee.department,
-          payslip: snap.payslip,
+          // Payslips stored before expenses existed have no reimbursement fields.
+          payslip: { ...snap.payslip, reimbursement: snap.payslip.reimbursement ?? 0, expenses: snap.payslip.expenses ?? [] },
           adjustments: snap.adjustments.map((a, i) => ({ id: `${s.user_id}-${i}`, kind: a.kind, label: a.label, amount: a.amount })),
           manualLopDays: snap.manualLopDays,
           pending: [],

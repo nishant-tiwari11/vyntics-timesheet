@@ -2,20 +2,26 @@ import Image from "next/image";
 import { Search } from "lucide-react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
+import { ROLE_LABEL, type Role } from "@/lib/access/config";
 import { getAdminCounts } from "@/lib/timesheet/admin";
 import { signOut } from "../actions";
 import logo from "../login/vyntics-logo.png";
 import NavLinks, { PageTitle } from "./NavLinks";
+import { NotificationsBell } from "./NotificationsBell";
+import { UserAvatar } from "./UserAvatar";
+import { UserMenu } from "./UserMenu";
 
 export default async function Shell({
+  id,
   email,
   name,
   role,
   children,
 }: {
+  id: string;
   email: string;
   name?: string | null;
-  role: "employee" | "admin";
+  role: Role;
   children: React.ReactNode;
 }) {
   const shown = name || email;
@@ -41,15 +47,15 @@ export default async function Shell({
           </span>
         </Link>
 
-        <NavLinks isAdmin={role === "admin"} />
+        <NavLinks isAdmin={role === "admin"} isManager={role === "manager"} />
 
         <div className="ts-side-user">
-          <span className="ts-avatar" aria-hidden="true">
-            {shown.charAt(0).toUpperCase()}
-          </span>
+          <Link href="/timesheet/profile" className="ts-side-avatar" aria-label="Your profile">
+            <UserAvatar userId={id} name={shown} className="size-10 text-base" />
+          </Link>
           <span className="ts-side-who" title={email}>
             <span className="ts-side-name">{shown}</span>
-            <span className="ts-side-role">{role === "admin" ? "Admin" : "Employee"}</span>
+            <span className="ts-side-role">{ROLE_LABEL[role]}</span>
           </span>
           <form action={signOut}>
             <button type="submit" className="ts-btn ts-btn-ghost ts-btn-sm">
@@ -92,9 +98,18 @@ export default async function Shell({
                 {waiting > 0 && <span className="ts-bell-count">{waiting > 99 ? "99+" : waiting}</span>}
               </Link>
             )}
+            <NotificationsBell />
+            <UserMenu id={id} name={shown} email={email} roleLabel={ROLE_LABEL[role]} />
           </div>
         </header>
-        <main className="ts-main">{children}</main>
+        <main className="ts-main">
+          {role === "viewer" && (
+            <p role="note" className="mb-4 rounded-md border border-dashed px-3 py-2 text-sm">
+              You have read-only access. You can look at your data but not change it.
+            </p>
+          )}
+          {children}
+        </main>
       </div>
     </div>
   );

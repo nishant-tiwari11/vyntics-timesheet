@@ -8,8 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PROJECTS } from "@/lib/timesheet/projects";
 import { addLogAction, deleteLogAction, updateLogAction, type ActionResult } from "../../dashboard/actions";
 import type { Entry } from "../model";
-import { buildRows, fmtMinutes, planSave } from "./gridModel";
-import { DayHeader, STICKY, TimesheetRow, gridColumns } from "./TimesheetRow";
+import { STICKY, buildRows, fmtMinutes, gridColumns, planSave } from "./gridModel";
+import { DayHeader, TimesheetRow } from "./TimesheetRow";
 
 export type GridProps = {
   /** The days to show: seven (Monday to Sunday) for the Week view, one for the Day view. */

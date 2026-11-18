@@ -11,6 +11,9 @@ export const metadata = { title: "Sign in" };
 const REASONS: Record<string, string> = {
   not_allowed: NOT_INVITED_ERROR,
   failed: "Google sign-in didn't finish. Please try again.",
+  disabled: "This account is switched off. Contact your admin.",
+  expired: "Your access has expired. Contact your admin.",
+  session: "Your session ended. Please sign in again.",
 };
 
 export default async function LoginPage({

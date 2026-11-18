@@ -1,7 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
+import { ROLE_LABEL, type Role } from "@/lib/access/config";
 import { formatInstantDate } from "@/lib/timesheet/dates";
+import { UserAvatar } from "../../_components/UserAvatar";
 import { setRoleAction } from "./actions";
 import ConfirmAction from "./ConfirmAction";
 import ResultMessage, { type Result } from "./ResultMessage";
@@ -10,7 +13,7 @@ export type EmployeeRowData = {
   id: string;
   name: string;
   email: string;
-  role: "employee" | "admin";
+  role: Role;
   created_at: string;
   isSelf: boolean;
 };
@@ -51,20 +54,27 @@ export default function EmployeesTable({ rows }: { rows: EmployeeRowData[] }) {
               return (
                 <tr key={r.id}>
                   <th scope="row" className="ts-afirst">
-                    <span className="ts-aname">{r.name}</span>
-                    {r.isSelf && <span className="ts-asub">You</span>}
+                    <span className="flex items-center gap-2">
+                      <UserAvatar userId={r.id} name={r.name} className="size-8 text-xs" />
+                      <span className="min-w-0">
+                        <Link href={`/timesheet/profile?user=${r.id}`} className="ts-aname hover:underline">
+                          {r.name}
+                        </Link>
+                        {r.isSelf && <span className="ts-asub">You</span>}
+                      </span>
+                    </span>
                   </th>
                   <td>{r.email}</td>
                   <td>
                     <span className={`ts-chip ${r.role === "admin" ? "ts-chip-approved" : "ts-chip-draft"}`}>
-                      {r.role === "admin" ? "Admin" : "Employee"}
+                      {ROLE_LABEL[r.role]}
                     </span>
                   </td>
                   <td>{formatInstantDate(r.created_at)}</td>
                   <td>
                     {/* Server and database both refuse to change your own role; no button on your row. */}
                     {!r.isSelf &&
-                      (r.role === "employee" ? (
+                      (r.role !== "admin" ? (
                         <ConfirmAction
                           label="Make admin"
                           question={`Make ${first} an admin? They will be able to approve requests and see everyone's work logs.`}

@@ -33,6 +33,63 @@ function StatusBadge({ status }: { status: "finalized" | "paid" }) {
   );
 }
 
+// The "Expense Reimbursement" row under Earnings, with the claims behind it in an expandable list. Reimbursement is
+// paid on top of gross (it is not taxable salary), unless an admin marked the category taxable; those claims are
+// already inside the Earnings lines above and are marked "taxable" here.
+function ExpenseBreakdown({ detail, currency }: { detail: PayslipDetail; currency: string }) {
+  const total = detail.expenses.reduce((n, e) => n + e.amount, 0);
+  return (
+    <details className="group mt-3 rounded-md border p-3 text-sm open:bg-muted/30">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-medium marker:hidden">
+        <span>
+          Expense Reimbursement <span className="text-xs font-normal text-muted-foreground">({detail.expenses.length} {detail.expenses.length === 1 ? "claim" : "claims"}, show or hide)</span>
+        </span>
+        <Amount paise={total} currency={currency} className="tabular-nums" />
+      </summary>
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full text-left text-xs">
+          <caption className="sr-only">Expense claims included in this payslip</caption>
+          <thead>
+            <tr className="border-b text-muted-foreground">
+              <th className="py-1 pr-2 font-medium">Date</th>
+              <th className="py-1 pr-2 font-medium">Category</th>
+              <th className="py-1 pr-2 font-medium">Description</th>
+              <th className="py-1 pr-2 font-medium">Claim ID</th>
+              <th className="py-1 text-right font-medium">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {detail.expenses.map((e) => (
+              <tr key={e.claimId} className="border-b border-dashed align-top">
+                <td className="py-1 pr-2 whitespace-nowrap">{day(e.date)}</td>
+                <td className="py-1 pr-2">
+                  {e.category}
+                  {e.taxable ? " (taxable)" : ""}
+                </td>
+                <td className="py-1 pr-2 break-words">{e.description}</td>
+                <td className="py-1 pr-2 whitespace-nowrap">{e.claimCode}</td>
+                <td className="py-1 text-right tabular-nums">
+                  <Amount paise={e.amount} currency={currency} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="font-semibold">
+              <td colSpan={4} className="pt-2">
+                Total
+              </td>
+              <td className="pt-2 text-right tabular-nums">
+                <Amount paise={total} currency={currency} />
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </details>
+  );
+}
+
 export default async function SalaryPage({ searchParams }: { searchParams: Promise<{ month?: string; tab?: string }> }) {
   const raw = await searchParams;
 
@@ -255,6 +312,7 @@ export default async function SalaryPage({ searchParams }: { searchParams: Promi
                             ))}
                           </ul>
                         )}
+                        {title === "Earnings" && detail.expenses.length > 0 && <ExpenseBreakdown detail={detail} currency={currency} />}
                       </section>
                     ))}
                   </div>
@@ -268,6 +326,12 @@ export default async function SalaryPage({ searchParams }: { searchParams: Promi
                       <span>Total deductions</span>
                       <Amount paise={detail.deductions} currency={currency} className="tabular-nums" />
                     </p>
+                    {detail.reimbursement > 0 && (
+                      <p className="flex justify-between gap-3">
+                        <span>Expense reimbursement (added after deductions)</span>
+                        <Amount paise={detail.reimbursement} currency={currency} className="tabular-nums" />
+                      </p>
+                    )}
                     {detail.roundingAdjustment !== 0 && (
                       <p className="flex justify-between gap-3">
                         <span>Rounding</span>

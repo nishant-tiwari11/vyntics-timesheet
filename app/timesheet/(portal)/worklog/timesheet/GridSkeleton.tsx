@@ -1,5 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import { gridColumns } from "./TimesheetRow";
+import { gridColumns } from "./gridModel";
 
 /** Placeholder shaped like the grid (day headers, three rows, totals), so nothing jumps when the real one arrives. */
 export function GridSkeleton({ days = 7 }: { days?: number }) {
