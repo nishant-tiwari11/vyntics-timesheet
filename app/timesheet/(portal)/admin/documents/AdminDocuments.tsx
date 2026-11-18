@@ -19,9 +19,10 @@ import { DocumentPreviewModal, type PreviewDoc } from "../../profile/documents/D
 import { StatusBadge } from "../../profile/documents/DocumentList";
 import { ReviewDialog, type ReviewTarget } from "../../profile/documents/ReviewDialog";
 import { sendReminderAction, setManagerSensitiveAction } from "./actions";
+import { OfferLetterTab, type OfferTemplateInfo } from "./OfferLetterTab";
 
 const ALL = "__all__";
-type View = "documents" | "missing" | "activity" | "managers";
+type View = "documents" | "missing" | "offer" | "activity" | "managers";
 type Quick = "all" | "pending" | "expiring";
 
 const ACTION: Record<string, string> = {
@@ -37,7 +38,7 @@ const ACTION: Record<string, string> = {
 
 const profileLink = (id: string) => `/timesheet/profile?user=${id}&tab=documents`;
 
-export function AdminDocuments({ docs, employees, audit, truncated, today }: { docs: AdminDoc[]; employees: EmployeeDocs[]; audit: AuditRow[]; truncated: boolean; today: string }) {
+export function AdminDocuments({ docs, employees, audit, truncated, today, offerTemplate }: { docs: AdminDoc[]; employees: EmployeeDocs[]; audit: AuditRow[]; truncated: boolean; today: string; offerTemplate: OfferTemplateInfo }) {
   const [view, setView] = useState<View>("documents");
   const [quick, setQuick] = useState<Quick>("all");
   const [q, setQ] = useState("");
@@ -114,6 +115,7 @@ export function AdminDocuments({ docs, employees, audit, truncated, today }: { d
   const tabs: { id: View; label: string; count?: number }[] = [
     { id: "documents", label: "Documents", count: docs.length },
     { id: "missing", label: "Missing documents", count: needsDocs.length },
+    { id: "offer", label: "Offer letter" },
     { id: "activity", label: "Activity" },
     { id: "managers", label: "Manager access" },
   ];
@@ -330,6 +332,8 @@ export function AdminDocuments({ docs, employees, audit, truncated, today }: { d
           )}
         </section>
       )}
+
+      {view === "offer" && <OfferLetterTab employees={employees.filter((e) => e.role !== "viewer")} today={today} template={offerTemplate} />}
 
       {view === "activity" && (
         <section className="grid gap-3" aria-label="Document activity">

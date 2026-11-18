@@ -2,6 +2,7 @@ import "../../dashboard/dashboard.css";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { loadAdminDocuments } from "@/lib/documents/admin";
+import { loadOfferTemplate } from "@/lib/documents/offerTemplate";
 import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
 import { todayInOffice } from "@/lib/timesheet/dates";
 import { TimesheetError } from "@/lib/timesheet/errors";
@@ -17,8 +18,9 @@ export default async function AdminDocumentsPage() {
   if (me?.role !== "admin") redirect("/timesheet/dashboard");
 
   let data;
+  let template;
   try {
-    data = await loadAdminDocuments();
+    [data, template] = await Promise.all([loadAdminDocuments(), loadOfferTemplate()]);
   } catch (e) {
     if (!(e instanceof TimesheetError)) logError("admin documents", e);
     return (
@@ -44,7 +46,7 @@ export default async function AdminDocumentsPage() {
           Documents aren&apos;t set up yet. Run <code>supabase/step26_documents.sql</code> and <code>supabase/step27_document_admin.sql</code> in Supabase.
         </p>
       ) : (
-        <AdminDocuments docs={data.docs} employees={data.employees} audit={data.audit} truncated={data.truncated} today={todayInOffice()} />
+        <AdminDocuments docs={data.docs} employees={data.employees} audit={data.audit} truncated={data.truncated} today={todayInOffice()} offerTemplate={template} />
       )}
     </div>
   );

@@ -7,6 +7,7 @@ import { getAdminCounts } from "@/lib/timesheet/admin";
 import { signOut } from "../actions";
 import logo from "../login/vyntics-logo.png";
 import NavLinks, { PageTitle } from "./NavLinks";
+import { CompleteProfilePrompt } from "./CompleteProfilePrompt";
 import { NotificationsBell } from "./NotificationsBell";
 import { UserAvatar } from "./UserAvatar";
 import { UserMenu } from "./UserMenu";
@@ -102,6 +103,7 @@ export default async function Shell({
             <UserMenu id={id} name={shown} email={email} roleLabel={ROLE_LABEL[role]} />
           </div>
         </header>
+        {role !== "viewer" && <CompleteProfilePrompt userId={id} />}
         <main className="ts-main">
           {role === "viewer" && (
             <p role="note" className="mb-4 rounded-md border border-dashed px-3 py-2 text-sm">
