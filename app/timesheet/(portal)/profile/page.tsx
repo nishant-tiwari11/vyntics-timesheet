@@ -127,7 +127,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         </section>
       ) : !docs.ready ? (
         <p role="note" className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-          Documents aren&apos;t set up yet. An admin needs to run <code>supabase/step26_documents.sql</code> in Supabase.
+          Documents aren&apos;t set up yet. An admin needs to run <code>supabase/step26_documents.sql</code> in Supabase.{docs.code && <span className="mt-1 block text-xs">Database error code: {docs.code}</span>}
         </p>
       ) : (
         <DocumentsWorkspace

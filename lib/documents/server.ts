@@ -2,6 +2,7 @@ import "server-only";
 import { DOC_BUCKET, type DocStatus, type Visibility } from "./config";
 import { createClient } from "@/lib/supabase/server";
 import { TimesheetError, toError } from "@/lib/timesheet/errors";
+import { logError } from "@/lib/timesheet/log";
 import { displayName } from "@/lib/timesheet/people";
 
 // Reading and removing employee documents. Everything runs with the signed-in person's own database session, so
@@ -80,7 +81,7 @@ export function docRowFrom(r: Db, names: Map<string, string>): DocRow {
   };
 }
 
-export type DocumentList = { ready: false } | { ready: true; current: DocRow[]; versions: Record<string, DocRow[]> };
+export type DocumentList = { ready: false; code?: string } | { ready: true; current: DocRow[]; versions: Record<string, DocRow[]> };
 
 /** One person's documents: the current ones, and (for an admin, the only one who can see them) the older versions by group. */
 export async function listDocuments(userId: string): Promise<DocumentList> {
@@ -93,7 +94,10 @@ export async function listDocuments(userId: string): Promise<DocumentList> {
     .order("created_at", { ascending: false })
     .limit(500);
   if (error) {
-    if (MISSING.has(error.code ?? "")) return { ready: false };
+    if (MISSING.has(error.code ?? "")) {
+      logError("documents not set up", error);
+      return { ready: false, code: error.code };
+    }
     throw toError(error, "Couldn't load the documents. Please try again.");
   }
   const rows = (data ?? []) as unknown as Db[];
