@@ -37,7 +37,7 @@ export default async function AdminDocumentsPage() {
     <div className="ts-page ts-dash grid gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="ts-h1">Documents</h1>
-        <Link href="/timesheet/admin?tab=employees" className="ts-link text-sm">
+        <Link href="/timesheet/admin" className="ts-link text-sm">
           ← Back to Admin
         </Link>
       </div>

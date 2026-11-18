@@ -1,8 +1,10 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingEyes } from "@/app/timesheet/_components/LoadingEyes";
 
 export default function Loading() {
   return (
     <div className="grid gap-5" aria-busy="true" role="status" aria-label="Team, loading">
+      <LoadingEyes />
       <div className="grid gap-2">
         <Skeleton className="h-8 w-32" />
         <Skeleton className="h-4 w-80 max-w-full" />

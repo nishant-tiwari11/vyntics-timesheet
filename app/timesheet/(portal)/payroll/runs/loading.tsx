@@ -1,8 +1,10 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingEyes } from "@/app/timesheet/_components/LoadingEyes";
 
 export default function Loading() {
   return (
     <div className="grid gap-4" aria-busy="true" role="status" aria-label="Payroll runs, loading">
+      <LoadingEyes />
       <div className="flex items-center justify-between gap-3">
         <Skeleton className="h-10 w-full max-w-md" />
         <Skeleton className="h-9 w-40" />

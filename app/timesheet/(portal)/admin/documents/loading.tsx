@@ -1,9 +1,11 @@
 import "../../dashboard/dashboard.css";
 import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingEyes } from "@/app/timesheet/_components/LoadingEyes";
 
 export default function Loading() {
   return (
     <div className="ts-page ts-dash grid gap-4" aria-busy="true" aria-label="Loading documents">
+      <LoadingEyes />
       <Skeleton className="h-8 w-40" />
       <Skeleton className="h-10 w-96 max-w-full" />
       <div className="grid gap-2 sm:grid-cols-4">

@@ -1,4 +1,5 @@
 import { Skeleton, SkeletonRegion } from "./Skeleton";
+import { LoadingEyes } from "@/app/timesheet/_components/LoadingEyes";
 
 // Page-specific skeletons. They reuse the real layout classes (grids, cards, tables) with the same row and
 // cell sizes, so the page doesn't jump when the real content replaces them.
@@ -152,6 +153,7 @@ export function TimeLogsSkeleton({ rows = 5 }: { rows?: number }) {
 export function DashboardSkeleton() {
   return (
     <div className="ts-page ts-dash" aria-busy="true">
+      <LoadingEyes />
       <header className="ts-dash-head" aria-hidden="true">
         <div>
           <Skeleton width={320} height={34} />
@@ -250,6 +252,7 @@ export function RequestsSkeleton({ title = "Your requests", rows = 3 }: { title?
 export function LeaveSkeleton() {
   return (
     <div className="ts-page" aria-busy="true">
+      <LoadingEyes />
       <header aria-hidden="true">
         <Skeleton width={220} height={34} />
         <Skeleton width="min(520px, 100%)" height={16} style={{ marginTop: 8 }} />
@@ -310,6 +313,7 @@ export function AdminTableSkeleton({ rows = 6 }: { rows?: number }) {
 export function AdminSkeleton() {
   return (
     <div className="ts-page" aria-busy="true">
+      <LoadingEyes />
       <Skeleton width={110} height={34} />
       <div className="ts-admin-tabs" aria-hidden="true">
         {range(4).map((i) => (
@@ -329,6 +333,7 @@ export function AdminSkeleton() {
 export function MonthPageSkeleton() {
   return (
     <div className="ts-page" aria-busy="true">
+      <LoadingEyes />
       <header className="ts-page-head" aria-hidden="true">
         <Skeleton width={220} height={34} />
         <Skeleton width={260} height={36} />

@@ -1,9 +1,11 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingEyes } from "@/app/timesheet/_components/LoadingEyes";
 
 // Same shape as the real page: a note, the rules form, the components table and the activity log.
 export default function Loading() {
   return (
     <div className="grid gap-8" aria-busy="true" role="status" aria-label="Payroll settings, loading">
+      <LoadingEyes />
       <Skeleton className="h-16 w-full" />
       <div className="grid gap-4">
         <Skeleton className="h-5 w-48" />

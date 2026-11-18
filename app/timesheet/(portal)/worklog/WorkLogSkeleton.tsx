@@ -1,5 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { GridSkeleton } from "./timesheet/GridSkeleton";
+import { LoadingEyes } from "@/app/timesheet/_components/LoadingEyes";
 
 // Placeholders shaped like the real page, so nothing jumps when the data arrives:
 // four summary cards, then the grouped list (a day header and rows, twice).
@@ -52,6 +53,7 @@ export function ListSkeleton() {
 export function WorkLogPageSkeleton() {
   return (
     <div className="ts-page ts-dash grid gap-5" aria-busy="true" aria-label="Loading the Timesheet">
+      <LoadingEyes />
       <div className="flex items-center justify-between gap-3 border-b pb-3">
         <Skeleton className="h-7 w-32" />
         <Skeleton className="h-9 w-48" />

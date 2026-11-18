@@ -1,10 +1,12 @@
 import "../dashboard/dashboard.css";
 import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingEyes } from "@/app/timesheet/_components/LoadingEyes";
 
 // Shown while the profile loads: the header card, the tab bar, then a few document-shaped rows.
 export default function Loading() {
   return (
     <div className="ts-page ts-dash grid max-w-4xl gap-5" aria-busy="true" aria-label="Loading your profile">
+      <LoadingEyes />
       <div className="grid gap-4 rounded-xl border bg-card p-5">
         <div className="flex items-center gap-5">
           <Skeleton className="size-24 rounded-full" />

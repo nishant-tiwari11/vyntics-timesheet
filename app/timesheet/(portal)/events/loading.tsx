@@ -1,9 +1,11 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingEyes } from "@/app/timesheet/_components/LoadingEyes";
 
 // Same shape as the real page: sidebar, toolbar and a 6-week grid, so nothing jumps when it loads.
 export default function Loading() {
   return (
     <div className="grid gap-6 lg:grid-cols-[16rem_minmax(0,1fr)]" aria-busy="true" role="status" aria-label="Events, loading">
+      <LoadingEyes />
       <div className="hidden gap-6 lg:grid">
         <Skeleton className="h-60 w-full" />
         <div className="grid gap-2">
