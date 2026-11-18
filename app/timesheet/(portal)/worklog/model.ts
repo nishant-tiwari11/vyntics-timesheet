@@ -1,14 +1,14 @@
 // The Work log page's numbers and shapes: filtering, sorting, grouping by day, summary cards, CSV.
 // Pure code (no server-only imports) so it can be tested on its own.
 
-import { addDays, daysInclusive, isWeekend } from "@/lib/timesheet/dates";
-import { EDIT_WINDOW_DAYS } from "@/lib/timesheet/rules";
+import { daysInclusive, isWeekend } from "@/lib/timesheet/dates";
+import { isLocked, lockDate } from "@/lib/timesheet/rules";
 import { eachDay, type SortId, type WorkQuery } from "./query";
 
 /** Hours a full working day is expected to have (the same target the Dashboard uses). */
 export const DAY_TARGET_HOURS = 8;
 
-/** Show the "days left to edit" hint when this many days or fewer remain. */
+/** Show the "days left to edit" hint when this many days or fewer remain before the week locks (Sunday night). */
 export const LOCK_WARNING_DAYS = 3;
 
 export type LogStatusId = "pending" | "approved" | "rejected";
@@ -55,16 +55,16 @@ export function clock12(time: string): string {
 export const dayDiff = (a: string, b: string) => daysInclusive(a, b) - 1;
 
 /**
- * Days left to change a pending entry of your own before it locks (0 = today is the last day), or null when
- * it is already locked or no longer pending. An entry for day D can be changed until D + 7.
+ * Days left to change a pending entry of your own before its week locks (0 = today is Sunday, the last day), or null when
+ * it is already locked or no longer pending. The timesheet locks every Sunday night, so every entry in the current
+ * week has the same number of days left.
  */
 export function daysLeftToEdit(entry: Pick<Entry, "date" | "status">, today: string): number | null {
-  if (entry.status !== "pending") return null;
-  const left = dayDiff(today, addDays(entry.date, EDIT_WINDOW_DAYS));
-  return left < 0 ? null : left;
+  if (entry.status !== "pending" || isLocked(entry.date, today)) return null;
+  return dayDiff(today, lockDate(today));
 }
 
-export const editHint = (left: number) => (left === 0 ? "Last day to edit" : `${left} ${left === 1 ? "day" : "days"} left to edit`);
+export const editHint = (left: number) => (left === 0 ? "Last day to edit: locks tonight" : `Locks Sunday night (${left} ${left === 1 ? "day" : "days"} left)`);
 
 /** Apply the project, status and search filters. (The period is already applied when loading.) */
 export function filterEntries(entries: Entry[], query: Pick<WorkQuery, "project" | "status" | "q">): Entry[] {

@@ -40,9 +40,9 @@ export function RowActions({
   today: string;
   own: boolean;
   admin: boolean;
-  /** Edit and Delete are allowed (an admin always; an employee on their own pending entry inside the 7 days). */
+  /** Edit and Delete are allowed (an admin always; an employee on their own pending entry in the current week). */
   canChange: boolean;
-  /** A rejected entry of your own whose day is still inside the 7 days, so a corrected copy can be sent. */
+  /** A rejected entry of your own whose week hasn't locked yet, so a corrected copy can be sent. */
   canFix: boolean;
   lockedReason: string | null;
 }) {

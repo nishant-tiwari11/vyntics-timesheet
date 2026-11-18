@@ -403,7 +403,7 @@ export default function LogCalendar({
 
   const openOff = openOffId ? (off.find((o) => o.id === openOffId) ?? null) : null;
   const mine = openEvent?.userId === myId;
-  // Employees: their own pending entries within 7 days. Admins: any entry, any date.
+  // Employees: their own pending entries in the current week. Admins: any entry, any date.
   const editable = !!openEvent && (isAdmin || (mine && openEvent.status === "pending" && !isLocked(openEvent.date, today)));
   const lockedByAge = !!openEvent && !isAdmin && mine && openEvent.status === "pending" && isLocked(openEvent.date, today);
 

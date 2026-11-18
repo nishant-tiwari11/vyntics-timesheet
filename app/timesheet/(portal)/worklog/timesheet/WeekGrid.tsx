@@ -127,6 +127,7 @@ export default function WeekGrid({ days, entries, myId, today }: GridProps) {
         </div>
       </div>
 
+      <p className="text-xs text-muted-foreground">Timesheets lock every Sunday night. After that, only an admin can change them.</p>
       <div className="flex flex-wrap items-center justify-between gap-3">
         {addable.length > 0 ? (
           <Select value="" onValueChange={(p) => setExtra((x) => [...x, p])}>

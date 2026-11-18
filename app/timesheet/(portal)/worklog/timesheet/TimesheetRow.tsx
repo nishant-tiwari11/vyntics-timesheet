@@ -102,9 +102,9 @@ export function TimesheetRow({
           size="icon-sm"
           className="max-md:size-11"
           aria-label={row.locked ? "Locked" : "Open for changes"}
-          title={row.locked ? "Locked: approved, or past the 7-day edit window" : "Open: you can still change these hours"}
+          title={row.locked ? "Locked: approved, or the week has locked (timesheets lock every Sunday night)" : "Open: you can still change these hours"}
           onClick={() =>
-            toast.info(row.locked ? "These hours are locked: they are approved or past the 7-day edit window." : "These hours can still be changed.")
+            toast.info(row.locked ? "These hours are locked: they are approved, or the week locked on Sunday night." : "These hours can still be changed.")
           }
         >
           {row.locked ? <Lock aria-hidden="true" /> : <LockOpen aria-hidden="true" className="text-muted-foreground" />}

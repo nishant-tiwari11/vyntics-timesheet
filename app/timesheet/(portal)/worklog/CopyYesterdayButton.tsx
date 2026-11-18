@@ -11,7 +11,7 @@ import { copyDayAction, logHintsAction } from "./actions";
 
 type Source = { date: string; count: number; todayCount: number };
 
-// "Copy yesterday's entries": finds your latest earlier day (within the 7-day window), asks first, then adds the
+// "Copy yesterday's entries": finds your latest earlier day (up to 7 days back), asks first, then adds the
 // same entries to today as new pending entries.
 export function CopyYesterdayButton({ today }: { today: string }) {
   const router = useRouter();

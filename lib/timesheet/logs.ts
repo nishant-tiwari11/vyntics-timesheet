@@ -1,9 +1,9 @@
-import { EDIT_WINDOW_DAYS, LOCKED_MESSAGE, earliestEditable, isLocked } from "./rules";
+import { COPY_LOOKBACK_DAYS, LOCKED_MESSAGE, earliestEditable, isLocked } from "./rules";
 import "server-only";
 import { db, requireAdmin, requireUser } from "./auth";
 import { TimesheetError, assertDate, assertId, toError } from "./errors";
 import { isProject } from "./projects";
-import { todayInOffice } from "./dates";
+import { addDays, todayInOffice } from "./dates";
 import type { LogStatus, WorkLog, WorkLogWithPerson } from "./types";
 
 const LOG_STATUSES: LogStatus[] = ["pending", "approved", "rejected"];
@@ -28,7 +28,7 @@ export type LogFields = {
 function cleanFields(input: LogFields, admin = false) {
   const day = assertDate(input.logDate, "date");
   if (day > todayInOffice()) throw new TimesheetError("You can't add a log for a future date.");
-  // Admins may use any past date; the 7-day lock is for employees.
+  // Admins may use any past date; the weekly lock (every Sunday night) is for employees.
   if (!admin && isLocked(day, todayInOffice())) throw new TimesheetError(LOCKED_MESSAGE);
 
   const content = typeof input.entry === "string" ? input.entry.trim() : "";
@@ -74,10 +74,10 @@ export async function updateLog(id: string, input: LogFields): Promise<void> {
     .eq("id", id)
     .eq("user_id", me.id)
     .eq("status", "pending")
-    .gte("log_date", earliestEditable(todayInOffice())) // an entry older than 7 days is locked
+    .gte("log_date", earliestEditable(todayInOffice())) // an entry from a week that has locked can't be changed
     .select("id");
   if (error) throw toError(error, "Couldn't save your changes. Please try again.");
-  if (!data?.length) throw new TimesheetError(`Only your own pending entries from the last ${EDIT_WINDOW_DAYS} days can be edited.`);
+  if (!data?.length) throw new TimesheetError("Only your own pending entries from the current week can be edited. Timesheets lock every Sunday night.");
 }
 
 /** Delete one of your own entries. Only pending entries can be deleted. */
@@ -94,7 +94,7 @@ export async function deleteLog(id: string): Promise<void> {
     .gte("log_date", earliestEditable(todayInOffice()))
     .select("id");
   if (error) throw toError(error, "Couldn't delete the entry. Please try again.");
-  if (!data?.length) throw new TimesheetError(`Only your own pending entries from the last ${EDIT_WINDOW_DAYS} days can be deleted.`);
+  if (!data?.length) throw new TimesheetError("Only your own pending entries from the current week can be deleted. Timesheets lock every Sunday night.");
 }
 
 // ---------------------------- Admin only ----------------------------
@@ -341,7 +341,8 @@ export async function getLogHints(): Promise<LogHints> {
     .limit(60);
   if (error) throw toError(error, "Couldn't load your recent entries.");
 
-  const earliest = earliestEditable(today);
+  // Copying only reads an earlier day (the copies go to today), so this can look back across the weekly lock.
+  const earliest = addDays(today, -COPY_LOOKBACK_DAYS);
   const earlier = data.filter((r) => r.log_date < today && r.log_date >= earliest);
   const previousDate = earlier[0]?.log_date ?? null;
   return {

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { PROJECTS } from "@/lib/timesheet/projects";
-import { EDIT_WINDOW_DAYS, LOCKED_MESSAGE, earliestEditable, isLocked } from "@/lib/timesheet/rules";
+import { LOCKED_MESSAGE, earliestEditable, isLocked } from "@/lib/timesheet/rules";
 import { FormField, Input, Select, Textarea } from "../../_components/Fields";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -233,7 +233,7 @@ export default function WorkLogForm({
         </FormField>
       )}
       <div className="ts-row-2">
-        <FormField label="Date" required error={errors.date} hint={admin ? "As an admin you can use any past date." : `You can add or change a day for ${EDIT_WINDOW_DAYS} days, then it locks.`}>
+        <FormField label="Date" required error={errors.date} hint={admin ? "As an admin you can use any past date." : "You can add or change any day this week. The timesheet locks every Sunday night."}>
           <Input
             name="date"
             type="date"

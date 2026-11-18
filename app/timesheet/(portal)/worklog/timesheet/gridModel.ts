@@ -63,7 +63,7 @@ export type GridRow = {
   cells: Cell[];
   /** Every entry of the row in the period, rejected ones included, for the notes. */
   entries: Entry[];
-  /** No cell of this row can be changed any more (approved, or past the 7-day window). */
+  /** No cell of this row can be changed any more (approved, or its week has locked). */
   locked: boolean;
 };
 

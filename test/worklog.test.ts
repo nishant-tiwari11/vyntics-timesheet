@@ -130,13 +130,16 @@ describe("summary and the edit window", () => {
     expect(s.pendingApprovals).toBe(2);
   });
 
-  it("counts days left to edit: an entry for day D can be changed until D + 7", () => {
-    expect(daysLeftToEdit({ date: "2026-11-12", status: "pending" }, TODAY)).toBe(7);
-    expect(daysLeftToEdit({ date: "2026-11-05", status: "pending" }, TODAY)).toBe(0);
-    expect(daysLeftToEdit({ date: "2026-11-04", status: "pending" }, TODAY)).toBeNull(); // locked
+  it("counts days left to edit: the timesheet locks every Sunday night, for the whole week at once", () => {
+    // TODAY is Thursday 12 Nov; this week is Mon 9 to Sun 15 Nov.
+    expect(daysLeftToEdit({ date: "2026-11-12", status: "pending" }, TODAY)).toBe(3);
+    expect(daysLeftToEdit({ date: "2026-11-09", status: "pending" }, TODAY)).toBe(3); // Monday of this week: same lock
+    expect(daysLeftToEdit({ date: "2026-11-08", status: "pending" }, TODAY)).toBeNull(); // last Sunday: that week locked
+    expect(daysLeftToEdit({ date: "2026-11-12", status: "pending" }, "2026-11-15")).toBe(0); // Sunday: last day
     expect(daysLeftToEdit({ date: "2026-11-12", status: "approved" }, TODAY)).toBeNull();
-    expect(editHint(0)).toBe("Last day to edit");
-    expect(editHint(1)).toBe("1 day left to edit");
+    expect(editHint(0)).toBe("Last day to edit: locks tonight");
+    expect(editHint(1)).toBe("Locks Sunday night (1 day left)");
+    expect(editHint(3)).toBe("Locks Sunday night (3 days left)");
   });
 });
 
