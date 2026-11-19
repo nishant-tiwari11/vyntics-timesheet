@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useNavCounts } from "./NavCounts";
 
 const ICONS = {
   dashboard: (
@@ -104,21 +105,40 @@ export function PageTitle() {
   return <span className="ts-topbar-title">{titleFor(usePathname())}</span>;
 }
 
-export default function NavLinks({ isAdmin, isManager = false }: { isAdmin: boolean; isManager?: boolean }) {
+/** The menu items this role can see, in order. The command palette uses the same list. */
+export function portalLinks(role: string): { href: string; label: string }[] {
+  const links = role === "admin" ? [...LINKS, TEAM_LINK, ...ADMIN_LINKS] : role === "manager" ? [...LINKS, TEAM_LINK] : LINKS;
+  return links.map(({ href, label }) => ({ href, label }));
+}
+
+// The menu: an icon and a label for each page. What is waiting for you shows as a number (and, when the menu is collapsed to
+// icons, as a dot with the number in its label). The page you are on has a bar down its left edge and a filled background, so
+// it isn't shown by colour alone.
+export default function NavLinks({ isAdmin, isManager = false, onNavigate }: { isAdmin: boolean; isManager?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
+  const counts = useNavCounts();
   const links = isAdmin ? [...LINKS, TEAM_LINK, ...ADMIN_LINKS] : isManager ? [...LINKS, TEAM_LINK] : LINKS;
   const current = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <nav className="ts-nav" aria-label="Portal">
-      {links.map((l) => (
-        <Link key={l.href} href={l.href} className="ts-nav-link" aria-current={current(l.href) ? "page" : undefined}>
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            {ICONS[l.icon]}
-          </svg>
-          {l.label}
-        </Link>
-      ))}
+      {links.map((l) => {
+        const n = counts[l.href] ?? 0;
+        return (
+          <Link key={l.href} href={l.href} onClick={onNavigate} className="ts-nav-link" aria-current={current(l.href) ? "page" : undefined} title={l.label}>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="ts-nav-icon">
+              {ICONS[l.icon]}
+            </svg>
+            <span className="ts-nav-label">{l.label}</span>
+            {n > 0 && (
+              <span className="ts-nav-badge">
+                <span aria-hidden="true">{n > 99 ? "99+" : n}</span>
+                <span className="ts-sr-only">{`, ${n} waiting`}</span>
+              </span>
+            )}
+          </Link>
+        );
+      })}
     </nav>
   );
 }

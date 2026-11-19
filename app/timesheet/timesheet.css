@@ -42,6 +42,7 @@
 }
 
 .ts-side {
+  transition: width 0.18s ease;
   position: sticky;
   top: 0;
   z-index: 10;
@@ -161,6 +162,7 @@
 }
 
 .ts-nav-link {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -182,6 +184,39 @@
   box-shadow: 0 1px 2px rgb(16 40 38 / 8%);
   color: var(--ts-teal);
   font-weight: 600;
+}
+/* Not colour alone: the page you are on also has a bar down its left edge and a filled background. */
+.ts-nav-link[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: -1px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--ts-teal);
+}
+.ts-nav-icon {
+  flex: none;
+}
+.ts-nav-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* What is waiting for you: a number, in a pill. */
+.ts-nav-badge {
+  margin-left: auto;
+  min-width: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--ts-teal);
+  color: var(--ts-on-accent);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
 }
 
 .ts-side-user {
@@ -319,58 +354,144 @@
   font-size: 14px;
 }
 
-/* Phones and small tablets: the sidebar becomes a header with a sideways-scrolling menu */
+/* Folded down to icons: only the icons remain, the numbers become small dots, and every item still has its name as a tooltip. */
+.ts-side[data-collapsed="true"] {
+  width: 76px;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+.ts-side[data-collapsed="true"] :is(.ts-brand-text, .ts-nav-label, .ts-side-who, .ts-side-signout-text, .ts-side-toggle-text) {
+  display: none;
+}
+.ts-side[data-collapsed="true"] .ts-brand {
+  justify-content: center;
+  padding: 0;
+}
+.ts-side[data-collapsed="true"] .ts-nav-link {
+  justify-content: center;
+  padding: 10px 0;
+}
+.ts-side[data-collapsed="true"] .ts-nav-badge {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  min-width: 10px;
+  height: 10px;
+  padding: 0;
+  font-size: 0;
+  line-height: 0;
+  border: 2px solid var(--ts-side-bg);
+}
+.ts-side[data-collapsed="true"] .ts-side-user {
+  justify-content: center;
+}
+.ts-side[data-collapsed="true"] .ts-side-user .ts-btn {
+  justify-content: center;
+  padding: 0;
+}
+.ts-side-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: var(--ts-radius);
+  background: transparent;
+  color: var(--ts-muted);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.ts-side-toggle:hover {
+  background: var(--ts-surface);
+  color: var(--ts-text);
+}
+.ts-side-toggle:focus-visible {
+  outline: 2px solid var(--ts-teal);
+  outline-offset: 2px;
+}
+.ts-side[data-collapsed="true"] .ts-side-toggle {
+  justify-content: center;
+  padding: 6px 0;
+}
+.ts-side-signout .ts-btn {
+  gap: 8px;
+}
+
+/* The top bar's "Jump to..." button (Ctrl+K opens the same palette). */
+.ts-palette-btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--input);
+  border-radius: var(--ts-radius);
+  background: var(--ts-surface);
+  color: var(--ts-muted);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.ts-palette-btn:hover {
+  border-color: var(--ts-text);
+  color: var(--ts-text);
+}
+.ts-palette-btn:focus-visible {
+  outline: 2px solid var(--ts-teal);
+  outline-offset: 2px;
+}
+.ts-palette-kbd {
+  padding: 1px 6px;
+  border: 1px solid var(--ts-border);
+  border-radius: 6px;
+  background: var(--ts-bg);
+  font: inherit;
+  font-size: 11px;
+  color: var(--ts-muted);
+}
+
+/* The menu button (phones only) and the drawer it opens. */
+.ts-menu-btn {
+  display: none;
+}
+.ts-drawer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: 100%;
+  min-height: 0;
+  padding: 18px 14px;
+  overflow-y: auto;
+  background: var(--ts-side-bg);
+}
+
+/* Phones and small tablets: the sidebar is replaced by a drawer that slides in from the left (the menu button in the top bar). */
 @media (max-width: 900px) {
   .ts-shell {
     flex-direction: column;
   }
   .ts-side {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px 12px;
-    width: 100%;
-    height: auto;
-    padding: 10px 12px 0;
-    border-right: 0;
-    border-bottom: 1px solid var(--ts-border);
+    display: none;
   }
-  .ts-brand {
-    order: 1;
-    margin-right: auto;
+  .ts-menu-btn {
+    display: inline-flex;
+    flex: none;
   }
-  .ts-side-user {
+  .ts-palette-text,
+  .ts-palette-kbd {
+    display: none;
+  }
+  .ts-palette-btn {
     order: 2;
-    margin: 0;
+    margin-left: auto;
+    width: 44px;
+    height: 44px;
+    justify-content: center;
     padding: 0;
-    border: 0;
-  }
-  .ts-side-user .ts-avatar,
-  .ts-side-user .ts-side-avatar,
-  .ts-side-who {
-    display: none;
-  }
-  .ts-side-user form {
-    flex-basis: auto;
-  }
-  .ts-side-user .ts-btn {
-    width: auto;
-  }
-  .ts-nav {
-    order: 3;
-    flex-direction: row;
-    flex-basis: 100%;
-    gap: 4px;
-    padding-bottom: 8px;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .ts-nav::-webkit-scrollbar {
-    display: none;
-  }
-  .ts-nav-link {
-    padding: 8px 12px;
-    font-size: 14px;
   }
   .ts-topbar {
     flex-wrap: wrap;
@@ -383,7 +504,7 @@
   }
   .ts-topbar-right {
     order: 2;
-    margin-left: auto;
+    margin-left: 0;
   }
   .ts-search {
     order: 3;
