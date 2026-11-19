@@ -2,7 +2,8 @@ import { logError } from "@/lib/timesheet/log";
 import "../dashboard/dashboard.css"; // shared chips, tags, skeleton, buttons
 import "./calendar.css";
 import Link from "next/link";
-import { addDays, formatYmd, monthGrid, monthKey, parseMonth, todayInOffice } from "@/lib/timesheet/dates";
+import { addDays, formatYmd, isWeekend, monthGrid, monthKey, parseMonth, todayInOffice } from "@/lib/timesheet/dates";
+import { dailyTarget } from "@/lib/timesheet/settings";
 import { TimesheetError } from "@/lib/timesheet/errors";
 import { getMonthData, type MonthData } from "@/lib/timesheet/calendar";
 import { holidayTypeLabel, type Holiday } from "@/lib/timesheet/holidayTypes";
@@ -18,7 +19,6 @@ export const metadata = { title: "Calendar" };
 
 const BASE = "/timesheet/calendar";
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const DAY_TARGET = 8;
 
 const fmt = (n: number) => String(Math.round(n * 100) / 100);
 
@@ -175,11 +175,11 @@ export default async function CalendarPage({
               ))}
             </div>
             <ol className="ts-cal-grid">
-              {grid.days.map((date, i) => {
+              {grid.days.map((date) => {
                 const hours = data.hoursByDate[date] ?? 0;
                 const tag = cover.get(date);
                 const hasLog = logDates.has(date);
-                const dayOff = i % 7 >= 5 || (holidayByDate.has(date) && holidayByDate.get(date)!.type !== "optional");
+                const dayOff = isWeekend(date) || (holidayByDate.has(date) && holidayByDate.get(date)!.type !== "optional");
                 const worked = dayOff && hours > 0;
                 const inMonth = date.startsWith(ym);
                 const isToday = date === today;
@@ -190,7 +190,7 @@ export default async function CalendarPage({
                     hours > 0 ? `${fmt(hours)} hours` : "no hours",
                     tag ? `${tag.compOff ? "Comp-off" : tag.type === "leave" ? "Leave" : "Work from home"}${tag.pending ? " (pending)" : ""}` : null,
                     hasLog ? "work log added" : null,
-                    holidayByDate.has(date) ? `Holiday: ${holidayByDate.get(date)!.name}, ${holidayTypeLabel(holidayByDate.get(date)!.type)}` : i % 7 >= 5 ? "Week off" : null,
+                    holidayByDate.has(date) ? `Holiday: ${holidayByDate.get(date)!.name}, ${holidayTypeLabel(holidayByDate.get(date)!.type)}` : isWeekend(date) ? "Week off" : null,
                     worked ? "worked on a day off" : null,
                     googleByDate.has(date) ? `Google events: ${googleByDate.get(date)!.map((g) => g.title).join(", ")}` : null,
                     inMonth ? null : "outside this month",
@@ -203,18 +203,18 @@ export default async function CalendarPage({
                       href={`/timesheet/dashboard?cal=day&on=${date}#calendar`}
                       aria-label={`${label}. Open this day`}
                       aria-current={isToday ? "date" : undefined}
-                      className={`ts-cal-day${i % 7 >= 5 ? " is-weekend" : ""}${inMonth ? "" : " is-other"}${isToday ? " is-today" : ""}`}
+                      className={`ts-cal-day${isWeekend(date) ? " is-weekend" : ""}${inMonth ? "" : " is-other"}${isToday ? " is-today" : ""}`}
                     >
                       <span
                         className="ts-cal-fill"
                         aria-hidden="true"
-                        style={{ height: `${Math.min(hours / DAY_TARGET, 1) * 100}%` }}
+                        style={{ height: `${Math.min(hours / dailyTarget(), 1) * 100}%` }}
                       />
                       <span className="ts-cal-top" aria-hidden="true">
                         <span className="ts-cal-num">{+date.slice(8)}</span>
                         {hasLog && <span className="ts-cal-dot" />}
                       </span>
-                      {!holidayByDate.has(date) && i % 7 >= 5 && !tag && (
+                      {!holidayByDate.has(date) && isWeekend(date) && !tag && (
                         <span className="ts-hol ts-hol-weekoff" aria-hidden="true">
                           Week off
                         </span>
@@ -264,7 +264,7 @@ export default async function CalendarPage({
 
           <ul className="ts-legend" aria-label="Legend">
             <li>
-              <span className="ts-legend-swatch ts-legend-fill" aria-hidden="true" /> Fill = hours (full at {DAY_TARGET} h)
+              <span className="ts-legend-swatch ts-legend-fill" aria-hidden="true" /> Fill = hours (full at {dailyTarget()} h)
             </li>
             <li>
               <span className="ts-hol ts-hol-weekoff">Week off</span>

@@ -2,7 +2,8 @@ import "server-only";
 import { cache } from "react";
 import { TimesheetError } from "@/lib/timesheet/errors";
 import { logError } from "@/lib/timesheet/log";
-import { addDays, mondayOf, monthRange, todayInOffice } from "@/lib/timesheet/dates";
+import { addDays, isWeekend, mondayOf, monthRange, todayInOffice } from "@/lib/timesheet/dates";
+import { dailyTarget } from "@/lib/timesheet/settings";
 import { listApprovedLeaveBetween, listEmployees } from "@/lib/timesheet/admin";
 import { listAllLogs, listLogPage, listLogsBetween, listMyHoursByDate, type LogPage } from "@/lib/timesheet/logs";
 import type { LogStatus } from "@/lib/timesheet/types";
@@ -12,7 +13,6 @@ import { offDatesBetween } from "@/lib/timesheet/holidays";
 
 export type Loaded<T> = { ok: true; data: T } | { ok: false; error: string };
 
-export const DAY_TARGET = 8;
 
 // Each section loads independently, so one failure shows an error in that section only.
 async function safe<T>(fn: () => Promise<T>): Promise<Loaded<T>> {
@@ -53,6 +53,7 @@ export const loadWeekStats = cache(() =>
     const onLeave = (date: string) =>
       requests.some((r) => r.type === "leave" && r.status === "approved" && r.from_date <= date && date <= r.to_date);
 
+    const target = dailyTarget();
     let hours = 0;
     let workdays = 0;
     let met = 0;
@@ -60,15 +61,15 @@ export const loadWeekStats = cache(() =>
     for (let i = 0; i < 7; i++) {
       const date = addDays(monday, i);
       hours += hoursByDate[date] ?? 0;
-      if (i >= 5 || onLeave(date) || holidays.has(date)) continue; // weekends, leave and holidays don't count toward the target
+      if (isWeekend(date) || onLeave(date) || holidays.has(date)) continue; // weekly offs, leave and holidays don't count toward the target
       workdays += 1;
       if (date > today) continue;
       elapsed += 1;
-      if ((hoursByDate[date] ?? 0) >= DAY_TARGET) met += 1;
+      if ((hoursByDate[date] ?? 0) >= target) met += 1;
     }
     return {
       hours: Math.round(hours * 100) / 100,
-      target: workdays * DAY_TARGET,
+      target: workdays * target,
       met,
       under: elapsed - met,
       elapsed,

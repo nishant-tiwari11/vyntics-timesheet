@@ -23,7 +23,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
   { id: "documents", label: "Documents", href: `${ADMIN}/documents`, path: `${ADMIN}/documents` },
   { id: "reports", label: "Reports", href: `${ADMIN}/reports`, path: `${ADMIN}/reports` },
   { id: "audit", label: "Audit Log", href: `${ADMIN}/audit`, path: `${ADMIN}/audit` },
-  { id: "settings", label: "Settings" },
+  { id: "settings", label: "Settings", href: `${ADMIN}/settings`, path: `${ADMIN}/settings` },
 ];
 
 /** Which menu item is open, from the address. `tab` is the ?tab= value of /timesheet/admin. */

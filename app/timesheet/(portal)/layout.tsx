@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { getAccessBlock, getCurrentUser } from "@/lib/supabase/getCurrentUser";
+import { loadSettings } from "@/lib/timesheet/settingsServer";
+import { SettingsProvider } from "../_components/SettingsProvider";
 import Shell from "../_components/Shell";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
@@ -9,9 +11,15 @@ export default async function PortalLayout({ children }: { children: React.React
   const user = await getCurrentUser();
   if (!user) redirect("/timesheet/login");
 
+  const settings = await loadSettings();
+
   return (
-    <Shell id={user.id} email={user.email} name={user.name} role={user.role}>
-      {children}
-    </Shell>
+    <>
+      {/* First, so the browser pieces below know the weekly off days, the daily target and the lock before they draw. */}
+      <SettingsProvider settings={settings} />
+      <Shell id={user.id} email={user.email} name={user.name} role={user.role}>
+        {children}
+      </Shell>
+    </>
   );
 }

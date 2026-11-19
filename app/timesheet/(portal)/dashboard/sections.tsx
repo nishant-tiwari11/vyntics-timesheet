@@ -1,7 +1,8 @@
 import { formatRange, isWeekend, todayInOffice, workingDaysLabel } from "@/lib/timesheet/dates";
+import { dailyTarget } from "@/lib/timesheet/settings";
 import { Skeleton } from "../../_components/Skeleton";
 import CancelButton from "./CancelButton";
-import { DAY_TARGET, loadOffDates, loadRequests, loadSnapshot, loadWeekStats } from "./data";
+import { loadOffDates, loadRequests, loadSnapshot, loadWeekStats } from "./data";
 
 const TYPE_LABEL = { leave: "Leave", wfh: "WFH" } as const;
 
@@ -101,7 +102,8 @@ export async function SnapshotRow() {
   const people = [...res.data].sort(
     (a, b) => Number(a.onLeave) - Number(b.onLeave) || a.hours - b.hours || a.name.localeCompare(b.name)
   );
-  // Saturday and Sunday are off: nobody is "under", and anyone who works still shows their hours.
+  // On a weekly off day nobody is "under", and anyone who works still shows their hours.
+  const DAY_TARGET = dailyTarget();
   const weekend = isWeekend(todayInOffice());
   const holiday = res.data.some((p) => p.holiday);
   return (

@@ -1,4 +1,5 @@
 // All dates in this portal are plain "YYYY-MM-DD" strings. We never pass Date objects to the database.
+import { isWeeklyOff } from "./settings";
 
 // Office time zone. Must match public.portal_today() in the database.
 export const OFFICE_TIME_ZONE = "Asia/Kolkata";
@@ -59,12 +60,12 @@ export function daysInclusive(from: string, to: string): number {
   return Math.round(ms / 86_400_000) + 1;
 }
 
-/** Saturday and Sunday are the company's weekly off days; logging on them is optional. */
+/** Is this a weekly off day? Saturday and Sunday unless an admin chose other days (Admin -> Settings); logging on them is optional. */
 export function isWeekend(ymd: string): boolean {
   const p = parts(ymd);
   if (!p) return false;
-  const dow = new Date(Date.UTC(p[0], p[1] - 1, p[2])).getUTCDay();
-  return dow === 0 || dow === 6;
+  const dow = new Date(Date.UTC(p[0], p[1] - 1, p[2])).getUTCDay(); // 0 = Sunday
+  return isWeeklyOff(dow === 0 ? 7 : dow);
 }
 
 /**

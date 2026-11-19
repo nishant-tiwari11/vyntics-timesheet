@@ -3,6 +3,7 @@
 
 import { csvCell } from "@/app/timesheet/(portal)/worklog/model";
 import { addDays, formatYmd, isWeekend, isYmd, mondayOf, monthRange, workingDays } from "@/lib/timesheet/dates";
+import { dailyTarget } from "@/lib/timesheet/settings";
 
 export const REPORTS = [
   { id: "hours", label: "Hours" },
@@ -28,8 +29,6 @@ export type PresetId = (typeof PRESETS)[number]["id"];
 
 /** The most days one report may cover, so one request can't ask for years of data. */
 export const MAX_RANGE_DAYS = 366;
-/** Hours a full working day is expected to have. */
-export const DAY_TARGET_HOURS = 8;
 
 export type ReportQuery = {
   report: ReportId;
@@ -203,7 +202,7 @@ export function buildUnderTargetTable(opts: {
   workingDaysById: ReadonlyMap<string, number>;
   target?: number;
 }): ReportTable {
-  const target = opts.target ?? DAY_TARGET_HOURS;
+  const target = opts.target ?? dailyTarget();
   const rows = opts.people
     .map((p) => {
       const days = opts.workingDaysById.get(p.id) ?? 0;

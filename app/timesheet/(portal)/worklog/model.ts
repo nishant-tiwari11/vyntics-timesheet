@@ -3,10 +3,9 @@
 
 import { daysInclusive, isWeekend } from "@/lib/timesheet/dates";
 import { isLocked, lockDate } from "@/lib/timesheet/rules";
+import { dailyTarget } from "@/lib/timesheet/settings";
 import { eachDay, type SortId, type WorkQuery } from "./query";
 
-/** Hours a full working day is expected to have (the same target the Dashboard uses). */
-export const DAY_TARGET_HOURS = 8;
 
 /** Show the "days left to edit" hint when this many days or fewer remain before the week locks (Sunday night). */
 export const LOCK_WARNING_DAYS = 3;
@@ -178,7 +177,7 @@ export function summarize(opts: {
   const worked = new Set(opts.mine.map((e) => e.date));
   const working = eachDay(opts.from, opts.to).filter((d) => !isWeekend(d) && !off.has(d) && !leave.has(d));
   const total = round2(opts.mine.reduce((sum, e) => sum + (e.status === "rejected" ? 0 : (e.hours ?? 0)), 0));
-  const target = working.length * DAY_TARGET_HOURS;
+  const target = working.length * dailyTarget();
   return {
     total,
     target,

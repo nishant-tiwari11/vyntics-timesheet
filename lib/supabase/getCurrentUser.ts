@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { sessionMaxHours, toRole, type Role } from "@/lib/access/config";
+import { primeSettings } from "@/lib/timesheet/settingsServer";
 import { createClient } from "./server";
 
 export type { Role };
@@ -19,6 +20,10 @@ type Loaded = { user: CurrentUser; block: AccessBlock | null } | null;
 // One look at the signed-in person per request: who they are (from public.profiles), and whether their access is
 // still valid (not disabled, not past its expiry date, sign-in not older than SESSION_MAX_HOURS).
 const load = cache(async (): Promise<Loaded> => {
+  // Everything that asks who is signed in also gets the admin's settings (weekly off days, daily target, lock) ready for this
+  // request, read in parallel with the sign-in check. Nearly every page, action and route starts here.
+  const primed = primeSettings();
+  primed.catch(() => {}); // a failure is raised where it is awaited below, not as an unhandled one
   const supabase = await createClient();
   const {
     data: { user },
@@ -48,6 +53,7 @@ const load = cache(async (): Promise<Loaded> => {
   else if (profile.status === "disabled") block = "disabled";
   else if (profile.access_expires_on && profile.access_expires_on < new Date().toISOString().slice(0, 10)) block = "expired";
   else if (user.last_sign_in_at && Date.now() - new Date(user.last_sign_in_at).getTime() > sessionMaxHours() * 3_600_000) block = "session";
+  await primed;
   return { user: current, block };
 });
 
