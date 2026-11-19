@@ -162,7 +162,7 @@ export function DashboardSkeleton() {
         <Skeleton width={140} height={40} />
       </header>
       <StatsSkeleton />
-      <CalendarCardSkeleton />
+      <Skeleton height={140} />
       <TimeLogsSkeleton />
     </div>
   );

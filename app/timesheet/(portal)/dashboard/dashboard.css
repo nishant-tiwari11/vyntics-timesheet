@@ -1516,3 +1516,101 @@
   border-color: var(--ts-text);
   color: var(--ts-surface);
 }
+
+/* ---------- Dashboard: This week strip ---------- */
+.ts-week-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 24px;
+}
+.ts-week-strip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ts-week-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  height: 100%;
+  min-height: 112px;
+  padding: 8px 4px;
+  border: 1px solid var(--ts-border);
+  border-radius: var(--ts-radius);
+  background: var(--ts-surface);
+  color: var(--ts-text);
+  text-align: center;
+  text-decoration: none;
+}
+.ts-week-tile:hover {
+  border-color: var(--ts-text);
+}
+.ts-week-tile:focus-visible {
+  outline: 2px solid var(--ts-text);
+  outline-offset: 2px;
+}
+.ts-week-tile.is-off {
+  background: repeating-linear-gradient(135deg, var(--ts-bg) 0 6px, color-mix(in srgb, var(--ts-border) 55%, var(--ts-bg)) 6px 7px);
+}
+.ts-week-tile.is-today {
+  border-color: var(--ts-text);
+  box-shadow: 0 0 0 1px var(--ts-text);
+  background: color-mix(in srgb, var(--ts-teal) 10%, var(--ts-surface));
+}
+.ts-week-dow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ts-muted);
+}
+.ts-week-num {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.ts-week-tile.is-today .ts-week-num {
+  display: grid;
+  place-items: center;
+  min-width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--ts-text);
+  color: var(--ts-surface);
+}
+.ts-week-hours {
+  font-size: 13px;
+  font-weight: 600;
+}
+.ts-week-tags {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  margin-top: 4px;
+}
+.ts-week-tags .ts-ev {
+  justify-content: center;
+  padding: 1px 3px;
+  font-size: 11px;
+}
+@media (max-width: 1100px) {
+  .ts-week-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .ts-week-strip {
+    gap: 4px;
+  }
+  .ts-week-tag-text {
+    display: none;
+  }
+  .ts-week-num {
+    font-size: 16px;
+  }
+}
