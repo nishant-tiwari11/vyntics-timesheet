@@ -2,7 +2,7 @@ import { logError } from "@/lib/timesheet/log";
 import "../dashboard/dashboard.css"; // shared chips, tags, skeleton, buttons
 import "./calendar.css";
 import Link from "next/link";
-import { addDays, formatYmd, isWeekend, monthGrid, monthKey, parseMonth, todayInOffice } from "@/lib/timesheet/dates";
+import { addDays, daysInclusive, formatYmd, isWeekend, monthGrid, monthKey, parseMonth, todayInOffice } from "@/lib/timesheet/dates";
 import { dailyTarget } from "@/lib/timesheet/settings";
 import { TimesheetError } from "@/lib/timesheet/errors";
 import { getMonthData, type MonthData } from "@/lib/timesheet/calendar";
@@ -12,6 +12,7 @@ import { googleConfig } from "@/lib/google/config";
 import { accessTokenFor, isConnected } from "@/lib/google/connection";
 import { listEvents, type GoogleEvent } from "@/lib/google/events";
 import { requireUser } from "@/lib/timesheet/auth";
+import CalendarGrid, { type DayItem, type DayView } from "./CalendarGrid";
 import CalendarNav from "./CalendarNav";
 import GoogleCalendarCard from "./GoogleCalendarCard";
 
@@ -131,6 +132,64 @@ export default async function CalendarPage({
     monthHours = Math.round(monthHours * 100) / 100;
   }
 
+  // What is on each day, in plain data for the grid to draw.
+  const days: DayView[] = data
+    ? grid.days.map((date) => {
+        const hours = data.hoursByDate[date] ?? 0;
+        const tag = cover.get(date);
+        const hol = holidayByDate.get(date);
+        const wk = isWeekend(date);
+        const items: DayItem[] = [];
+        if (hol) {
+          items.push({
+            id: `h-${date}`,
+            kind: "holiday",
+            label: hol.name,
+            detail: `${holidayTypeLabel(hol.type)} holiday${hol.description ? `. ${hol.description}` : ""}`,
+          });
+        }
+        if (wk && !hol) items.push({ id: `o-${date}`, kind: "off", label: "Weekly off", detail: hours > 0 ? "You logged hours on a day off" : undefined });
+        if (tag) {
+          items.push({
+            id: `r-${date}`,
+            kind: tag.compOff ? "comp" : tag.type,
+            label: tag.compOff ? "Comp-off" : tag.type === "leave" ? "Leave" : "WFH",
+            detail: tag.pending ? "Waiting for approval" : "Approved",
+          });
+        }
+        for (const g of googleByDate.get(date) ?? []) {
+          const span = g.from === g.to ? "1 day" : `${daysInclusive(g.from, g.to)} days`;
+          items.push({ id: `g-${date}-${g.id}`, kind: "google", label: g.title, detail: g.allDay ? `All day, ${span}` : span });
+        }
+        const inMonth = date.startsWith(ym);
+        const longLabel = `${formatYmd(date, { weekday: "long" })} ${formatYmd(date, { day: "numeric" })} ${formatYmd(date, { month: "long" })}`;
+        const summary = [
+          longLabel,
+          date === today ? "today" : null,
+          hours > 0 ? `${fmt(hours)} hours` : "no hours",
+          ...items.map((i) => `${i.label}${i.detail ? ` (${i.detail})` : ""}`),
+          logDates.has(date) ? "work log added" : null,
+          inMonth ? null : "outside this month",
+        ]
+          .filter(Boolean)
+          .join(", ");
+        return {
+          date,
+          num: +date.slice(8),
+          inMonth,
+          isToday: date === today,
+          isWeekend: wk,
+          hours,
+          fill: Math.min(hours / dailyTarget(), 1),
+          hasLog: logDates.has(date),
+          longLabel,
+          summary,
+          href: `/timesheet/worklog?view=day&date=${date}`,
+          items,
+        };
+      })
+    : [];
+
   return (
     <div className="ts-page">
       <header className="ts-page-head">
@@ -168,132 +227,7 @@ export default async function CalendarPage({
         </section>
       ) : (
         <>
-          <section className="ts-card ts-cal-card" aria-label={`Calendar for ${title}`}>
-            <div className="ts-cal-weekdays" aria-hidden="true">
-              {WEEKDAYS.map((d) => (
-                <span key={d}>{d}</span>
-              ))}
-            </div>
-            <ol className="ts-cal-grid">
-              {grid.days.map((date) => {
-                const hours = data.hoursByDate[date] ?? 0;
-                const tag = cover.get(date);
-                const hasLog = logDates.has(date);
-                const dayOff = isWeekend(date) || (holidayByDate.has(date) && holidayByDate.get(date)!.type !== "optional");
-                const worked = dayOff && hours > 0;
-                const inMonth = date.startsWith(ym);
-                const isToday = date === today;
-                const label =
-                  [
-                    `${formatYmd(date, { weekday: "long" })} ${formatYmd(date, { day: "numeric" })} ${formatYmd(date, { month: "long" })}`,
-                    isToday ? "today" : null,
-                    hours > 0 ? `${fmt(hours)} hours` : "no hours",
-                    tag ? `${tag.compOff ? "Comp-off" : tag.type === "leave" ? "Leave" : "Work from home"}${tag.pending ? " (pending)" : ""}` : null,
-                    hasLog ? "work log added" : null,
-                    holidayByDate.has(date) ? `Holiday: ${holidayByDate.get(date)!.name}, ${holidayTypeLabel(holidayByDate.get(date)!.type)}` : isWeekend(date) ? "Week off" : null,
-                    worked ? "worked on a day off" : null,
-                    googleByDate.has(date) ? `Google events: ${googleByDate.get(date)!.map((g) => g.title).join(", ")}` : null,
-                    inMonth ? null : "outside this month",
-                  ]
-                    .filter(Boolean)
-                    .join(", ");
-                return (
-                  <li key={date} className="ts-cal-cell">
-                    <Link
-                      href={`/timesheet/dashboard?cal=day&on=${date}#calendar`}
-                      aria-label={`${label}. Open this day`}
-                      aria-current={isToday ? "date" : undefined}
-                      className={`ts-cal-day${isWeekend(date) ? " is-weekend" : ""}${inMonth ? "" : " is-other"}${isToday ? " is-today" : ""}`}
-                    >
-                      <span
-                        className="ts-cal-fill"
-                        aria-hidden="true"
-                        style={{ height: `${Math.min(hours / dailyTarget(), 1) * 100}%` }}
-                      />
-                      <span className="ts-cal-top" aria-hidden="true">
-                        <span className="ts-cal-num">{+date.slice(8)}</span>
-                        {hasLog && <span className="ts-cal-dot" />}
-                      </span>
-                      {!holidayByDate.has(date) && isWeekend(date) && !tag && (
-                        <span className="ts-hol ts-hol-weekoff" aria-hidden="true">
-                          Week off
-                        </span>
-                      )}
-                      {worked && (
-                        <span className="ts-hol ts-hol-worked" aria-hidden="true" title="You logged hours on a day off">
-                          Worked
-                        </span>
-                      )}
-                      {holidayByDate.has(date) && (
-                        <span
-                          className={`ts-hol ts-hol-${holidayByDate.get(date)!.type}`}
-                          aria-hidden="true"
-                          title={`${holidayByDate.get(date)!.name} (${holidayTypeLabel(holidayByDate.get(date)!.type)})${holidayByDate.get(date)!.description ? `. ${holidayByDate.get(date)!.description}` : ""}`}
-                        >
-                          {holidayByDate.get(date)!.type === "optional" ? "" : "Holiday: "}
-                          {holidayByDate.get(date)!.name}
-                        </span>
-                      )}
-                      {googleByDate.has(date) && (
-                        <span className="ts-gcal" aria-hidden="true">
-                          {googleByDate.get(date)!.slice(0, 2).map((g) => (
-                            <span key={g.id} className="ts-gcal-chip" title={g.title}>
-                              {g.title}
-                            </span>
-                          ))}
-                          {googleByDate.get(date)!.length > 2 && (
-                            <span className="ts-gcal-more">+{googleByDate.get(date)!.length - 2} more</span>
-                          )}
-                        </span>
-                      )}
-                      <span className="ts-cal-bottom" aria-hidden="true">
-                        {tag && (
-                          <span className={`ts-tag ts-tag-${tag.type}${tag.compOff ? " ts-tag-comp" : ""}${tag.pending ? " is-pending" : ""}`}>
-                            <span className="ts-cal-tag-full">{tag.compOff ? "Comp-off" : tag.type === "leave" ? "Leave" : "WFH"}</span>
-                            <span className="ts-cal-tag-short">{tag.compOff ? "C" : tag.type === "leave" ? "L" : "W"}</span>
-                          </span>
-                        )}
-                        {hours > 0 && <span className="ts-cal-hours">{fmt(hours)} h</span>}
-                      </span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ol>
-          </section>
-
-          <ul className="ts-legend" aria-label="Legend">
-            <li>
-              <span className="ts-legend-swatch ts-legend-fill" aria-hidden="true" /> Fill = hours (full at {dailyTarget()} h)
-            </li>
-            <li>
-              <span className="ts-hol ts-hol-weekoff">Week off</span>
-            </li>
-            <li>
-              <span className="ts-hol ts-hol-public">Public</span>
-            </li>
-            <li>
-              <span className="ts-hol ts-hol-optional">Optional</span>
-            </li>
-            <li>
-              <span className="ts-tag ts-tag-leave">Leave</span>
-            </li>
-            <li>
-              <span className="ts-tag ts-tag-comp">Comp-off</span>
-            </li>
-            <li>
-              <span className="ts-hol ts-hol-worked">Worked</span> = hours logged on a day off
-            </li>
-            <li>
-              <span className="ts-tag ts-tag-wfh">WFH</span>
-            </li>
-            <li>
-              <span className="ts-tag ts-tag-leave is-pending">Faded</span> = pending
-            </li>
-            <li>
-              <span className="ts-cal-dot" aria-hidden="true" /> = work log added
-            </li>
-          </ul>
+          <CalendarGrid days={days} weekdays={WEEKDAYS} title={title} dailyTarget={dailyTarget()} />
 
           <div className="ts-summary ts-summary-4">
             <section className="ts-card" aria-labelledby="sum-hours">
