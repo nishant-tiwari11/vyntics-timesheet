@@ -1,5 +1,5 @@
 import "server-only";
-import { ChatError, chatConfigured, sendDM } from "@/lib/google-chat";
+import { ChatError, chatConfigured, sendChat } from "@/lib/google-chat";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { addDays, mondayOf, todayInOffice } from "@/lib/timesheet/dates";
 import { logError } from "@/lib/timesheet/log";
@@ -92,7 +92,9 @@ async function stamp(db: Db, id: string, column: "last_reminded_at" | "last_summ
 /** Send one message; a failure is recorded and never stops the others. */
 async function deliver(db: Db, who: { id: string; email: string }, kind: string, text: string, link: string | undefined, column: "last_reminded_at" | "last_summary_at" | "last_digest_at", label?: string) {
   try {
-    await sendDM(who.email, text, link, label);
+    await sendChat(who.email, text, link, label);
+    // Google Chat allows about one message a second into a space.
+    await new Promise((r) => setTimeout(r, 1100));
     await stamp(db, who.id, column);
     await audit(db, "chat_reminder_sent", who.email, kind);
     return true;
@@ -107,7 +109,7 @@ async function deliver(db: Db, who: { id: string; email: string }, kind: string,
 export async function runJob(job: Job, now: Date = new Date()): Promise<RunResult> {
   const result: RunResult = { job, considered: 0, sent: 0, failed: 0 };
   const skip = (why: string): RunResult => ({ ...result, skipped: why });
-  if (!chatConfigured()) return skip("Google Chat isn't set up (GOOGLE_CHAT_SA_KEY).");
+  if (!chatConfigured()) return skip("Google Chat isn't set up (GOOGLE_CHAT_WEBHOOK_URL).");
 
   const db = createServiceClient();
   const settings = await loadSettings(db);

@@ -24,7 +24,7 @@ export async function saveChatSettingsAction(input: ChatSettings): Promise<ChatR
   };
   const problem = validateChatSettings(settings);
   if (problem) return { ok: false, error: problem };
-  if (settings.enabled && !chatConfigured()) return { ok: false, error: "Google Chat isn't connected yet: add GOOGLE_CHAT_SA_KEY on the server first." };
+  if (settings.enabled && !chatConfigured()) return { ok: false, error: "Google Chat isn't connected yet: add GOOGLE_CHAT_WEBHOOK_URL on the server first." };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc(

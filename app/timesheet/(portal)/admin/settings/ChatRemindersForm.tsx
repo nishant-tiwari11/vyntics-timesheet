@@ -51,7 +51,7 @@ export function ChatRemindersForm({ saved, connected, ready }: { saved: ChatSett
       )}
       {ready && !connected && (
         <p role="note" className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-          Google Chat isn&apos;t connected on the server (<code>GOOGLE_CHAT_SA_KEY</code> is missing), so nothing can be sent yet.
+          Google Chat isn&apos;t connected on the server (<code>GOOGLE_CHAT_WEBHOOK_URL</code> is missing), so nothing can be sent yet.
         </p>
       )}
 
@@ -59,7 +59,7 @@ export function ChatRemindersForm({ saved, connected, ready }: { saved: ChatSett
         <div className="grid gap-1">
           <Label htmlFor="chat-on">Send reminders</Label>
           <p className="text-xs text-muted-foreground">
-            On working days, each person who has logged less than the daily target gets a private Chat message with their hours and an &ldquo;Add time log&rdquo; button. People on approved leave, weekly offs and holidays are skipped, and
+            On working days, each person who has logged less than the daily target is @mentioned in the team Chat space with their hours and an &ldquo;Add time log&rdquo; button. Everyone in that space can see the messages. People on approved leave, weekly offs and holidays are skipped, and
             everyone can switch it off for themselves on their profile.
           </p>
         </div>
