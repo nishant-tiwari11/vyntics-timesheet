@@ -11,6 +11,8 @@ function when(date: string, today: string): string {
   return n === 0 ? "Today" : n === 1 ? "Tomorrow" : `In ${n} days`;
 }
 
+const soon = (date: string, today: string) => daysInclusive(today, date) - 1 <= 7;
+
 // The next few holidays from today on. Loads on its own, so a failure here never affects the rest of the page.
 export default async function UpcomingHolidays({ isAdmin }: { isAdmin: boolean }) {
   const today = todayInOffice();
@@ -52,10 +54,9 @@ export default async function UpcomingHolidays({ isAdmin }: { isAdmin: boolean }
               </span>
               <span className="ts-upcoming-main">
                 <span className="ts-upcoming-name">{h.name}</span>
-                <span className="ts-muted">
-                  {formatYmd(h.date, { weekday: "long" })} · {when(h.date, today)}
-                </span>
+                <span className="ts-muted">{formatYmd(h.date, { weekday: "long" })}</span>
               </span>
+              <span className={`ts-count ${soon(h.date, today) ? "ts-count-soon" : ""}`}>{when(h.date, today)}</span>
               <span className={`ts-hol ts-hol-${h.type}`}>{holidayTypeLabel(h.type)}</span>
             </li>
           ))}

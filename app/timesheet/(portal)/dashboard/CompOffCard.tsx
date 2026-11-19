@@ -27,6 +27,11 @@ export default async function CompOffCard() {
       </div>
       {error || !balance ? (
         <SectionError message={error ?? "Couldn't load your comp-off."} />
+      ) : balance.available === 0 && balance.expiringSoon === 0 ? (
+        <div className="ts-empty">
+          <strong>No comp-off days yet</strong>
+          <p>Work on a weekly off day or a holiday and you can earn one to use later.</p>
+        </div>
       ) : (
         <dl className="grid grid-cols-2 gap-3">
           <div>

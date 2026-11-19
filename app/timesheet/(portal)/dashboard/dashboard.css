@@ -1376,3 +1376,143 @@
 .ts-lc-dayadd {
   padding: 8px 0;
 }
+
+/* ---------- Dashboard: status, ring, quick actions, snapshot grid ---------- */
+.ts-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.ts-quick-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--ts-border);
+  border-radius: var(--ts-radius);
+  background: var(--ts-surface);
+  color: var(--ts-text);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.ts-quick-link:hover {
+  background: var(--muted);
+}
+.ts-quick-link:focus-visible {
+  outline: 2px solid var(--ring, currentColor);
+  outline-offset: 2px;
+}
+.ts-quick-link svg {
+  width: 16px;
+  height: 16px;
+}
+@media (max-width: 640px) {
+  .ts-quick > * {
+    flex: 1 1 calc(50% - 10px);
+    justify-content: center;
+    min-height: 44px;
+  }
+}
+
+.ts-ring {
+  position: relative;
+  display: grid;
+  grid-area: icon;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+}
+.ts-ring svg {
+  position: absolute;
+  inset: 0;
+}
+.ts-ring-track {
+  fill: none;
+  stroke: var(--ts-border);
+  stroke-width: 4;
+}
+.ts-ring-fill {
+  fill: none;
+  stroke: var(--ts-text);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.ts-ring-pct {
+  position: relative;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ts-text);
+}
+.ts-stat-status {
+  display: inline-flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 5px;
+  margin: 10px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.ts-stat-status-good {
+  color: var(--ts-green);
+}
+.ts-stat-status-warn {
+  color: #92400e;
+}
+.ts-stat-status-neutral {
+  color: var(--ts-muted);
+}
+
+.ts-snap-row {
+  grid-auto-flow: row;
+  grid-auto-columns: auto;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  overflow: visible;
+  padding: 0;
+}
+.ts-snap {
+  align-items: stretch;
+}
+.ts-snap-top {
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+}
+.ts-snap-who {
+  display: grid;
+  min-width: 0;
+}
+.ts-snap-who .ts-snap-hours {
+  font-size: 13px;
+  font-weight: 500;
+}
+.ts-meter {
+  height: 4px;
+}
+.ts-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+}
+.ts-pill-under {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.ts-count {
+  flex: none;
+  padding: 1px 10px;
+  border: 1px solid var(--ts-border);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--ts-text);
+}
+.ts-count-soon {
+  background: var(--ts-text);
+  border-color: var(--ts-text);
+  color: var(--ts-surface);
+}

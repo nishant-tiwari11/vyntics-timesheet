@@ -21,13 +21,16 @@ export default function ApplyForm({
   today,
   offDays = [],
   compOff = null,
+  initialType = "leave",
 }: {
+  /** Which kind the form starts on (the quick actions on the dashboard use this). */
+  initialType?: "leave" | "wfh" | "comp";
   today: string;
   offDays?: string[];
   /** Your comp-off balance, or null if it could not be loaded. */
   compOff?: { available: number; expiringSoon: number } | null;
 }) {
-  const [type, setType] = useState<Kind>("leave");
+  const [type, setType] = useState<Kind>(initialType);
   const [from, setFrom] = useState(today);
   const [to, setTo] = useState(today);
   const [note, setNote] = useState("");

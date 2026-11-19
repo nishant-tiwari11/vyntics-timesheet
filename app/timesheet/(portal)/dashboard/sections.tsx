@@ -1,6 +1,8 @@
 import { formatRange, isWeekend, todayInOffice, workingDaysLabel } from "@/lib/timesheet/dates";
 import { dailyTarget } from "@/lib/timesheet/settings";
+import { CheckCircle2, Clock, Palmtree, TriangleAlert, CalendarOff, type LucideIcon } from "lucide-react";
 import { Skeleton } from "../../_components/Skeleton";
+import { UserAvatar } from "../../_components/UserAvatar";
 import CancelButton from "./CancelButton";
 import { loadOffDates, loadRequests, loadSnapshot, loadWeekStats } from "./data";
 
@@ -42,15 +44,59 @@ function Icon({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Stat({ tone, icon, value, of, label }: { tone: string; icon: React.ReactNode; value: string; of?: string; label: string }) {
+/** A ring that fills as you get to the target. The number beside it says the same thing, so colour is never the only signal. */
+function Ring({ pct }: { pct: number }) {
+  const r = 18;
+  const c = 2 * Math.PI * r;
+  const p = Math.min(Math.max(pct, 0), 1);
+  return (
+    <span className="ts-ring" aria-hidden="true">
+      <svg viewBox="0 0 44 44" width="44" height="44">
+        <circle cx="22" cy="22" r={r} className="ts-ring-track" />
+        <circle cx="22" cy="22" r={r} className="ts-ring-fill" strokeDasharray={c} strokeDashoffset={c * (1 - p)} transform="rotate(-90 22 22)" />
+      </svg>
+      <span className="ts-ring-pct">{Math.round(p * 100)}%</span>
+    </span>
+  );
+}
+
+function Stat({
+  tone,
+  icon,
+  value,
+  of,
+  label,
+  ring,
+  status,
+}: {
+  tone: string;
+  icon: React.ReactNode;
+  value: string;
+  of?: string;
+  label: string;
+  ring?: number;
+  status?: { kind: "good" | "warn" | "neutral"; text: string };
+}) {
   return (
     <li className={`ts-stat ts-stat-${tone}`}>
-      <Icon>{icon}</Icon>
+      {ring !== undefined ? <Ring pct={ring} /> : <Icon>{icon}</Icon>}
       <p className="ts-stat-value">
         {value}
         {of && <span className="ts-stat-of">/{of}</span>}
       </p>
       <p className="ts-stat-label">{label}</p>
+      {status && (
+        <p className={`ts-stat-status ts-stat-status-${status.kind}`}>
+          {status.kind === "good" ? (
+            <CheckCircle2 className="size-3.5" aria-hidden="true" />
+          ) : status.kind === "warn" ? (
+            <TriangleAlert className="size-3.5" aria-hidden="true" />
+          ) : (
+            <Clock className="size-3.5" aria-hidden="true" />
+          )}
+          {status.text}
+        </p>
+      )}
     </li>
   );
 }
@@ -66,6 +112,12 @@ export async function StatCards() {
         icon={<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>}
         value={fmtHours(hours)}
         label="Logged this week"
+        ring={target > 0 ? hours / target : 0}
+        status={
+          target > 0 && hours >= target
+            ? { kind: "good", text: "Target reached" }
+            : { kind: "neutral", text: `${fmtHours(Math.max(target - hours, 0))} to go` }
+        }
       />
       <Stat
         tone="b"
@@ -79,6 +131,7 @@ export async function StatCards() {
         value={String(met)}
         of={String(elapsed)}
         label="Days met target"
+        status={{ kind: "good", text: met === 1 ? "1 day on target" : `${met} days on target` }}
       />
       <Stat
         tone="d"
@@ -86,6 +139,7 @@ export async function StatCards() {
         value={String(under)}
         of={String(elapsed)}
         label="Days under target"
+        status={under > 0 ? { kind: "warn", text: "Needs attention" } : { kind: "good", text: "None, well done" }}
       />
     </ul>
   );
@@ -106,21 +160,25 @@ export async function SnapshotRow() {
   const DAY_TARGET = dailyTarget();
   const weekend = isWeekend(todayInOffice());
   const holiday = res.data.some((p) => p.holiday);
+  const ICON: Record<string, LucideIcon> = { met: CheckCircle2, under: TriangleAlert, leave: Palmtree, off: CalendarOff };
   return (
     <ul className="ts-snap-row">
       {people.map((p) => {
         const state = p.onLeave ? "leave" : p.hours >= DAY_TARGET ? "met" : weekend || holiday ? "off" : "under";
         const label = { leave: "Leave", met: "Met", under: "Under", off: holiday && !weekend ? "Holiday" : "Weekly off" }[state];
+        const StateIcon = ICON[state];
         return (
           <li key={p.id} className="ts-snap">
-            <p className="ts-snap-top">
-              <span className="ts-snap-name">{p.name}</span>
-              <span className="ts-snap-hours">
-                {fmtHours(p.hours)}
-                <span className="ts-muted">/{DAY_TARGET}h</span>
+            <div className="ts-snap-top">
+              <UserAvatar userId={p.id} name={p.name} className="size-9 text-sm" />
+              <span className="ts-snap-who">
+                <span className="ts-snap-name">{p.name}</span>
+                <span className="ts-snap-hours">
+                  {fmtHours(p.hours)}
+                  <span className="ts-muted">/{DAY_TARGET}h</span>
+                </span>
               </span>
-            </p>
-            <span className={`ts-pill ts-pill-${state}`}>{label}</span>
+            </div>
             <div
               className={`ts-meter ts-meter-${state}`}
               role="progressbar"
@@ -131,6 +189,9 @@ export async function SnapshotRow() {
             >
               <span style={{ width: `${Math.min(p.hours / DAY_TARGET, 1) * 100}%` }} />
             </div>
+            <span className={`ts-pill ts-pill-${state}`}>
+              <StateIcon className="size-3" aria-hidden="true" /> {label}
+            </span>
           </li>
         );
       })}
