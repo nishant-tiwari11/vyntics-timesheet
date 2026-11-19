@@ -64,7 +64,7 @@ describe("messages", () => {
     expect(weekSummaryText("Asha", 40, 40)).toContain("Target reached");
   });
   it("lists what is waiting", () => {
-    expect(approvalsText("Ravi", { requests: 2, logs: 1, compOff: 0 })).toBe("Hi Ravi, waiting for your approval: 2 leave or WFH requests and 1 time log.");
+    expect(approvalsText("Ravi", { requests: 2, logs: 1, compOff: 0 })).toBe("Hi Ravi, you have 2 leave or WFH requests and 1 time log waiting for your approval.");
   });
 });
 

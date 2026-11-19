@@ -1,7 +1,7 @@
 import "server-only";
 
-// Posts a message into the team's Google Chat space through an incoming webhook (GOOGLE_CHAT_WEBHOOK_URL). The message
-// @mentions the person it is for, so they get a notification. No Google Cloud project or service account is needed.
+// Posts a card into the team's Google Chat space through an incoming webhook (GOOGLE_CHAT_WEBHOOK_URL). No Google Cloud
+// project or service account is needed.
 // The webhook address contains a secret key: it lives only in the server's environment and is never logged or sent to the browser.
 
 export class ChatError extends Error {}
@@ -25,30 +25,42 @@ function webhook(): URL | null {
   }
 }
 
+export type ChatCard = {
+  /** The card's heading, e.g. "Timesheet reminder". */
+  title: string;
+  /** Under the heading: who this is for. */
+  subtitle: string;
+  /** One highlighted fact, e.g. "Logged today" / "0h of 8h". Basic <b> tags are allowed in the value. */
+  fact?: { label: string; value: string; icon?: "CLOCK" | "PERSON" | "DESCRIPTION" | "STAR" | "BOOKMARK" };
+  /** The message itself. */
+  text: string;
+  /** A button under the message that opens this address. */
+  link?: { url: string; label: string };
+};
+
+const escapeHtml = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
 /**
- * Post a message to the Chat space, starting with an @mention of the person with this work email. With `linkUrl`, the message
- * also carries a button that opens that address. Throws a ChatError with a short, safe reason if it can't be delivered.
+ * Post a card to the Chat space. (Google only lets a webhook @mention someone by a numeric Chat ID, which the portal doesn't
+ * have, so the person is named in the card instead.) Throws a ChatError with a short, safe reason if it can't be delivered.
  */
-export async function sendChat(email: string, text: string, linkUrl?: string, buttonLabel = "Add time log"): Promise<void> {
+export async function sendChat(card: ChatCard): Promise<void> {
   const url = webhook();
   if (!url) throw new ChatError("Google Chat isn't set up on this server (GOOGLE_CHAT_WEBHOOK_URL is missing or isn't a Google Chat address).");
-  const to = email.trim().toLowerCase();
-  if (!/^[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+$/.test(to)) throw new ChatError("That person has no valid work email.");
-  if (!text.trim()) throw new ChatError("The message is empty.");
-  if (linkUrl && !/^https?:\/\//i.test(linkUrl)) throw new ChatError("The link isn't a web address.");
+  if (!card.text.trim()) throw new ChatError("The message is empty.");
+  if (card.link && !/^https?:\/\//i.test(card.link.url)) throw new ChatError("The link isn't a web address.");
+
+  const widgets: unknown[] = [];
+  if (card.fact) {
+    widgets.push({ decoratedText: { topLabel: card.fact.label, text: card.fact.value, startIcon: { knownIcon: card.fact.icon ?? "CLOCK" } } });
+  }
+  widgets.push({ textParagraph: { text: escapeHtml(card.text) } });
+  if (card.link) widgets.push({ buttonList: { buttons: [{ text: card.link.label, onClick: { openLink: { url: card.link.url } } }] } });
 
   const body = {
-    text: `<users/${to}> ${text}`,
-    ...(linkUrl
-      ? {
-          cardsV2: [
-            {
-              cardId: "timesheet-link",
-              card: { sections: [{ widgets: [{ buttonList: { buttons: [{ text: buttonLabel, onClick: { openLink: { url: linkUrl } } }] } }] }] },
-            },
-          ],
-        }
-      : {}),
+    // Shown in notifications and wherever cards can't be drawn.
+    text: `${card.title}: ${card.subtitle}`,
+    cardsV2: [{ cardId: "timesheet", card: { header: { title: card.title, subtitle: card.subtitle }, sections: [{ widgets }] } }],
   };
 
   let res: Response;

@@ -1,6 +1,6 @@
 // The rules behind the Google Chat reminders, as plain code with no database or network, so they can be tested.
 
-export const DEFAULT_TEMPLATE = "Hi {name}, you have logged {hours} of {target} today. Please add your time log.";
+export const DEFAULT_TEMPLATE = "Hi {name}, you have logged {hours} of {target} today. Please add your time log before you finish for the day.";
 
 export type ChatSettings = {
   enabled: boolean;
@@ -107,7 +107,7 @@ export function approvalsText(name: string, n: { requests: number; logs: number;
     n.compOff ? `${n.compOff} comp-off request${n.compOff === 1 ? "" : "s"}` : null,
   ].filter(Boolean);
   const list = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : (parts[0] ?? "nothing");
-  return `Hi ${name}, waiting for your approval: ${list}.`;
+  return `Hi ${name}, you have ${list} waiting for your approval.`;
 }
 
 /** Check what an admin typed on the settings form. Returns an error message, or null when fine. */

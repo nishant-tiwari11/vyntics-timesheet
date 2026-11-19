@@ -59,7 +59,7 @@ export function ChatRemindersForm({ saved, connected, ready }: { saved: ChatSett
         <div className="grid gap-1">
           <Label htmlFor="chat-on">Send reminders</Label>
           <p className="text-xs text-muted-foreground">
-            On working days, each person who has logged less than the daily target is @mentioned in the team Chat space with their hours and an &ldquo;Add time log&rdquo; button. Everyone in that space can see the messages. People on approved leave, weekly offs and holidays are skipped, and
+            On working days, each person who has logged less than the daily target gets a card in the team Chat space naming them, with their hours and an &ldquo;Add time log&rdquo; button. Everyone in that space can see the messages. People on approved leave, weekly offs and holidays are skipped, and
             everyone can switch it off for themselves on their profile.
           </p>
         </div>

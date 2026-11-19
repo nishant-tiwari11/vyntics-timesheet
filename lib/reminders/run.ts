@@ -1,11 +1,12 @@
 import "server-only";
-import { ChatError, chatConfigured, sendChat } from "@/lib/google-chat";
+import { ChatError, chatConfigured, sendChat, type ChatCard } from "@/lib/google-chat";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { addDays, mondayOf, todayInOffice } from "@/lib/timesheet/dates";
 import { logError } from "@/lib/timesheet/log";
 import {
   DEFAULT_CHAT_SETTINGS,
   approvalsText,
+  hoursText,
   nowInOffice,
   pickReminderRecipients,
   renderTemplate,
@@ -48,7 +49,7 @@ async function loadSettings(db: Db): Promise<ChatSettings> {
   return { enabled: data.enabled, reminderTime: data.reminder_time, template: data.template, weeklySummary: data.weekly_summary, approvalDigest: data.approval_digest };
 }
 
-type Row = Person & { managerId: string | null; reminded: string | null; summarised: string | null; digested: string | null };
+type Row = Person & { fullName: string; managerId: string | null; reminded: string | null; summarised: string | null; digested: string | null };
 
 async function loadPeople(db: Db): Promise<Row[]> {
   const { data, error } = await db
@@ -61,6 +62,7 @@ async function loadPeople(db: Db): Promise<Row[]> {
     id: p.id as string,
     name: ((p.full_name as string | null)?.trim() || (p.email as string).split("@")[0]).split(" ")[0],
     email: ((p.work_email as string | null) || (p.email as string) || "").trim().toLowerCase(),
+    fullName: (p.full_name as string | null)?.trim() || (p.email as string).split("@")[0],
     role: p.role as string,
     optedIn: p.chat_reminders !== false,
     lastSentAt: null,
@@ -90,9 +92,9 @@ async function stamp(db: Db, id: string, column: "last_reminded_at" | "last_summ
 }
 
 /** Send one message; a failure is recorded and never stops the others. */
-async function deliver(db: Db, who: { id: string; email: string }, kind: string, text: string, link: string | undefined, column: "last_reminded_at" | "last_summary_at" | "last_digest_at", label?: string) {
+async function deliver(db: Db, who: { id: string; email: string }, kind: string, card: ChatCard, column: "last_reminded_at" | "last_summary_at" | "last_digest_at") {
   try {
-    await sendChat(who.email, text, link, label);
+    await sendChat(card);
     // Google Chat allows about one message a second into a space.
     await new Promise((r) => setTimeout(r, 1100));
     await stamp(db, who.id, column);
@@ -140,7 +142,14 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
     const link = portalUrl("/timesheet/dashboard");
     for (const { person, hours } of recipients) {
       const text = renderTemplate(settings.template, { name: person.name, hours, target: day.target });
-      if (await deliver(db, person, `Daily reminder (${Math.round(hours * 100) / 100}h logged)`, text, link, "last_reminded_at")) result.sent++;
+      const card: ChatCard = {
+        title: "Timesheet reminder",
+        subtitle: (person as Row).fullName,
+        fact: { label: "Logged today", value: `<b>${hoursText(hours)}</b> of ${hoursText(day.target)}`, icon: "CLOCK" },
+        text,
+        link: link ? { url: link, label: "Add time log" } : undefined,
+      };
+      if (await deliver(db, person, `Daily reminder (${Math.round(hours * 100) / 100}h logged)`, card, "last_reminded_at")) result.sent++;
       else result.failed++;
     }
     return result;
@@ -160,7 +169,14 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
     const link = portalUrl("/timesheet/worklog");
     for (const p of recipients) {
       const hours = Math.round((hoursById.get(p.id) ?? 0) * 100) / 100;
-      if (await deliver(db, p, `Weekly summary (${hours}h of ${weekTarget}h)`, weekSummaryText(p.name, hours, weekTarget), link, "last_summary_at", "Open my time logs")) result.sent++;
+      const card: ChatCard = {
+        title: "Your week in review",
+        subtitle: p.fullName,
+        fact: { label: "Logged this week", value: `<b>${hoursText(hours)}</b> of ${hoursText(weekTarget)}`, icon: "STAR" },
+        text: weekSummaryText(p.name, hours, weekTarget),
+        link: link ? { url: link, label: "Open my time logs" } : undefined,
+      };
+      if (await deliver(db, p, `Weekly summary (${hours}h of ${weekTarget}h)`, card, "last_summary_at")) result.sent++;
       else result.failed++;
     }
     return result;
@@ -183,7 +199,15 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
     const counts = { requests: mine(reqs.data), logs: mine(logs.data), compOff: mine(comp.data) };
     if (counts.requests + counts.logs + counts.compOff === 0) continue;
     const link = portalUrl(p.role === "admin" ? "/timesheet/admin" : "/timesheet/team");
-    if (await deliver(db, p, `Pending approvals (${counts.requests + counts.logs + counts.compOff})`, approvalsText(p.name, counts), link, "last_digest_at", "Review")) result.sent++;
+    const total = counts.requests + counts.logs + counts.compOff;
+    const card: ChatCard = {
+      title: "Approvals waiting",
+      subtitle: p.fullName,
+      fact: { label: "Waiting for your decision", value: `<b>${total}</b> item${total === 1 ? "" : "s"}`, icon: "DESCRIPTION" },
+      text: approvalsText(p.name, counts),
+      link: link ? { url: link, label: "Review" } : undefined,
+    };
+    if (await deliver(db, p, `Pending approvals (${total})`, card, "last_digest_at")) result.sent++;
     else result.failed++;
   }
   return result;

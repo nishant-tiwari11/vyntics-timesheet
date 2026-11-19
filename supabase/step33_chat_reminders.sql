@@ -18,7 +18,7 @@ create table if not exists public.chat_settings (
   id boolean primary key default true check (id),
   enabled boolean not null default false,
   reminder_time text not null default '17:00' check (reminder_time ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'),
-  template text not null default 'Hi {name}, you have logged {hours} of {target} today. Please add your time log.'
+  template text not null default 'Hi {name}, you have logged {hours} of {target} today. Please add your time log before you finish for the day.'
     check (char_length(btrim(template)) between 1 and 500),
   weekly_summary boolean not null default true,
   approval_digest boolean not null default true,
