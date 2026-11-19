@@ -12,6 +12,7 @@ import { logError } from "@/lib/timesheet/log";
 import { displayName } from "@/lib/timesheet/people";
 import { UserAvatar } from "../../_components/UserAvatar";
 import { AvatarUploader } from "./AvatarUploader";
+import { ChatReminderToggle } from "./ChatReminderToggle";
 import { DocumentsWorkspace } from "./documents/DocumentsWorkspace";
 
 export const metadata = { title: "Profile" };
@@ -36,6 +37,10 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
     .eq("id", targetId)
     .maybeSingle();
   if (!profile) notFound();
+
+  // Your Chat reminder switch. Before step 33 has been run the column is not there, so the switch is left out.
+  const chatRow = own && me.role !== "viewer" ? await supabase.from("profiles").select("chat_reminders" as never).eq("id", targetId).maybeSingle() : null;
+  const chatOn = chatRow && !chatRow.error && chatRow.data ? (chatRow.data as unknown as { chat_reminders: boolean }).chat_reminders !== false : null;
 
   const [manager, photo, docs] = await Promise.all([
     profile.manager_id ? supabase.from("profiles").select("full_name, email").eq("id", profile.manager_id).maybeSingle() : Promise.resolve({ data: null }),
@@ -124,6 +129,11 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
               </div>
             ))}
           </dl>
+          {chatOn !== null && (
+            <div className="mt-5 border-t pt-4">
+              <ChatReminderToggle initial={chatOn} />
+            </div>
+          )}
         </section>
       ) : !docs.ready ? (
         <p role="note" className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">

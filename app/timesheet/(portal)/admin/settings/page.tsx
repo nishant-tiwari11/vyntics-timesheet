@@ -5,7 +5,11 @@ import { DEFAULT_SETTINGS as COMP_OFF_DEFAULTS, type CompOffSettings } from "@/l
 import { todayInOffice } from "@/lib/timesheet/dates";
 import { logError } from "@/lib/timesheet/log";
 import { forgetSettings, loadSettings } from "@/lib/timesheet/settingsServer";
+import { chatConfigured } from "@/lib/google-chat";
+import { DEFAULT_CHAT_SETTINGS, type ChatSettings } from "@/lib/reminders/core";
+import { createClient } from "@/lib/supabase/server";
 import { CompOffSettingsForm } from "../CompOffControls";
+import { ChatRemindersForm } from "./ChatRemindersForm";
 import { SettingsForm } from "./SettingsForm";
 
 export const metadata = { title: "Settings (admin)" };
@@ -25,6 +29,21 @@ export default async function SettingsPage() {
     logError("admin settings: comp-off", e);
   }
 
+  // Chat reminders: before step 33 has been run the table is not there, and the form says so instead of failing.
+  let chat: ChatSettings = DEFAULT_CHAT_SETTINGS;
+  let chatReady = false;
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.from("chat_settings" as never).select("enabled, reminder_time, template, weekly_summary, approval_digest").eq("id", true).maybeSingle();
+    if (!error && data) {
+      const r = data as unknown as { enabled: boolean; reminder_time: string; template: string; weekly_summary: boolean; approval_digest: boolean };
+      chat = { enabled: r.enabled, reminderTime: r.reminder_time, template: r.template, weeklySummary: r.weekly_summary, approvalDigest: r.approval_digest };
+      chatReady = true;
+    }
+  } catch (e) {
+    logError("admin settings: chat", e);
+  }
+
   return (
     <>
       <div className="grid gap-1">
@@ -41,6 +60,8 @@ export default async function SettingsPage() {
         <p className="mb-4 text-sm text-muted-foreground">How much comp-off is earned, how long it lasts, and the most one person can earn in a month.</p>
         <CompOffSettingsForm settings={compOff} />
       </section>
+
+      <ChatRemindersForm saved={chat} connected={chatConfigured()} ready={chatReady} />
     </>
   );
 }
