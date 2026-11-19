@@ -7,11 +7,13 @@ import { logError } from "@/lib/timesheet/log";
 //   /api/cron/timesheet-reminder                  the daily "you have logged less than the target" message
 //   /api/cron/timesheet-reminder?job=summary      the Friday week summary
 //   /api/cron/timesheet-reminder?job=approvals    the pending-approvals message to managers and admins
+//   /api/cron/timesheet-reminder?job=all          all three, one after another (what vercel.json uses: a free Hobby project has one daily slot)
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 const HEADERS = { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" };
 const JOBS: Job[] = ["reminder", "summary", "approvals"];
+const ALL: Job[] = ["approvals", "reminder", "summary"];
 
 const digest = (v: string) => createHash("sha256").update(v).digest();
 
@@ -30,10 +32,23 @@ export async function GET(req: NextRequest) {
   if (!authorised(req)) return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401, headers: HEADERS });
 
   const asked = req.nextUrl.searchParams.get("job") ?? "reminder";
-  const job = JOBS.find((j) => j === asked);
+  const job = asked === "all" ? "all" : JOBS.find((j) => j === asked);
   if (!job) return NextResponse.json({ ok: false, error: "Unknown job." }, { status: 400, headers: HEADERS });
 
   try {
+    if (job === "all") {
+      // One job failing (for example the database) never stops the others.
+      const results = [];
+      for (const j of ALL) {
+        try {
+          results.push(await runJob(j));
+        } catch (e) {
+          logError(`cron ${j}`, e);
+          results.push({ job: j, error: "The job failed. See the server log." });
+        }
+      }
+      return NextResponse.json({ ok: true, results }, { headers: HEADERS });
+    }
     return NextResponse.json({ ok: true, ...(await runJob(job)) }, { headers: HEADERS });
   } catch (e) {
     logError(`cron ${job}`, e);

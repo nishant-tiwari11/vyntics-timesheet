@@ -69,7 +69,7 @@ export function ChatRemindersForm({ saved, connected, ready }: { saved: ChatSett
       <div className="grid max-w-xs gap-1.5">
         <Label htmlFor="chat-time">Reminder time (India time)</Label>
         <Input id="chat-time" type="time" value={s.reminderTime} disabled={busy || !ready} onChange={(e) => set("reminderTime", e.target.value)} className="w-40 max-md:h-11" />
-        <p className="text-xs text-muted-foreground">The reminder is never sent before this time. The scheduled job runs at 5:00 PM on weekdays, so choose that time or earlier.</p>
+        <p className="text-xs text-muted-foreground">The reminder is never sent before this time. The scheduled job runs once each weekday at about 5:30 PM (on the free Vercel plan it can start up to an hour later), so choose 5:30 PM or earlier.</p>
       </div>
 
       <div className="grid gap-1.5">
@@ -96,7 +96,7 @@ export function ChatRemindersForm({ saved, connected, ready }: { saved: ChatSett
         </div>
         <div className="flex items-center justify-between gap-4">
           <Label htmlFor="chat-digest" className="font-normal">
-            Tell managers and admins when approvals are waiting (10:00 AM on weekdays)
+            Tell managers and admins when approvals are waiting (sent with the daily reminder)
           </Label>
           <Switch id="chat-digest" checked={s.approvalDigest} disabled={busy || !ready} onCheckedChange={(v) => set("approvalDigest", v)} />
         </div>
