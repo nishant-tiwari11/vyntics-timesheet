@@ -36,13 +36,16 @@ export type ChatCard = {
   text: string;
   /** A button under the message that opens this address. */
   link?: { url: string; label: string };
+  /** The person's Google account ID (digits). When given, the message really @mentions them and they are notified. */
+  mention?: string;
 };
 
 const escapeHtml = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 /**
- * Post a card to the Chat space. (Google only lets a webhook @mention someone by a numeric Chat ID, which the portal doesn't
- * have, so the person is named in the card instead.) Throws a ChatError with a short, safe reason if it can't be delivered.
+ * Post a message and a card to the Chat space. With `mention`, the message starts with a real @mention of the person (Google
+ * only accepts a numeric ID there); without one, the person is named in the card instead. Throws a ChatError with a short,
+ * safe reason if it can't be delivered.
  */
 export async function sendChat(card: ChatCard): Promise<void> {
   const url = webhook();
@@ -54,12 +57,14 @@ export async function sendChat(card: ChatCard): Promise<void> {
   if (card.fact) {
     widgets.push({ decoratedText: { topLabel: card.fact.label, text: card.fact.value, startIcon: { knownIcon: card.fact.icon ?? "CLOCK" } } });
   }
-  widgets.push({ textParagraph: { text: escapeHtml(card.text) } });
+  const mention = card.mention && /^\d{5,30}$/.test(card.mention) ? card.mention : null;
+  // With a mention the sentence is the message itself (that is what notifies the person), so the card doesn't repeat it.
+  if (!mention) widgets.push({ textParagraph: { text: escapeHtml(card.text) } });
   if (card.link) widgets.push({ buttonList: { buttons: [{ text: card.link.label, onClick: { openLink: { url: card.link.url } } }] } });
 
   const body = {
     // Shown in notifications and wherever cards can't be drawn.
-    text: `${card.title}: ${card.subtitle}`,
+    text: mention ? `<users/${mention}> ${card.text}` : `${card.title}: ${card.subtitle}`,
     cardsV2: [{ cardId: "timesheet", card: { header: { title: card.title, subtitle: card.subtitle }, sections: [{ widgets }] } }],
   };
 

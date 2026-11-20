@@ -51,6 +51,26 @@ async function loadSettings(db: Db): Promise<ChatSettings> {
 
 type Row = Person & { fullName: string; managerId: string | null; reminded: string | null; summarised: string | null; digested: string | null };
 
+/** Each person's Google account ID, which is also their Google Chat user ID. Read from the sign-in records; people who signed in another way simply have none. */
+async function googleIds(db: Db): Promise<Map<string, string>> {
+  const ids = new Map<string, string>();
+  try {
+    for (let page = 1; page <= 20; page++) {
+      const { data, error } = await db.auth.admin.listUsers({ page, perPage: 1000 });
+      if (error) throw error;
+      for (const u of data.users) {
+        const g = u.identities?.find((i) => i.provider === "google");
+        const sub = String((g?.identity_data as { sub?: string } | undefined)?.sub ?? g?.id ?? "");
+        if (/^\d{5,30}$/.test(sub)) ids.set(u.id, sub);
+      }
+      if (data.users.length < 1000) break;
+    }
+  } catch (e) {
+    logError("reminders: google ids", e); // without them the cards still go out, naming the person instead of tagging them
+  }
+  return ids;
+}
+
 async function loadPeople(db: Db): Promise<Row[]> {
   const { data, error } = await db
     .from("profiles")
@@ -121,6 +141,7 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
   const day = await dayContext(db, today);
   if (day.isOff) return skip("Today is a weekly off or a holiday.");
   const people = await loadPeople(db);
+  const chatIds = job === "approvals" ? new Map<string, string>() : await googleIds(db);
 
   if (job === "reminder") {
     if (!timeReached(nowInOffice(now), settings.reminderTime)) return skip(`Before the reminder time (${settings.reminderTime}).`);
@@ -145,6 +166,7 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
       const card: ChatCard = {
         title: "Timesheet reminder",
         subtitle: (person as Row).fullName,
+        mention: chatIds.get(person.id),
         fact: { label: "Logged today", value: `<b>${hoursText(hours)}</b> of ${hoursText(day.target)}`, icon: "CLOCK" },
         text,
         link: link ? { url: link, label: "Add time log" } : undefined,
@@ -172,6 +194,7 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
       const card: ChatCard = {
         title: "Your week in review",
         subtitle: p.fullName,
+        mention: chatIds.get(p.id),
         fact: { label: "Logged this week", value: `<b>${hoursText(hours)}</b> of ${hoursText(weekTarget)}`, icon: "STAR" },
         text: weekSummaryText(p.name, hours, weekTarget),
         link: link ? { url: link, label: "Open my time logs" } : undefined,
