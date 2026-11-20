@@ -7,7 +7,6 @@ import { formatTodayLong, greeting, todayInOffice } from "@/lib/timesheet/dates"
 import { AddLogButton } from "./LogDialog";
 import TimeLogs from "./TimeLogs";
 import CompOffCard from "./CompOffCard";
-import UpcomingHolidays from "./UpcomingHolidays";
 import WeekAhead from "./WeekAhead";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZES, RANGES, STATUS_FILTERS, type LogQuery } from "./logQuery";
 import { SnapshotSkeleton, StatsSkeleton, TimeLogsSkeleton } from "../../_components/skeletons";
@@ -83,17 +82,12 @@ export default async function DashboardPage({
       )}
 
       <Suspense fallback={<CardSkeleton title="This week" tall />}>
-        <WeekAhead today={today} />
+        <WeekAhead today={today} isAdmin={isAdmin} />
       </Suspense>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Suspense fallback={<CardSkeleton title="Upcoming holidays" tall />}>
-          <UpcomingHolidays isAdmin={isAdmin} />
-        </Suspense>
-        <Suspense fallback={<CardSkeleton title="Comp-off" tall />}>
-          <CompOffCard />
-        </Suspense>
-      </div>
+      <Suspense fallback={<CardSkeleton title="Comp-off" tall />}>
+        <CompOffCard />
+      </Suspense>
 
       <Suspense key={JSON.stringify(query)} fallback={<TimeLogsSkeleton />}>
         <TimeLogs isAdmin={isAdmin} myId={user?.id ?? ""} query={query} />

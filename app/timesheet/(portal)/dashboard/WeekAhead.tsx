@@ -29,7 +29,7 @@ const when = (date: string, today: string) => {
 const LOOK_AHEAD_DAYS = 90;
 
 // A compact look at your week and what is coming next. Your own days only; the full month is on the Calendar page.
-export default async function WeekAhead({ today }: { today: string }) {
+export default async function WeekAhead({ today, isAdmin = false }: { today: string; isAdmin?: boolean }) {
   const monday = mondayOf(today);
   const sunday = addDays(monday, 6);
   const horizon = addDays(today, LOOK_AHEAD_DAYS);
@@ -70,7 +70,7 @@ export default async function WeekAhead({ today }: { today: string }) {
   const next: Next[] = [
     ...holidays
       .filter((h) => h.date >= today)
-      .map((h): Next => ({ id: `h-${h.id}`, date: h.date, label: h.name, detail: `${holidayTypeLabel(h.type)} holiday`, kind: "holiday" })),
+      .map((h): Next => ({ id: `h-${h.id}`, date: h.date, label: h.name, detail: h.type === "optional" ? "Optional holiday" : holidayTypeLabel(h.type), kind: "holiday" })),
     ...offRes.data
       .filter((r) => r.to_date >= today)
       .map((r): Next => {
@@ -153,9 +153,16 @@ export default async function WeekAhead({ today }: { today: string }) {
       </section>
 
       <section className="ts-card" aria-labelledby="next-title">
-        <h2 className="ts-h2" id="next-title">
-          Upcoming
-        </h2>
+        <div className="ts-section-head">
+          <h2 className="ts-h2" id="next-title">
+            Upcoming
+          </h2>
+          {isAdmin && (
+            <Link href="/timesheet/admin?tab=holidays" className="ts-link">
+              Manage holidays
+            </Link>
+          )}
+        </div>
         {next.length === 0 ? (
           <div className="ts-empty">
             <strong>Nothing coming up</strong>
