@@ -10,7 +10,6 @@ describe("admin navigation", () => {
       "Projects",
       "Holidays & Leave Policy",
       "Approvals",
-      "Payroll & Expenses",
       "Documents",
       "Reports",
       "Audit Log",
@@ -35,7 +34,7 @@ describe("admin navigation", () => {
     expect(activeAdminNav("/timesheet/admin/projects", null)).toBe("projects");
     expect(activeAdminNav("/timesheet/admin/settings", null)).toBe("settings");
     expect(activeAdminNav("/timesheet/admin/audit", null)).toBe("audit");
-    expect(activeAdminNav("/timesheet/payroll/runs", null)).toBe("payroll");
+    expect(activeAdminNav("/timesheet/payroll/runs", null)).toBeNull(); // Payroll has its own place in the sidebar
     expect(activeAdminNav("/timesheet/admin", "nonsense")).toBeNull();
     expect(activeAdminNav("/timesheet/dashboard", null)).toBeNull();
   });

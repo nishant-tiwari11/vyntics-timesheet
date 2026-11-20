@@ -30,7 +30,7 @@ export function CommandPalette({ role }: { role: string }) {
     router.push(href);
   };
   const pages = portalLinks(role);
-  const adminPages = role === "admin" ? ADMIN_NAV.filter((i) => i.href && i.id !== "payroll").map((i) => ({ href: i.href!, label: i.label })) : [];
+  const adminPages = role === "admin" ? ADMIN_NAV.filter((i) => i.href).map((i) => ({ href: i.href!, label: i.label })) : [];
 
   return (
     <>
