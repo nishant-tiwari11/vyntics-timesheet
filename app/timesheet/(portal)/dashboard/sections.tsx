@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { formatRange, isWeekend, todayInOffice, workingDaysLabel } from "@/lib/timesheet/dates";
 import { dailyTarget } from "@/lib/timesheet/settings";
 import { CheckCircle2, Clock, Palmtree, TriangleAlert, CalendarOff, type LucideIcon } from "lucide-react";
@@ -158,7 +159,8 @@ export async function SnapshotRow() {
   );
   // On a weekly off day nobody is "under", and anyone who works still shows their hours.
   const DAY_TARGET = dailyTarget();
-  const weekend = isWeekend(todayInOffice());
+  const today = todayInOffice();
+  const weekend = isWeekend(today);
   const holiday = res.data.some((p) => p.holiday);
   const ICON: Record<string, LucideIcon> = { met: CheckCircle2, under: TriangleAlert, leave: Palmtree, off: CalendarOff };
   return (
@@ -169,6 +171,12 @@ export async function SnapshotRow() {
         const StateIcon = ICON[state];
         return (
           <li key={p.id} className="ts-snap">
+            {/* The whole card is a link to this person's work log for today (the work log search matches names). */}
+            <Link
+              href={`/timesheet/worklog?view=day&date=${today}&q=${encodeURIComponent(p.name.slice(0, 60))}`}
+              className="ts-snap-link"
+              aria-label={`${p.name}, ${fmtHours(p.hours)} of ${DAY_TARGET}h today, ${label}. Open their work log`}
+            />
             <div className="ts-snap-top">
               <UserAvatar userId={p.id} name={p.name} className="size-9 text-sm" />
               <span className="ts-snap-who">

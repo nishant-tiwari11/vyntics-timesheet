@@ -1614,3 +1614,23 @@
     font-size: 16px;
   }
 }
+
+/* Today's snapshot: the whole card opens that person's work log */
+.ts-snap {
+  position: relative;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.ts-snap:hover {
+  border-color: var(--ts-text);
+  box-shadow: var(--ts-shadow);
+}
+.ts-snap-link {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+}
+.ts-snap-link:focus-visible {
+  outline: 2px solid var(--ts-text);
+  outline-offset: 2px;
+}
