@@ -14,6 +14,41 @@ const hhmm = (t: string | null) => (t ? t.slice(0, 5) : "");
 // Who sees what is decided by row level security in the database (supabase/step15_calendar_events.sql):
 // personal events only reach their owner, everything else reaches every signed-in person.
 
+/** A saved event in short form, for lists such as the dashboard's Upcoming. */
+export type UpcomingEvent = { id: string; calendar: EventItem["calendar"]; title: string; start: string; end: string; startTime: string; endTime: string; allDay: boolean; location: string };
+
+/**
+ * The next saved events that touch these dates, soonest first: company events, meetings, project events and your own personal
+ * ones. Holidays and leave are left out (they have their own lists). Who may see what is decided by row level security.
+ */
+export async function listUpcomingEvents(from: string, to: string, limit = 5): Promise<UpcomingEvent[]> {
+  assertDate(from, "start date");
+  assertDate(to, "end date");
+  await requireUser();
+  const supabase = await db();
+  const { data, error } = await supabase
+    .from("calendar_events")
+    .select("id, calendar, title, starts_on, ends_on, start_time, end_time, location")
+    .neq("calendar", "holiday")
+    .gte("ends_on", from)
+    .lte("starts_on", to)
+    .order("starts_on", { ascending: true })
+    .order("start_time", { ascending: true, nullsFirst: true })
+    .limit(Math.min(Math.max(limit, 1), 50));
+  if (error) throw toError(error, "Couldn't load events. Please try again.");
+  return data.map((r) => ({
+    id: r.id,
+    calendar: r.calendar as EventItem["calendar"],
+    title: r.title,
+    start: r.starts_on,
+    end: r.ends_on,
+    startTime: hhmm(r.start_time),
+    endTime: hhmm(r.end_time),
+    allDay: r.start_time === null,
+    location: r.location ?? "",
+  }));
+}
+
 /** Everything to draw for these dates: saved events plus leave and attendance built from existing data. */
 export async function loadEvents(from: string, to: string): Promise<{ items: EventItem[]; warnings: string[] }> {
   assertDate(from, "start date");

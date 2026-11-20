@@ -297,6 +297,7 @@ a.ts-cal-day:focus-visible {
 .ts-ev-wfh { background: #dbeafe; color: #1e3a8a; }
 .ts-ev-comp { background: #ccfbf1; color: #134e4a; }
 .ts-ev-holiday { background: #ede9fe; color: #4c1d95; }
+.ts-ev-event { background: #fef3c7; color: #78350f; }
 .ts-ev-off { background: #f1f5f9; color: #334155; }
 .ts-ev-google { background: transparent; border-color: var(--ts-border); color: #334155; }
 

@@ -1,17 +1,20 @@
 import Link from "next/link";
-import { CalendarOff, Home, PartyPopper, Palmtree, Sparkles, type LucideIcon } from "lucide-react";
+import { CalendarDays, CalendarOff, Home, PartyPopper, Palmtree, Sparkles, type LucideIcon } from "lucide-react";
 import { addDays, daysInclusive, formatRange, formatYmd, isWeekend, mondayOf } from "@/lib/timesheet/dates";
+import { listUpcomingEvents } from "@/lib/timesheet/events";
 import { listHolidaysBetween } from "@/lib/timesheet/holidays";
 import { TimesheetError } from "@/lib/timesheet/errors";
 import { holidayTypeLabel, type Holiday } from "@/lib/timesheet/holidayTypes";
 import { logError } from "@/lib/timesheet/log";
 import "../calendar/calendar.css"; // the shared colours for leave, WFH and holiday tags
+import { clock12 } from "../worklog/model";
 import { loadCalendarLogs, loadCalendarOff } from "./data";
 import { SectionError } from "./sections";
 
 type Off = { from: string; to: string; kind: "leave" | "wfh" | "comp" };
 
-const KIND: Record<"leave" | "wfh" | "comp" | "holiday" | "off", { label: string; Icon: LucideIcon }> = {
+const KIND: Record<"leave" | "wfh" | "comp" | "holiday" | "off" | "event", { label: string; Icon: LucideIcon }> = {
+  event: { label: "Event", Icon: CalendarDays },
   leave: { label: "Leave", Icon: Palmtree },
   wfh: { label: "WFH", Icon: Home },
   comp: { label: "Comp-off", Icon: Sparkles },
@@ -33,13 +36,18 @@ export default async function WeekAhead({ today, isAdmin = false }: { today: str
   const monday = mondayOf(today);
   const sunday = addDays(monday, 6);
   const horizon = addDays(today, LOOK_AHEAD_DAYS);
-  const [logs, offRes, holidays] = await Promise.all([
+  const [logs, offRes, holidays, events] = await Promise.all([
     loadCalendarLogs("mine", monday, sunday),
     loadCalendarOff("mine", monday, horizon),
     // The strip still works without holidays if they can't load.
     listHolidaysBetween(monday, horizon).catch((e): Holiday[] => {
       // An expired sign-in is expected and already shown by the rest of the page; only log real problems.
       if (!(e instanceof TimesheetError)) logError("week-ahead-holidays", e);
+      return [];
+    }),
+    // Company events and meetings. The list still works without them if they can't load.
+    listUpcomingEvents(today, horizon, 10).catch((e): Awaited<ReturnType<typeof listUpcomingEvents>> => {
+      if (!(e instanceof TimesheetError)) logError("week-ahead-events", e);
       return [];
     }),
   ]);
@@ -66,11 +74,21 @@ export default async function WeekAhead({ today, isAdmin = false }: { today: str
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
 
   // Upcoming: the next five things from today, soonest first.
-  type Next = { id: string; date: string; label: string; detail: string; kind: "leave" | "wfh" | "comp" | "holiday" };
+  type Next = { id: string; date: string; label: string; detail: string; kind: "leave" | "wfh" | "comp" | "holiday" | "event" };
   const next: Next[] = [
     ...holidays
       .filter((h) => h.date >= today)
       .map((h): Next => ({ id: `h-${h.id}`, date: h.date, label: h.name, detail: h.type === "optional" ? "Optional holiday" : holidayTypeLabel(h.type), kind: "holiday" })),
+    ...events.map((ev): Next => {
+      const at = ev.allDay ? "All day" : `${clock12(ev.startTime)}${ev.endTime ? ` – ${clock12(ev.endTime)}` : ""}`;
+      return {
+        id: `e-${ev.id}`,
+        date: ev.start > today ? ev.start : today,
+        label: ev.title,
+        detail: [ev.start === ev.end ? at : formatRange(ev.start, ev.end), ev.location].filter(Boolean).join(" · "),
+        kind: "event",
+      };
+    }),
     ...offRes.data
       .filter((r) => r.to_date >= today)
       .map((r): Next => {
