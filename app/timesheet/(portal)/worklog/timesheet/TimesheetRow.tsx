@@ -36,7 +36,7 @@ export function TimesheetRow({
   return (
     <div
       role="row"
-      className="grid items-center border-l-4 border-orange-600 bg-muted"
+      className="grid items-center border-l-4 border-foreground bg-muted"
       style={{ gridTemplateColumns: gridColumns(days.length) }}
     >
       <div role="rowheader" className={`${STICKY} min-w-0 bg-muted px-4 py-3`}>
@@ -114,7 +114,7 @@ export function TimesheetRow({
   );
 }
 
-/** A day's header: a clock when hours are logged, the day name, the date. Today is bold with an orange bar. */
+/** A day's header: a clock when hours are logged, the day name, the date. Today is bold with a dark bar. */
 export function DayHeader({ date, today, minutes }: { date: string; today: string; minutes: number }) {
   const isToday = date === today;
   return (
@@ -123,7 +123,7 @@ export function DayHeader({ date, today, minutes }: { date: string; today: strin
       aria-current={isToday ? "date" : undefined}
       className={`px-0.5 text-right text-sm ${isToday ? "font-bold text-foreground" : "text-muted-foreground"}`}
     >
-      <div className={`pr-2 pb-1 ${isToday ? "border-b-2 border-orange-600" : ""}`}>
+      <div className={`pr-2 pb-1 ${isToday ? "border-b-2 border-foreground" : ""}`}>
         <span className="flex items-center justify-end gap-1">
           {minutes > 0 && <Clock className="size-3" aria-label="Hours logged" />}
           {formatYmd(date, { weekday: "short" })}

@@ -39,7 +39,7 @@ export function DateRangeNavigator({ query, today }: { query: WorkQuery; today: 
 
   return (
     <>
-      <div className="inline-flex items-center rounded-md border border-input bg-background">
+      <div className="inline-flex items-center rounded-[var(--radius)] border border-input bg-background">
         <Button asChild variant="ghost" size="icon" className="rounded-r-none max-md:size-11">
           <Link href={go(shiftedDate(query, -1))} aria-label={`Previous ${unit}`}>
             <ChevronLeft aria-hidden="true" />
@@ -85,7 +85,7 @@ export function DateRangeNavigator({ query, today }: { query: WorkQuery; today: 
       </div>
 
       {!onCurrent && (
-        <Link href={go(today)} className="text-sm text-blue-700 underline underline-offset-2 hover:text-blue-900 max-md:py-3">
+        <Link href={go(today)} className="text-sm text-foreground underline underline-offset-2 hover:text-muted-foreground max-md:py-3">
           {day ? "Return to today" : "Return to this week"}
         </Link>
       )}

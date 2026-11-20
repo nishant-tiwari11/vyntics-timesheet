@@ -16,7 +16,7 @@ export function GridSkeleton({ days = 7 }: { days?: number }) {
           <span />
         </div>
         {[0, 1, 2].map((r) => (
-          <div key={r} className="grid items-center gap-2 border-l-4 border-orange-600/30 bg-muted py-3" style={{ gridTemplateColumns: gridColumns(days) }}>
+          <div key={r} className="grid items-center gap-2 border-l-4 border-foreground/20 bg-muted py-3" style={{ gridTemplateColumns: gridColumns(days) }}>
             <div className="grid gap-1.5 px-4">
               <Skeleton className="h-4 w-40" />
               <Skeleton className="h-3 w-56" />

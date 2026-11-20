@@ -56,10 +56,10 @@ export default async function WorkLogPage({
           <TimesheetGrid query={query} days={eachDay(period.from, period.to)} projects={projects} />
         </Suspense>
 
-        <section aria-labelledby="entries-title" className="grid gap-4 border-t pt-5">
+        <section aria-labelledby="entries-title" className="ts-card grid gap-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 id="entries-title" className="text-base font-semibold">
+              <h2 id="entries-title" className="ts-h2">
                 Entries
               </h2>
               <p className="ts-muted">{admin ? "Everyone's time logs. Edit, delete, approve or export them here." : "The detail behind the hours: edit, delete or export."}</p>

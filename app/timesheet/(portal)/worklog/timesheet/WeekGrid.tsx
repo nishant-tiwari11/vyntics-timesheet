@@ -75,7 +75,7 @@ export default function WeekGrid({ days, entries, myId, today, projects }: GridP
   }
 
   return (
-    <section aria-label={wide ? "Weekly timesheet" : "Daily timesheet"} className="grid gap-3">
+    <section aria-label={wide ? "Weekly timesheet" : "Daily timesheet"} className="ts-card grid gap-3">
       <div className="overflow-x-auto overscroll-x-contain">
         <div role="table" aria-label="Hours by project and day" className="w-max min-w-full">
           <div role="row" className="grid items-end border-l-4 border-transparent pb-0" style={{ gridTemplateColumns: gridColumns(days.length) }}>

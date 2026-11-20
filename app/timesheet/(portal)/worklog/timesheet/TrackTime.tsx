@@ -41,7 +41,7 @@ export function TrackTimeButton({ date }: { date?: string }) {
   return (
     <Button
       type="button"
-      className="bg-green-700 text-white hover:bg-green-800 focus-visible:ring-green-700/30 max-md:min-h-11"
+      className="max-md:min-h-11"
       onClick={() => open({ date })}
     >
       <Plus aria-hidden="true" /> Track time

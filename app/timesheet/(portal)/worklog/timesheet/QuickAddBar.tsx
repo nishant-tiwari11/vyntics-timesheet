@@ -36,7 +36,7 @@ export function QuickAddBar({ today, projects }: { today: string; projects: stri
         onClick={() => setCollapsed(false)}
         className="inline-flex min-h-9 w-fit items-center gap-2 rounded-full border bg-background px-4 text-sm text-muted-foreground hover:border-foreground max-md:min-h-11"
       >
-        <Sparkles className="size-4 text-orange-600" aria-hidden="true" /> Quick add
+        <Sparkles className="size-4 text-foreground" aria-hidden="true" /> Quick add
       </button>
     );
   }
@@ -47,7 +47,7 @@ export function QuickAddBar({ today, projects }: { today: string; projects: stri
         What would you like to add to your timesheet?
       </label>
       <div className="flex w-full max-w-[720px] items-center gap-2 rounded-full border bg-background py-1.5 pr-2 pl-4 focus-within:border-foreground">
-        <Sparkles className="size-4 shrink-0 text-orange-600" aria-hidden="true" />
+        <Sparkles className="size-4 shrink-0 text-foreground" aria-hidden="true" />
         <input
           id="quick-add"
           value={text}
@@ -60,7 +60,7 @@ export function QuickAddBar({ today, projects }: { today: string; projects: stri
         <button
           type="submit"
           aria-label="Add to timesheet"
-          className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-orange-600 text-white transition-colors hover:bg-orange-700 focus-visible:ring-[3px] focus-visible:ring-orange-600/30 focus-visible:outline-none max-md:size-9"
+          className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background transition-colors hover:bg-foreground/85 focus-visible:ring-[3px] focus-visible:ring-foreground/30 focus-visible:outline-none max-md:size-9"
         >
           <ArrowRight className="size-4" aria-hidden="true" />
         </button>
