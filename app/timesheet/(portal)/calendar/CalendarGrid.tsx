@@ -2,14 +2,17 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { CalendarOff, Clock, Home, PartyPopper, Palmtree, PencilLine, Sparkles, CalendarDays, type LucideIcon } from "lucide-react";
+import { CalendarClock, CalendarOff, Clock, Home, PartyPopper, Palmtree, PencilLine, Plus, Sparkles, CalendarDays, type LucideIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import type { EventItem } from "@/lib/timesheet/eventTypes";
+import EventDialog, { type DialogState } from "../events/EventDialog";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 // The month grid. The page works out what is on each day (the same data as before); this file only draws it and adds the
 // ways to explore it: filters, a "+N more" list, a hover preview and a side panel with the day's details.
 
-export type Kind = "work" | "leave" | "wfh" | "comp" | "holiday" | "off" | "google";
+export type Kind = "work" | "leave" | "wfh" | "comp" | "holiday" | "off" | "google" | "event";
 
 export type DayItem = {
   id: string;
@@ -17,6 +20,8 @@ export type DayItem = {
   label: string;
   /** A second line: how long, which type, pending, and so on. */
   detail?: string;
+  /** A saved event: opens its details, where it can be changed or deleted when you are allowed to. */
+  event?: EventItem;
 };
 
 export type DayView = {
@@ -45,11 +50,13 @@ const KINDS: Record<Kind, { name: string; Icon: LucideIcon }> = {
   holiday: { name: "Holiday", Icon: PartyPopper },
   off: { name: "Weekly off", Icon: CalendarOff },
   google: { name: "Google event", Icon: CalendarDays },
+  event: { name: "Event", Icon: CalendarClock },
 };
 
 const FILTERS: { kind: Kind | "leaveAll"; name: string }[] = [
   { kind: "work", name: "Work hours" },
   { kind: "leaveAll", name: "Leave and WFH" },
+  { kind: "event", name: "Events" },
   { kind: "holiday", name: "Holidays" },
   { kind: "off", name: "Weekly off" },
   { kind: "google", name: "Google" },
@@ -67,7 +74,7 @@ function Chip({ item, compact }: { item: DayItem; compact?: boolean }) {
   );
 }
 
-function DayDetails({ day, items }: { day: DayView; items: DayItem[] }) {
+function DayDetails({ day, items, onEvent }: { day: DayView; items: DayItem[]; onEvent: (e: EventItem) => void }) {
   return items.length === 0 ? (
     <p className="ts-muted">Nothing on this day.</p>
   ) : (
@@ -76,6 +83,11 @@ function DayDetails({ day, items }: { day: DayView; items: DayItem[] }) {
         <li key={it.id} className="ts-cal-detail">
           <Chip item={it} />
           {it.detail && <span className="ts-muted">{it.detail}</span>}
+          {it.event && (
+            <button type="button" className="text-xs font-medium underline underline-offset-2 max-md:min-h-11" onClick={() => onEvent(it.event!)}>
+              Open event
+            </button>
+          )}
         </li>
       ))}
       {day.hasLog && day.hours === 0 && <li className="ts-muted">A work log was added.</li>}
@@ -83,9 +95,15 @@ function DayDetails({ day, items }: { day: DayView; items: DayItem[] }) {
   );
 }
 
-export default function CalendarGrid({ days, weekdays, title, dailyTarget }: { days: DayView[]; weekdays: string[]; title: string; dailyTarget: number }) {
+export default function CalendarGrid({ days, weekdays, title, dailyTarget, today, isAdmin, myId }: { days: DayView[]; weekdays: string[]; title: string; dailyTarget: number; today: string; isAdmin: boolean; myId: string }) {
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<DayView | null>(null);
+  const [dialog, setDialog] = useState<DialogState | null>(null);
+  // The drawer and the pop-up list close first, then the event window opens.
+  const showEvent = (event: EventItem) => {
+    setOpen(null);
+    setDialog({ mode: "view", event });
+  };
 
   const toggle = (k: string) =>
     setHidden((prev) => {
@@ -119,6 +137,9 @@ export default function CalendarGrid({ days, weekdays, title, dailyTarget }: { d
             </button>
           );
         })}
+        <Button type="button" size="sm" className="ml-auto max-md:min-h-11" onClick={() => setDialog({ mode: "create", date: today })}>
+          <Plus aria-hidden="true" /> Add event
+        </Button>
       </div>
 
       <section className="ts-card ts-cal-card" aria-label={`Calendar for ${title}`}>
@@ -161,7 +182,7 @@ export default function CalendarGrid({ days, weekdays, title, dailyTarget }: { d
                       </PopoverTrigger>
                       <PopoverContent className="ts-portal ts-cal-pop" align="start">
                         <p className="ts-cal-pop-title">{day.longLabel}</p>
-                        <DayDetails day={day} items={items} />
+                        <DayDetails day={day} items={items} onEvent={showEvent} />
                       </PopoverContent>
                     </Popover>
                   )}
@@ -225,15 +246,32 @@ export default function CalendarGrid({ days, weekdays, title, dailyTarget }: { d
             </SheetHeader>
             {open && (
               <>
-                <DayDetails day={open} items={open.items} />
-                <Link href={open.href} className="ts-btn ts-btn-sm ts-cal-drawer-link">
-                  Open this day
-                </Link>
+                <DayDetails day={open} items={open.items} onEvent={showEvent} />
+                <div className="ts-cal-drawer-actions">
+                  <Link href={open.href} className="ts-btn ts-btn-sm ts-cal-drawer-link">
+                    Open this day
+                  </Link>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="max-md:min-h-11"
+                    onClick={() => {
+                      const date = open.date;
+                      setOpen(null);
+                      setDialog({ mode: "create", date });
+                    }}
+                  >
+                    <Plus aria-hidden="true" /> Add event
+                  </Button>
+                </div>
               </>
             )}
           </div>
         </SheetContent>
       </Sheet>
+
+      <EventDialog state={dialog} onClose={() => setDialog(null)} isAdmin={isAdmin} myId={myId} onEdit={(e) => setDialog({ mode: "edit", event: e })} />
     </>
   );
 }

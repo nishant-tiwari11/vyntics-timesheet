@@ -14,7 +14,9 @@ function fail(e: unknown): EventResult {
   return { ok: false, error: "Something went wrong. Please try again." };
 }
 
-const refresh = () => revalidatePath("/timesheet/events");
+const refresh = () => {
+  for (const path of ["/timesheet/calendar", "/timesheet/dashboard"]) revalidatePath(path);
+};
 
 export async function createEventAction(input: EventInput): Promise<EventResult> {
   try {

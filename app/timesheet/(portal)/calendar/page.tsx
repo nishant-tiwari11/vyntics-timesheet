@@ -6,6 +6,10 @@ import { addDays, daysInclusive, formatYmd, isWeekend, monthGrid, monthKey, pars
 import { dailyTarget } from "@/lib/timesheet/settings";
 import { TimesheetError } from "@/lib/timesheet/errors";
 import { getMonthData, type MonthData } from "@/lib/timesheet/calendar";
+import { listStoredEvents } from "@/lib/timesheet/events";
+import { calendarLabel, type EventItem } from "@/lib/timesheet/eventTypes";
+import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
+import { clock12 } from "../worklog/model";
 import { holidayTypeLabel, type Holiday } from "@/lib/timesheet/holidayTypes";
 import { listHolidaysBetween } from "@/lib/timesheet/holidays";
 import { googleConfig } from "@/lib/google/config";
@@ -83,7 +87,7 @@ export default async function CalendarPage({
     return result;
   }
 
-  const [loaded, google, holidays] = await Promise.all([
+  const [loaded, google, holidays, events, me] = await Promise.all([
     getMonthData(year, month)
       .then((d): { data: MonthData | null; error: string | null } => ({ data: d, error: null }))
       .catch((e): { data: MonthData | null; error: string | null } => {
@@ -96,6 +100,12 @@ export default async function CalendarPage({
       logError("holidays", e);
       return [];
     }),
+    // Company events, meetings and your own events. The calendar still works without them if they can't load.
+    listStoredEvents(grid.gridStart, grid.gridEnd).catch((e): EventItem[] => {
+      if (!(e instanceof TimesheetError)) logError("calendar-events", e);
+      return [];
+    }),
+    getCurrentUser(),
   ]);
   const { data, error } = loaded;
   const { connected, showGoogle, googleError, googleByDate } = google;
@@ -155,6 +165,17 @@ export default async function CalendarPage({
             kind: tag.compOff ? "comp" : tag.type,
             label: tag.compOff ? "Comp-off" : tag.type === "leave" ? "Leave" : "WFH",
             detail: tag.pending ? "Waiting for approval" : "Approved",
+          });
+        }
+        for (const ev of events) {
+          if (ev.start > date || ev.end < date) continue;
+          const at = ev.allDay ? "All day" : `${clock12(ev.startTime)}${ev.endTime ? ` – ${clock12(ev.endTime)}` : ""}`;
+          items.push({
+            id: `ev-${ev.id}-${date}`,
+            kind: "event",
+            label: ev.title,
+            detail: [at, ev.location, calendarLabel(ev.calendar)].filter(Boolean).join(" · "),
+            event: ev,
           });
         }
         for (const g of googleByDate.get(date) ?? []) {
@@ -227,7 +248,7 @@ export default async function CalendarPage({
         </section>
       ) : (
         <>
-          <CalendarGrid days={days} weekdays={WEEKDAYS} title={title} dailyTarget={dailyTarget()} />
+          <CalendarGrid days={days} weekdays={WEEKDAYS} title={title} dailyTarget={dailyTarget()} today={today} isAdmin={me?.role === "admin"} myId={me?.id ?? ""} />
 
           <div className="ts-summary ts-summary-4">
             <section className="ts-card" aria-labelledby="sum-hours">

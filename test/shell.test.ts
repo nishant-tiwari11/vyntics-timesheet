@@ -5,7 +5,7 @@ const labels = (role: string) => portalLinks(role).map((l) => l.label);
 
 describe("the menu a role sees (the sidebar, the drawer and the command palette share it)", () => {
   it("shows employees the everyday pages only", () => {
-    expect(labels("employee")).toEqual(["Dashboard", "Leave & WFH", "Work log", "Calendar", "Events", "Expenses", "My Salary"]);
+    expect(labels("employee")).toEqual(["Dashboard", "Leave & WFH", "Work log", "Calendar", "Expenses", "My Salary"]);
     expect(labels("viewer")).toEqual(labels("employee"));
   });
   it("adds Team for a manager, but not Payroll or Admin", () => {

@@ -77,7 +77,6 @@ const LINKS: { href: string; label: string; icon: IconName }[] = [
   { href: "/timesheet/leave", label: "Leave & WFH", icon: "leave" },
   { href: "/timesheet/worklog", label: "Work log", icon: "worklog" },
   { href: "/timesheet/calendar", label: "Calendar", icon: "calendar" },
-  { href: "/timesheet/events", label: "Events", icon: "events" },
   { href: "/timesheet/expenses", label: "Expenses", icon: "expenses" },
   { href: "/timesheet/salary", label: "My Salary", icon: "salary" },
 ];
@@ -94,7 +93,6 @@ export function titleFor(pathname: string): string {
   if (pathname.startsWith("/timesheet/expenses")) return "Expenses";
   if (pathname.startsWith("/timesheet/team")) return "Team";
   if (pathname.startsWith("/timesheet/payroll")) return "Payroll";
-  if (pathname.startsWith("/timesheet/events")) return "Events";
   if (pathname.startsWith("/timesheet/calendar")) return "Calendar";
   if (pathname.startsWith("/timesheet/admin")) return "Admin";
   if (pathname.startsWith("/timesheet/profile")) return "Profile";

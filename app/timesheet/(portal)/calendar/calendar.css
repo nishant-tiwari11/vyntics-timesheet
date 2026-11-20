@@ -437,6 +437,15 @@ a.ts-cal-day:focus-visible {
   background: var(--ts-surface);
   color: var(--ts-text);
 }
+.ts-cal-drawer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.ts-cal-drawer-actions .ts-cal-drawer-link {
+  margin-top: 0;
+}
 .ts-cal-drawer-link {
   justify-self: start;
   margin-top: 12px;

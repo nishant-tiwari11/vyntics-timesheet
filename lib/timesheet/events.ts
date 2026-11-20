@@ -14,6 +14,39 @@ const hhmm = (t: string | null) => (t ? t.slice(0, 5) : "");
 // Who sees what is decided by row level security in the database (supabase/step15_calendar_events.sql):
 // personal events only reach their owner, everything else reaches every signed-in person.
 
+/** Every saved event that touches these dates (company, meetings, projects and your own personal ones), soonest first. */
+export async function listStoredEvents(from: string, to: string): Promise<EventItem[]> {
+  assertDate(from, "start date");
+  assertDate(to, "end date");
+  await requireUser();
+  const supabase = await db();
+  const { data, error } = await supabase
+    .from("calendar_events")
+    .select("*, owner:profiles!calendar_events_owner_id_fkey(full_name, email)")
+    .lte("starts_on", to)
+    .gte("ends_on", from)
+    .order("starts_on", { ascending: true })
+    .limit(1000);
+  if (error) throw toError(error, "Couldn't load events. Please try again.");
+  return data.map((r) => ({
+    id: r.id,
+    calendar: r.calendar as EventItem["calendar"],
+    title: r.title,
+    description: r.description ?? "",
+    location: r.location ?? "",
+    link: r.meeting_link ?? "",
+    color: (EVENT_COLORS.some((c) => c.id === r.color) ? r.color : "black") as EventColor,
+    start: r.starts_on,
+    end: r.ends_on,
+    startTime: hhmm(r.start_time),
+    endTime: hhmm(r.end_time),
+    allDay: r.start_time === null,
+    ownerId: r.owner_id,
+    ownerName: displayName(r.owner),
+    derived: false,
+  }));
+}
+
 /** A saved event in short form, for lists such as the dashboard's Upcoming. */
 export type UpcomingEvent = { id: string; calendar: EventItem["calendar"]; title: string; start: string; end: string; startTime: string; endTime: string; allDay: boolean; location: string };
 
