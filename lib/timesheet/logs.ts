@@ -114,6 +114,43 @@ export async function adminAddLog(userId: string, input: LogFields): Promise<voi
   if (error) throw toError(error, "Couldn't save the entry. Please try again.");
 }
 
+/**
+ * Admin: add many time logs at once (an imported Excel sheet), for any employee and any past date. Every row is checked again
+ * here, and the rows are saved together: if the database refuses any one of them, none is saved. The projects must already
+ * have been checked against the active list by the caller (the importer does).
+ */
+export async function adminImportLogs(rows: { userId: string; input: LogFields }[]): Promise<number> {
+  if (rows.length === 0) return 0;
+  if (rows.length > 500) throw new TimesheetError("Import up to 500 entries at a time.");
+  await requireAdmin();
+  const records = rows.map((r) => {
+    assertId(r.userId, "employee");
+    return { user_id: r.userId, ...cleanFields(r.input, true) };
+  });
+  const supabase = await db();
+  const { error } = await supabase.from("work_logs").insert(records);
+  if (error) throw toError(error, "Couldn't save the entries. Nothing was imported. Please try again.");
+  return records.length;
+}
+
+/** Everyone's existing entries for these people between two dates, for spotting duplicates before an import. */
+export async function adminExistingLogKeys(userIds: string[], from: string, to: string): Promise<{ userId: string; date: string; start: string; end: string; project: string }[]> {
+  if (userIds.length === 0) return [];
+  await requireAdmin();
+  const supabase = await db();
+  const { data, error } = await supabase
+    .from("work_logs")
+    .select("user_id, log_date, start_time, end_time, project")
+    .in("user_id", userIds)
+    .gte("log_date", assertDate(from, "start date"))
+    .lte("log_date", assertDate(to, "end date"))
+    .limit(10000);
+  if (error) throw toError(error, "Couldn't check for duplicates. Please try again.");
+  return data.flatMap((r) =>
+    r.start_time && r.end_time ? [{ userId: r.user_id, date: r.log_date, start: r.start_time.slice(0, 5), end: r.end_time.slice(0, 5), project: r.project ?? "" }] : [],
+  );
+}
+
 /** Admin: change anyone's time log, whatever its status or date. */
 export async function adminUpdateLog(id: string, input: LogFields): Promise<void> {
   assertId(id, "entry");

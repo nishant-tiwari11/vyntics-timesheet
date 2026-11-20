@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
 import { todayInOffice } from "@/lib/timesheet/dates";
 import { activeProjectNames, allProjectNames } from "@/lib/timesheet/projectList";
 import { CopyYesterdayButton } from "./CopyYesterdayButton";
+import { ImportButton } from "./ImportButton";
 import { loadWorkLog } from "./data";
 import { LogList } from "./LogList";
 import { RetryButton } from "./RetryButton";
@@ -64,7 +65,7 @@ export default async function WorkLogPage({
               </h2>
               <p className="ts-muted">{admin ? "Everyone's time logs. Edit, delete, approve or export them here." : "The detail behind the hours: edit, delete or export."}</p>
             </div>
-            {!admin && <CopyYesterdayButton today={today} />}
+            {admin ? <ImportButton /> : <CopyYesterdayButton today={today} />}
           </div>
           <WorkLogFilters query={query} today={today} projects={everyProject} />
           <Suspense key={`list-${key}`} fallback={<ListSkeleton />}>
