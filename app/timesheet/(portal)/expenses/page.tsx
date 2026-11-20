@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { listBillsFor } from "@/lib/expenses/bills";
+import type { Bill } from "@/lib/expenses/billFile";
 import { listCategories, listMyClaims } from "@/lib/expenses/server";
 import { monthLabel, payrollNote, type CategoryRow, type ClaimRow } from "@/lib/expenses/types";
 import { formatMoney } from "@/lib/payroll/money";
 import { formatYmd, todayInOffice } from "@/lib/timesheet/dates";
 import { TimesheetError } from "@/lib/timesheet/errors";
 import { logError } from "@/lib/timesheet/log";
+import { BillsCell } from "./BillsCell";
 import { ClaimForm, RowActions } from "./ExpenseControls";
 import ExpenseStatusBadge from "./StatusBadge";
 
@@ -19,9 +22,11 @@ const day = (d: string) => formatYmd(d, { day: "numeric", month: "short", year: 
 export default async function ExpensesPage() {
   let claims: ClaimRow[] = [];
   let categories: CategoryRow[] = [];
+  let bills = new Map<string, Bill[]>();
   let error: string | null = null;
   try {
     [claims, categories] = await Promise.all([listMyClaims(), listCategories()]);
+    bills = await listBillsFor(claims.map((c) => c.id)); // before step 34 has been run there are simply none
   } catch (e) {
     if (!(e instanceof TimesheetError)) logError("expenses-page", e);
     error = e instanceof TimesheetError ? e.message : "Something went wrong. Please try again.";
@@ -90,6 +95,7 @@ export default async function ExpensesPage() {
                   <TableHead>Date</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Description</TableHead>
+                  <TableHead>Bill</TableHead>
                   <TableHead className="text-right">Claimed</TableHead>
                   <TableHead className="text-right">Approved</TableHead>
                   <TableHead>Payroll month</TableHead>
@@ -106,6 +112,9 @@ export default async function ExpensesPage() {
                     <TableCell className="whitespace-nowrap">{day(c.date)}</TableCell>
                     <TableCell>{c.category}</TableCell>
                     <TableCell className="max-w-64 break-words whitespace-normal">{c.description}</TableCell>
+                    <TableCell className="min-w-40">
+                      <BillsCell claimId={c.id} bills={bills.get(c.id) ?? []} canChange={c.status === "draft" || c.status === "pending"} />
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">{formatMoney(c.claimed)}</TableCell>
                     <TableCell className="text-right tabular-nums">
                       {c.approved === null ? "-" : formatMoney(c.approved)}
@@ -117,7 +126,7 @@ export default async function ExpensesPage() {
                       <p className="mt-1 text-xs text-muted-foreground">{payrollNote(c)}</p>
                     </TableCell>
                     <TableCell>
-                      <RowActions claim={c} categories={categories} today={today} />
+                      <RowActions claim={c} categories={categories} today={today} billCount={(bills.get(c.id) ?? []).length} />
                     </TableCell>
                   </TableRow>
                 ))}

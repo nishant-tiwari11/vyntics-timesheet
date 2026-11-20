@@ -7,7 +7,7 @@ import { TimesheetError } from "@/lib/timesheet/errors";
 import { logError } from "@/lib/timesheet/log";
 
 // An employee's own expense claims. The person is taken from the session inside lib/expenses/server.ts, never from here.
-export type ExpenseResult = { ok: true } | { ok: false; error: string };
+export type ExpenseResult = { ok: true; id?: string } | { ok: false; error: string };
 
 function fail(e: unknown): ExpenseResult {
   if (e instanceof TimesheetError) return { ok: false, error: e.message };
@@ -22,9 +22,9 @@ const refresh = () => {
 
 export async function saveClaimAction(input: ClaimInput): Promise<ExpenseResult> {
   try {
-    await saveMyClaim(input);
+    const id = await saveMyClaim(input);
     refresh();
-    return { ok: true };
+    return { ok: true, id };
   } catch (e) {
     return fail(e);
   }

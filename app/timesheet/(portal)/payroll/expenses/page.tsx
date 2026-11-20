@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { UserAvatar } from "../../../_components/UserAvatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { listBillsFor } from "@/lib/expenses/bills";
+import type { Bill } from "@/lib/expenses/billFile";
 import { approvalMonths, listAllClaims, listCategories, type MonthChoice } from "@/lib/expenses/server";
 import { ADMIN_FILTERS, isAdminFilter, monthLabel, payrollNote, type AdminFilter, type CategoryRow, type ClaimRow } from "@/lib/expenses/types";
 import { formatMoney } from "@/lib/payroll/money";
@@ -8,6 +10,7 @@ import { formatYmd } from "@/lib/timesheet/dates";
 import { TimesheetError } from "@/lib/timesheet/errors";
 import { logError } from "@/lib/timesheet/log";
 import { cn } from "@/lib/utils";
+import { BillLinks } from "../../expenses/BillsCell";
 import ExpenseStatusBadge from "../../expenses/StatusBadge";
 import { CategoryEditor, ClaimDecision } from "./ExpenseAdminControls";
 
@@ -30,6 +33,7 @@ export default async function PayrollExpensesPage({ searchParams }: { searchPara
   let categories: CategoryRow[] = [];
   let months: MonthChoice[] = [];
   let defaultMonth = "";
+  let bills = new Map<string, Bill[]>();
   let error: string | null = null;
   try {
     const [list, cats, choice] = await Promise.all([listAllClaims({ filter: runId ? "all" : filter, runId, q }), listCategories(true), approvalMonths()]);
@@ -37,6 +41,7 @@ export default async function PayrollExpensesPage({ searchParams }: { searchPara
     categories = cats;
     months = choice.months;
     defaultMonth = choice.defaultMonth;
+    bills = await listBillsFor(list.map((c) => c.id));
   } catch (e) {
     if (!(e instanceof TimesheetError)) logError("payroll-expenses-page", e);
     error = e instanceof TimesheetError ? e.message : "Something went wrong. Please try again.";
@@ -133,6 +138,7 @@ export default async function PayrollExpensesPage({ searchParams }: { searchPara
                   <TableHead>Employee</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Category</TableHead>
+                  <TableHead>Bill</TableHead>
                   <TableHead className="text-right">Claimed</TableHead>
                   <TableHead className="text-right">Approved</TableHead>
                   <TableHead>Payroll month</TableHead>
@@ -157,6 +163,9 @@ export default async function PayrollExpensesPage({ searchParams }: { searchPara
                     <TableCell>
                       {c.category}
                       {c.taxable ? <span className="block text-xs text-muted-foreground">taxable</span> : null}
+                    </TableCell>
+                    <TableCell className="min-w-36 text-sm">
+                      <BillLinks bills={bills.get(c.id) ?? []} />
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{formatMoney(c.claimed)}</TableCell>
                     <TableCell className="text-right tabular-nums">{c.approved === null ? "-" : formatMoney(c.approved)}</TableCell>

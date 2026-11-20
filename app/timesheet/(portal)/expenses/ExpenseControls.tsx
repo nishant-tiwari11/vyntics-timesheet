@@ -8,19 +8,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { BILL_ACCEPT, BILL_MAX_PER_CLAIM, BILL_TYPES_TEXT, fmtSize } from "@/lib/expenses/billFile";
 import type { CategoryRow, ClaimEvent, ClaimRow } from "@/lib/expenses/types";
 import { formatMoney, parseMoney, toRupeeText } from "@/lib/payroll/money";
+import { uploadBill } from "./BillsCell";
 import { claimHistoryAction, deleteClaimAction, saveClaimAction, submitClaimAction } from "./actions";
 
 // ---------------------------- New or edited claim ----------------------------
 
-export function ClaimForm({ categories, today, claim, onDone }: { categories: CategoryRow[]; today: string; claim?: ClaimRow; onDone?: () => void }) {
+export function ClaimForm({ categories, today, claim, billCount = 0, onDone }: { categories: CategoryRow[]; today: string; claim?: ClaimRow; /** Bills already attached to this claim. */ billCount?: number; onDone?: () => void }) {
   const [categoryId, setCategoryId] = useState(claim?.categoryId ?? "");
   const [date, setDate] = useState(claim?.date ?? today);
   const [amount, setAmount] = useState(claim ? toRupeeText(claim.claimed) : "");
   const [description, setDescription] = useState(claim?.description ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [pending, startTransition] = useTransition();
+  const room = BILL_MAX_PER_CLAIM - billCount;
   const picked = categories.find((c) => c.id === categoryId);
 
   function save(submit: boolean) {
@@ -38,6 +42,15 @@ export function ClaimForm({ categories, today, claim, onDone }: { categories: Ca
         return;
       }
       toast.success(submit ? "Sent for approval." : "Saved as a draft.");
+      // Attach the chosen bills to the saved claim. A bill that fails never undoes the claim.
+      const claimId = res.id ?? claim?.id;
+      if (claimId) {
+        for (const file of files) {
+          const up = await uploadBill(claimId, file);
+          if (!up.ok) toast.error(`${file.name}: ${up.error}`);
+        }
+      }
+      setFiles([]);
       if (!claim) {
         setCategoryId("");
         setAmount("");
@@ -86,6 +99,34 @@ export function ClaimForm({ categories, today, claim, onDone }: { categories: Ca
       <div className="grid gap-1.5">
         <Label htmlFor="exp-description">Description</Label>
         <Textarea id="exp-description" rows={2} maxLength={300} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="For example: Taxi to the client office" disabled={pending} />
+      </div>
+      <div className="grid gap-1.5">
+        <Label htmlFor="exp-bill">Bill or receipt (optional)</Label>
+        <Input
+          id="exp-bill"
+          type="file"
+          multiple
+          accept={BILL_ACCEPT}
+          disabled={pending || room <= 0}
+          onChange={(e) => {
+            const picked = Array.from(e.target.files ?? []);
+            if (picked.length > room) toast.error(`You can attach ${BILL_MAX_PER_CLAIM} bills to one expense.`);
+            setFiles(picked.slice(0, Math.max(room, 0)));
+          }}
+          className="max-md:min-h-11"
+        />
+        <p className="text-xs text-muted-foreground">
+          {BILL_TYPES_TEXT}. Up to {BILL_MAX_PER_CLAIM} per expense. Only you and the admins who approve it can see your bills.
+        </p>
+        {files.length > 0 && (
+          <ul className="text-xs text-muted-foreground">
+            {files.map((f) => (
+              <li key={f.name + f.size}>
+                {f.name} ({fmtSize(f.size)})
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
       {error && (
         <p role="alert" className="text-sm text-destructive">
@@ -177,7 +218,7 @@ export function HistoryButton({ claimId, code }: { claimId: string; code: string
 
 // ---------------------------- A row's buttons ----------------------------
 
-export function RowActions({ claim, categories, today }: { claim: ClaimRow; categories: CategoryRow[]; today: string }) {
+export function RowActions({ claim, categories, today, billCount = 0 }: { claim: ClaimRow; categories: CategoryRow[]; today: string; billCount?: number }) {
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
   const draft = claim.status === "draft";
@@ -209,7 +250,7 @@ export function RowActions({ claim, categories, today }: { claim: ClaimRow; cate
                 <DialogTitle>Edit {claim.code}</DialogTitle>
                 <DialogDescription>You can change a claim until you submit it.</DialogDescription>
               </DialogHeader>
-              <ClaimForm categories={categories} today={today} claim={claim} onDone={() => setEditing(false)} />
+              <ClaimForm categories={categories} today={today} claim={claim} billCount={billCount} onDone={() => setEditing(false)} />
             </DialogContent>
           </Dialog>
         </>
