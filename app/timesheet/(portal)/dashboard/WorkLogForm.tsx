@@ -60,6 +60,8 @@ export default function WorkLogForm({
   onSaved?: () => void;
 }) {
   const textRef = useRef<HTMLTextAreaElement>(null);
+  // Set by "Save and add another": after saving, the window stays open for the next log.
+  const again = useRef(false);
   const seed = initial ?? prefill;
   // What the form starts with. For a brand-new entry, the last project and usual times arrive a moment later
   // (see below) and become the starting point too, so they don't count as unsaved input.
@@ -189,6 +191,8 @@ export default function WorkLogForm({
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const addAnother = again.current && !initial;
+    again.current = false;
     setError(null);
     setSuccess(false);
     const found = validate();
@@ -223,6 +227,20 @@ export default function WorkLogForm({
           else if (r && day.request) toast.info(`Comp-off request updated (${r.status === "pending" ? "Pending" : r.status})`);
           else if (!r && day.request) toast.info("Comp-off request cancelled.");
         }
+      }
+      if (addAnother) {
+        // Keep the window open for the next log: same day and project, starting where this one ended.
+        const next = { date, project, start: end, end: "", text: "", noCompOff: false };
+        setBase(next);
+        setStart(next.start);
+        setEnd("");
+        setText("");
+        setNoCompOff(false);
+        setErrors({});
+        setSuccess(true);
+        if (!isAdminMode) dayLogsAction(date).then((res) => setOthers(res.ok ? res.entries : []));
+        textRef.current?.focus();
+        return;
       }
       if (onSaved) return onSaved();
       setText("");
@@ -374,16 +392,21 @@ export default function WorkLogForm({
         )}
         {success && (
           <p className="ts-success" role="status">
-            Time log added.
+            Time log added.{!initial && " Add the next one below."}
           </p>
         )}
       </div>
 
-      <div className="flex justify-end gap-2 pt-1">
+      <div className="flex flex-wrap justify-end gap-2 pt-1">
         <Button type="button" variant="outline" onClick={() => modal?.requestClose()} disabled={pending}>
           Cancel
         </Button>
-        <Button type="submit" disabled={pending}>
+        {!initial && (
+          <Button type="submit" variant="outline" disabled={pending} onClick={() => (again.current = true)}>
+            Save and add another
+          </Button>
+        )}
+        <Button type="submit" disabled={pending} onClick={() => (again.current = false)}>
           {pending && <Loader2 className="animate-spin" aria-hidden="true" />}
           {pending ? "Saving..." : initial ? "Save changes" : "Add time log"}
         </Button>
