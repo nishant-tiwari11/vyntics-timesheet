@@ -27,7 +27,7 @@ export function ChatReminderToggle({ initial }: { initial: boolean }) {
     <div className="flex items-start justify-between gap-4">
       <div className="grid gap-1">
         <Label htmlFor="chat-optin">Google Chat reminders</Label>
-        <p className="text-xs text-muted-foreground">A card in the team Chat space naming you when you haven&apos;t logged a full day, a Friday summary, and (for managers and admins) approvals waiting.</p>
+        <p className="text-xs text-muted-foreground">A card in the team Chat space naming you when you haven&apos;t logged a full day, and a Friday summary.</p>
       </div>
       <Switch id="chat-optin" checked={on} disabled={busy} onCheckedChange={change} aria-label="Send me Google Chat reminders" />
     </div>

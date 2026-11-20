@@ -94,12 +94,6 @@ export function ChatRemindersForm({ saved, connected, ready }: { saved: ChatSett
           </Label>
           <Switch id="chat-summary" checked={s.weeklySummary} disabled={busy || !ready} onCheckedChange={(v) => set("weeklySummary", v)} />
         </div>
-        <div className="flex items-center justify-between gap-4">
-          <Label htmlFor="chat-digest" className="font-normal">
-            Tell managers and admins when approvals are waiting (sent with the daily reminder)
-          </Label>
-          <Switch id="chat-digest" checked={s.approvalDigest} disabled={busy || !ready} onCheckedChange={(v) => set("approvalDigest", v)} />
-        </div>
       </div>
 
       {(error || (dirty && problem)) && (
