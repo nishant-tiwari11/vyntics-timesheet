@@ -6,11 +6,15 @@ import { CalendarClock, CalendarOff, Clock, Home, PartyPopper, Palmtree, PencilL
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import type { EventItem } from "@/lib/timesheet/eventTypes";
-import EventDialog, { type DialogState } from "../events/EventDialog";
+import dynamic from "next/dynamic";
+import type { DialogState } from "../events/EventDialog";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 // The month grid. The page works out what is on each day (the same data as before); this file only draws it and adds the
 // ways to explore it: filters, a "+N more" list, a hover preview and a side panel with the day's details.
+
+// The event window (a long form) is only needed when one is opened, so it loads then.
+const EventDialog = dynamic(() => import("../events/EventDialog"), { ssr: false });
 
 export type Kind = "work" | "leave" | "wfh" | "comp" | "holiday" | "off" | "google" | "event";
 
@@ -271,7 +275,7 @@ export default function CalendarGrid({ days, weekdays, title, dailyTarget, today
         </SheetContent>
       </Sheet>
 
-      <EventDialog state={dialog} onClose={() => setDialog(null)} isAdmin={isAdmin} myId={myId} onEdit={(e) => setDialog({ mode: "edit", event: e })} />
+      {dialog && <EventDialog state={dialog} onClose={() => setDialog(null)} isAdmin={isAdmin} myId={myId} onEdit={(e) => setDialog({ mode: "edit", event: e })} />}
     </>
   );
 }

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import dynamic from "next/dynamic";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatYmd, isYmd } from "@/lib/timesheet/dates";
 import { periodOf, shiftedDate, workHref, type WorkQuery } from "../query";
@@ -26,6 +26,12 @@ const toYmd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padSta
 // [←] [calendar  02 – 08 Nov 2026] [→]  and the "Return to this week" link. One step is a day in the Day view
 // and a week (Monday to Sunday) in the Week view. The arrows are links; the middle opens a date picker.
 // You can't step past the current period: nothing can be logged for the future.
+// The date picker (about 110 KB with its date library) is only needed once the pop-up opens, so it loads then.
+const Calendar = dynamic(() => import("@/components/ui/calendar").then((m) => m.Calendar), {
+  ssr: false,
+  loading: () => <div className="h-[19rem] w-[17rem]" aria-busy="true" />,
+});
+
 export function DateRangeNavigator({ query, today }: { query: WorkQuery; today: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);

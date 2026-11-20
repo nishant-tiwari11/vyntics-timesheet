@@ -1,13 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createClient } from "@/lib/supabase/client";
 import { COMPANY_DOMAIN, NOT_INVITED_ERROR } from "@/lib/companyEmail";
 import { InAppBrowserNotice } from "./InAppBrowserNotice";
 import { signInWithPasswordAction } from "./passwordAction";
@@ -26,6 +25,11 @@ function friendlyError(message: string): string {
 }
 
 export default function AuthForm({ initialError }: { initialError?: string }) {
+  // Fetch the sign-in library a moment after the page is ready (not before), so the click doesn't have to wait for it.
+  useEffect(() => {
+    const t = window.setTimeout(() => void import("@/lib/supabase/client"), 2000);
+    return () => window.clearTimeout(t);
+  }, []);
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(initialError ?? null);
@@ -53,6 +57,8 @@ export default function AuthForm({ initialError }: { initialError?: string }) {
     setError(null);
     setLoading(true);
     try {
+      // The sign-in library is large and only needed at this moment, so the login page loads without it.
+      const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
       // No "hd" (hosted domain) hint: it would make Google's picker show only company accounts, and people an admin added
       // by hand (a Gmail address, a client's address) must be able to pick theirs. The database enforces who gets in.
