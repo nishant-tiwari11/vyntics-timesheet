@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildRows, fmtMinutes, parseDuration, planSave } from "@/app/timesheet/(portal)/worklog/timesheet/gridModel";
+import { buildRows, fmtMinutes, parseDuration, planAddEntry, planSave } from "@/app/timesheet/(portal)/worklog/timesheet/gridModel";
 import { parseQuickAdd } from "@/app/timesheet/(portal)/worklog/timesheet/quickAdd";
 import type { Entry } from "@/app/timesheet/(portal)/worklog/model";
 
@@ -123,5 +123,25 @@ describe("parseQuickAdd", () => {
   it("leaves out what it can't find", () => {
     expect(parseQuickAdd("hello", TODAY)).toEqual({ minutes: null, date: null, project: null });
     expect(parseQuickAdd("log 30 hours", TODAY).minutes).toBeNull();
+  });
+});
+
+describe("planAddEntry", () => {
+  it("adds a described entry at 09:00 when the day is empty", () => {
+    expect(planAddEntry("2026-11-17", 150, "Client work", "  fixed the login bug ", [])).toEqual({
+      date: "2026-11-17",
+      text: "fixed the login bug",
+      start: "09:00",
+      end: "11:30",
+      project: "Client work",
+    });
+  });
+  it("starts after what is already logged that day", () => {
+    expect(planAddEntry("2026-11-17", 60, "Client work", "more work", [{ end: "12:30" }])?.start).toBe("12:30");
+  });
+  it("refuses a missing description or a bad length", () => {
+    expect(planAddEntry("2026-11-17", 60, "Client work", "   ", [])).toBeNull();
+    expect(planAddEntry("2026-11-17", 0, "Client work", "x", [])).toBeNull();
+    expect(planAddEntry("2026-11-17", 24 * 60, "Client work", "x", [])).toBeNull();
   });
 });

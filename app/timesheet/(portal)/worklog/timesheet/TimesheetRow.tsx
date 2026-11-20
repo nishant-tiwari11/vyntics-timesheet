@@ -1,17 +1,16 @@
 "use client";
 
 import { toast } from "sonner";
-import { Clock, Lock, LockOpen, StickyNote } from "lucide-react";
+import { Clock, Lock, LockOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatYmd, isWeekend } from "@/lib/timesheet/dates";
 import { STICKY, fmtMinutes, gridColumns, type GridRow } from "./gridModel";
+import type { Entry } from "../model";
 import { HourCell } from "./HourCell";
+import { RowNotes } from "./RowNotes";
 
 /** "[Tue 17 Nov]" for screen readers and tooltips. */
 export const dayName = (ymd: string) => formatYmd(ymd, { weekday: "short", day: "numeric", month: "short" });
-
-const STATUS = { pending: "Pending", approved: "Approved", rejected: "Rejected" } as const;
 
 // One project: its name and latest note, a notes button, one hour box per day, the row total and a lock.
 export function TimesheetRow({
@@ -20,6 +19,8 @@ export function TimesheetRow({
   minutesFor,
   busyKeys,
   onCommit,
+  onSaveText,
+  onAdd,
 }: {
   row: GridRow;
   days: string[];
@@ -27,6 +28,10 @@ export function TimesheetRow({
   minutesFor: (date: string) => number;
   busyKeys: ReadonlySet<string>;
   onCommit: (date: string, minutes: number) => void;
+  /** Change the description of an entry. Resolves true when it was saved. */
+  onSaveText: (entry: Entry, text: string) => Promise<boolean>;
+  /** Add an entry with a description to this project on a day. Resolves true when it was saved. */
+  onAdd: (date: string, minutes: number, text: string) => Promise<boolean>;
 }) {
   const total = days.reduce((sum, d) => sum + minutesFor(d), 0);
   const notes = [...row.entries].sort((a, b) => b.date.localeCompare(a.date) || b.start.localeCompare(a.start));
@@ -45,33 +50,7 @@ export function TimesheetRow({
       </div>
 
       <div role="cell" className="flex justify-center">
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="icon-sm" className="max-md:size-11" aria-label={`Notes for ${name}`}>
-              <StickyNote aria-hidden="true" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-80 max-w-[calc(100vw-2rem)] p-0">
-            <p className="border-b px-3 py-2 text-sm font-semibold">Notes: {name}</p>
-            {notes.length === 0 ? (
-              <p className="px-3 py-3 text-sm text-muted-foreground">Nothing logged for this project in this period.</p>
-            ) : (
-              <ul className="max-h-72 divide-y overflow-y-auto">
-                {notes.map((e) => (
-                  <li key={e.id} className="px-3 py-2 text-sm">
-                    <p className="flex flex-wrap justify-between gap-x-2 text-xs text-muted-foreground">
-                      <span>{dayName(e.date)}</span>
-                      <span>
-                        {fmtMinutes(Math.round((e.hours ?? 0) * 60))} · {STATUS[e.status]}
-                      </span>
-                    </p>
-                    <p className="break-words">{e.text || "No description"}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </PopoverContent>
-        </Popover>
+        <RowNotes row={row} name={name} notes={notes} dayLabel={dayName} onSaveText={onSaveText} onAdd={onAdd} />
       </div>
 
       {row.cells.map((cell) => {

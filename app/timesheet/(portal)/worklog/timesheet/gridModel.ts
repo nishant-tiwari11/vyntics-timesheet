@@ -142,6 +142,17 @@ export function planSave(cell: Cell, minutes: number, project: string, others: P
   return { kind: "add", input: { date: cell.date, text: project, start: toClock(start), end: toClock(start + minutes), project } };
 }
 
+/**
+ * A brand new entry with a description (from the notes panel). It is placed right after whatever else was logged that day,
+ * or at 09:00, and always added, even when the project already has an entry that day.
+ */
+export function planAddEntry(date: string, minutes: number, project: string, text: string, others: Pick<Entry, "end">[]): LogInput | null {
+  if (!(minutes > 0) || minutes > MAX_CELL_MINUTES || !text.trim()) return null;
+  const ends = others.map((o) => (o.end ? toMinutes(o.end) : 0));
+  const start = fit(Math.max(toMinutes(DEFAULT_START), ...ends), minutes);
+  return { date, text: text.trim(), start: toClock(start), end: toClock(start + minutes), project };
+}
+
 /** The days shown: seven for a week, one for a day. */
 export const weekDays = (monday: string) => Array.from({ length: 7 }, (_, i) => addDays(monday, i));
 

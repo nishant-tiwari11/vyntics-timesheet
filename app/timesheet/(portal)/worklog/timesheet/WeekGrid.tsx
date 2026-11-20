@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { addLogAction, deleteLogAction, updateLogAction, type ActionResult } from "../../dashboard/actions";
 import type { Entry } from "../model";
-import { STICKY, buildRows, fmtMinutes, gridColumns, planSave } from "./gridModel";
+import { STICKY, buildRows, fmtMinutes, gridColumns, planAddEntry, planSave } from "./gridModel";
 import { DayHeader, TimesheetRow } from "./TimesheetRow";
 
 export type GridProps = {
@@ -74,6 +74,37 @@ export default function WeekGrid({ days, entries, myId, today, projects }: GridP
     }
   }
 
+  /** Change what an entry says, keeping its day, times and project. */
+  async function saveText(entry: Entry, text: string): Promise<boolean> {
+    let res: ActionResult;
+    try {
+      res = await updateLogAction(entry.id, { date: entry.date, text, start: entry.start, end: entry.end, project: entry.project });
+    } catch {
+      res = { ok: false, error: "Couldn't save. Check your connection and try again." };
+    }
+    if (!res.ok) toast.error(res.error);
+    else toast.success("Note saved.");
+    return res.ok;
+  }
+
+  /** Add an entry with a description to a project on a day. */
+  async function addEntry(project: string, date: string, minutes: number, text: string): Promise<boolean> {
+    const others = entries.filter((e) => e.userId === myId && e.date === date && e.status !== "rejected");
+    const input = planAddEntry(date, minutes, project, text, others);
+    if (!input) {
+      toast.error("Enter the hours and what you worked on.");
+      return false;
+    }
+    let res: ActionResult;
+    try {
+      res = await addLogAction(input);
+    } catch {
+      res = { ok: false, error: "Couldn't save. Check your connection and try again." };
+    }
+    if (!res.ok) toast.error(res.error);
+    return res.ok;
+  }
+
   return (
     <section aria-label={wide ? "Weekly timesheet" : "Daily timesheet"} className="ts-card grid gap-3">
       <div className="overflow-x-auto overscroll-x-contain">
@@ -106,6 +137,8 @@ export default function WeekGrid({ days, entries, myId, today, projects }: GridP
                 minutesFor={(date) => minutesFor(row.project, date, row.cells[days.indexOf(date)].minutes)}
                 busyKeys={busy}
                 onCommit={(date, minutes) => void commit(row.project, date, minutes)}
+                onSaveText={saveText}
+                onAdd={(date, minutes, text) => addEntry(row.project, date, minutes, text)}
               />
             ))}
           </div>
