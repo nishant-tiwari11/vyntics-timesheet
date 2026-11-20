@@ -39,7 +39,7 @@ export default async function Shell({
             <MobileNav user={user} />
             <PageTitle />
             <CommandPalette role={role} />
-            <form action="/timesheet/dashboard" method="get" role="search" className="ts-search">
+            <form action="/timesheet/dashboard#logs" method="get" role="search" className="ts-search">
               <label htmlFor="ts-search-input" className="ts-sr-only">
                 Search time logs
               </label>
