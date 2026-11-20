@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CalendarOff, Home, PartyPopper, Palmtree, Sparkles, type LucideIcon } from "lucide-react";
 import { addDays, daysInclusive, formatRange, formatYmd, isWeekend, mondayOf } from "@/lib/timesheet/dates";
 import { listHolidaysBetween } from "@/lib/timesheet/holidays";
+import { TimesheetError } from "@/lib/timesheet/errors";
 import { holidayTypeLabel, type Holiday } from "@/lib/timesheet/holidayTypes";
 import { logError } from "@/lib/timesheet/log";
 import "../calendar/calendar.css"; // the shared colours for leave, WFH and holiday tags
@@ -37,7 +38,8 @@ export default async function WeekAhead({ today }: { today: string }) {
     loadCalendarOff("mine", monday, horizon),
     // The strip still works without holidays if they can't load.
     listHolidaysBetween(monday, horizon).catch((e): Holiday[] => {
-      logError("week-ahead-holidays", e);
+      // An expired sign-in is expected and already shown by the rest of the page; only log real problems.
+      if (!(e instanceof TimesheetError)) logError("week-ahead-holidays", e);
       return [];
     }),
   ]);
