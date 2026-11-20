@@ -20,7 +20,6 @@ export function TimesheetRow({
   busyKeys,
   onCommit,
   onSaveText,
-  onAdd,
 }: {
   row: GridRow;
   days: string[];
@@ -30,8 +29,6 @@ export function TimesheetRow({
   onCommit: (date: string, minutes: number) => void;
   /** Change the description of an entry. Resolves true when it was saved. */
   onSaveText: (entry: Entry, text: string) => Promise<boolean>;
-  /** Add an entry with a description to this project on a day. Resolves true when it was saved. */
-  onAdd: (date: string, minutes: number, text: string) => Promise<boolean>;
 }) {
   const total = days.reduce((sum, d) => sum + minutesFor(d), 0);
   const notes = [...row.entries].sort((a, b) => b.date.localeCompare(a.date) || b.start.localeCompare(a.start));
@@ -50,7 +47,7 @@ export function TimesheetRow({
       </div>
 
       <div role="cell" className="flex justify-center">
-        <RowNotes row={row} name={name} notes={notes} dayLabel={dayName} onSaveText={onSaveText} onAdd={onAdd} />
+        <RowNotes row={row} name={name} notes={notes} dayLabel={dayName} onSaveText={onSaveText} />
       </div>
 
       {row.cells.map((cell) => {
