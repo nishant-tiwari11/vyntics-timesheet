@@ -1,6 +1,8 @@
 // Reading an Excel sheet of time logs, as plain code with no database or file access, so it can be tested.
 // The sheet uses the same columns as the Work log's Export Excel: Employee, Date, Project, Start, End, Hours, Description, Status.
 // (Status is ignored: entries added by an admin are approved straight away. Hours is only used when Start and End are empty.)
+// A personal sheet works too: Date, Day, Work Done, Hours, Work From Home. It has no Employee or Project column, so the person
+// and the project are chosen when importing. Rows with only Hours are placed from 09:00, one after another on the same day.
 
 import { isYmd } from "./dates";
 
@@ -10,10 +12,11 @@ export type ImportRow = { userId: string; person: string; date: string; project:
 
 export type RowProblem = { /** The row number in the sheet (the header is row 1). */ row: number; message: string };
 
-export type ParsedSheet = { rows: ImportRow[]; problems: RowProblem[]; skippedEmpty: number };
+export type ParsedSheet = { rows: ImportRow[]; problems: RowProblem[]; skippedEmpty: number; /** Columns in the sheet that are not used. */ ignoredColumns: string[] };
 
 export const MAX_IMPORT_ROWS = 500;
-export const TEXT_MAX = 500;
+/** The longest description an import accepts (the database allows 2000). */
+export const TEXT_MAX = 2000;
 const EARLIEST = "2020-01-01";
 const DEFAULT_START = "09:00";
 const LAST_MINUTE = 23 * 60 + 59;
@@ -26,6 +29,19 @@ export function cellText(v: unknown): string {
   if (v === null || v === undefined) return "";
   if (v instanceof Date) return v.toISOString();
   return String(v).replace(/\s+/g, " ").trim();
+}
+
+/** A long description from a cell: line breaks and lists are kept, only the outer spaces and extra blank lines go. */
+export function cellBlock(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  if (v instanceof Date) return v.toISOString();
+  return String(v)
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((l) => l.replace(/[ \t]+/g, " ").trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 const EXCEL_EPOCH = Date.UTC(1899, 11, 30);
@@ -78,9 +94,13 @@ const HEADERS: Record<string, string> = {
   "end time": "end",
   hours: "hours",
   description: "text",
+  "work done": "text",
   "what did you work on": "text",
   status: "status",
 };
+
+/** Columns that are understood but deliberately not used. */
+const KNOWN_UNUSED = new Set(["status", "day", "weekday", "work from home", "work from home (yes/no)", "wfh", "total"]);
 
 /**
  * Check every row of the sheet (the first row is the header). Rows that can't be used are reported with the reason and left
@@ -88,24 +108,36 @@ const HEADERS: Record<string, string> = {
  */
 export function parseImportRows(
   table: unknown[][],
-  ctx: { employees: ImportEmployee[]; projects: string[]; today: string },
+  ctx: { employees: ImportEmployee[]; projects: string[]; today: string; /** Used for rows with no Employee, or a sheet with no Employee column. */ fallbackUser?: ImportEmployee; /** Used for rows with no Project, or a sheet with no Project column. */ fallbackProject?: string },
 ): ParsedSheet | { fatal: string } {
   if (table.length === 0) return { fatal: "The sheet is empty." };
+
+  // The header row is the first row (within the top ten) that names a Date and a description column.
   const columns = new Map<string, number>();
-  table[0].forEach((h, i) => {
-    const key = HEADERS[cellText(h).toLowerCase()];
-    if (key && !columns.has(key)) columns.set(key, i);
-  });
+  let headerAt = -1;
+  for (let i = 0; i < Math.min(table.length, 10) && headerAt < 0; i++) {
+    const found = new Map<string, number>();
+    table[i].forEach((h, c) => {
+      const key = HEADERS[cellText(h).toLowerCase()];
+      if (key && !found.has(key)) found.set(key, c);
+    });
+    if (found.has("date") && found.has("text")) {
+      headerAt = i;
+      for (const [k, v] of found) columns.set(k, v);
+    }
+  }
+  if (headerAt < 0) return { fatal: "Couldn't find the header row. It must name at least a Date column and a Description (or Work Done) column." };
+  const ignoredColumns = table[headerAt]
+    .map((h) => cellText(h))
+    .filter((h) => h && !HEADERS[h.toLowerCase()] && !KNOWN_UNUSED.has(h.toLowerCase()) && !/^total$/i.test(h));
   const missing = [
-    !columns.has("date") && "Date",
-    !columns.has("project") && "Project",
-    !columns.has("text") && "Description",
-    !columns.has("person") && !columns.has("email") && "Employee (or Email)",
+    !columns.has("project") && !ctx.fallbackProject && "Project (or choose the project below)",
+    !columns.has("person") && !columns.has("email") && !ctx.fallbackUser && "Employee (or choose the employee below)",
     !columns.has("start") && !columns.has("hours") && "Start and End (or Hours)",
   ].filter((m): m is string => !!m);
-  if (missing.length > 0) return { fatal: `The first row must name these columns: ${missing.join(", ")}.` };
+  if (missing.length > 0) return { fatal: `The sheet needs: ${missing.join(", ")}.` };
 
-  const body = table.slice(1);
+  const body = table.slice(headerAt + 1);
   if (body.length > MAX_IMPORT_ROWS + 50) return { fatal: `The sheet has too many rows. Import up to ${MAX_IMPORT_ROWS} at a time.` };
 
   const get = (r: unknown[], key: string) => (columns.has(key) ? r[columns.get(key)!] : undefined);
@@ -120,11 +152,12 @@ export function parseImportRows(
   const rows: ImportRow[] = [];
   const problems: RowProblem[] = [];
   const seen = new Set<string>();
+  const nextStart = new Map<string, number>();
   let skippedEmpty = 0;
 
   body.forEach((r, i) => {
-    const row = i + 2;
-    const text = cellText(get(r, "text"));
+    const row = headerAt + i + 2;
+    const text = cellBlock(get(r, "text"));
     const projectRaw = cellText(get(r, "project"));
     const dateRaw = get(r, "date");
     // Blank lines and the "Total" line at the bottom of an exported sheet.
@@ -145,6 +178,7 @@ export function parseImportRows(
       if (found.length > 1) return bad(`Several employees are called "${nameRaw}". Use their email instead.`);
       who = found[0];
     }
+    if (!who && !emailRaw && !nameRaw) who = ctx.fallbackUser;
     if (!who) return bad(emailRaw || nameRaw ? `No employee matches "${emailRaw || nameRaw}".` : "No employee on this row.");
 
     // When
@@ -154,17 +188,21 @@ export function parseImportRows(
     if (date < EARLIEST) return bad(`The date is before ${EARLIEST}.`);
 
     // Which project
-    const project = projects.get(projectRaw.toLowerCase());
+    const project = projectRaw ? projects.get(projectRaw.toLowerCase()) : ctx.fallbackProject;
     if (!project) return bad(projectRaw ? `"${projectRaw}" isn't an active project.` : "No project on this row.");
 
     // From and to
     let start = cellTime(get(r, "start"));
     let end = cellTime(get(r, "end"));
     if (start === null && end === null) {
-      const hours = Number(String(get(r, "hours") ?? "").replace(",", "."));
+      const hours = Number(/^\s*(\d+(?:[.,]\d+)?)/.exec(String(get(r, "hours") ?? ""))?.[1].replace(",", ".") ?? NaN);
       if (!Number.isFinite(hours) || hours <= 0 || hours > 23.9) return bad("Give a Start and End time, or the Hours.");
-      start = cellTime(DEFAULT_START)!;
+      // Several rows for the same person and day follow each other from 09:00.
+      const slot = `${who.id}|${date}`;
+      start = nextStart.get(slot) ?? cellTime(DEFAULT_START)!;
       end = Math.min(start + Math.round(hours * 60), LAST_MINUTE);
+      if (start >= LAST_MINUTE) return bad("There is no room left on this day for another entry.");
+      nextStart.set(slot, end);
     } else if (start === null || end === null) {
       return bad("Both the Start and the End time are needed.");
     }
@@ -182,7 +220,7 @@ export function parseImportRows(
   });
 
   if (rows.length > MAX_IMPORT_ROWS) return { fatal: `The sheet has ${rows.length} usable rows. Import up to ${MAX_IMPORT_ROWS} at a time.` };
-  return { rows, problems, skippedEmpty };
+  return { rows, problems, skippedEmpty, ignoredColumns };
 }
 
 /** The key that says "this person, day, time and project already has an entry". */

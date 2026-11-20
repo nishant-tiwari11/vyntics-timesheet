@@ -5,6 +5,7 @@ import { todayInOffice } from "@/lib/timesheet/dates";
 import { activeProjectNames, allProjectNames } from "@/lib/timesheet/projectList";
 import { CopyYesterdayButton } from "./CopyYesterdayButton";
 import { ImportButton } from "./ImportButton";
+import { listEmployees } from "@/lib/timesheet/admin";
 import { loadWorkLog } from "./data";
 import { LogList } from "./LogList";
 import { RetryButton } from "./RetryButton";
@@ -30,6 +31,8 @@ export default async function WorkLogPage({
 }) {
   const [user, raw, projects, everyProject] = await Promise.all([getCurrentUser(), searchParams, activeProjectNames(), allProjectNames()]);
   const today = todayInOffice();
+  // Only an admin imports, and only an admin may read the list of employees.
+  const employees = user?.role === "admin" ? await listEmployees().then((l) => l.map((e) => ({ id: e.id, name: e.name }))).catch(() => []) : [];
   const parsed = parseWorkQuery(raw, today);
   const admin = user?.role === "admin";
 
@@ -65,7 +68,7 @@ export default async function WorkLogPage({
               </h2>
               <p className="ts-muted">{admin ? "Everyone's time logs. Edit, delete, approve or export them here." : "The detail behind the hours: edit, delete or export."}</p>
             </div>
-            {admin ? <ImportButton /> : <CopyYesterdayButton today={today} />}
+            {admin ? <ImportButton employees={employees} projects={projects} /> : <CopyYesterdayButton today={today} />}
           </div>
           <WorkLogFilters query={query} today={today} projects={everyProject} />
           <Suspense key={`list-${key}`} fallback={<ListSkeleton />}>

@@ -13,23 +13,29 @@ const day = (ymd: string) => (ymd ? formatYmd(ymd, { day: "numeric", month: "sho
 
 // Admin only. Upload an Excel sheet of time logs (the same columns as Export Excel): first "Check file" shows what will be
 // added and what is wrong, saving nothing; then "Import" adds the good rows, even for days already locked for employees.
-export function ImportButton() {
+export function ImportButton({ employees, projects }: { employees: { id: string; name: string }[]; projects: string[] }) {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
+  const [employeeId, setEmployeeId] = useState("");
+  const [project, setProject] = useState("");
   const [result, setResult] = useState<ImportCheck | null>(null);
 
   function reset() {
     setFile(null);
     setResult(null);
+    setEmployeeId("");
+    setProject("");
     if (input.current) input.current.value = "";
   }
 
   const form = () => {
     const f = new FormData();
     if (file) f.set("file", file);
+    if (employeeId) f.set("employeeId", employeeId);
+    if (project) f.set("project", project);
     return f;
   };
 
@@ -109,6 +115,49 @@ export function ImportButton() {
             />
           </label>
 
+          <fieldset className="grid gap-2 rounded-md border border-dashed p-3" disabled={busy}>
+            <legend className="px-1 text-xs font-medium">Is it your own sheet (Date, Day, Work Done, Hours)? It has no Employee or Project column, so choose them here</legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <label className="grid gap-1 text-xs text-muted-foreground">
+                Employee
+                <select
+                  value={employeeId}
+                  onChange={(e) => {
+                    setEmployeeId(e.target.value);
+                    setResult(null);
+                  }}
+                  className="h-9 rounded-[var(--radius)] border border-input bg-background px-3 text-sm text-foreground max-md:h-11"
+                >
+                  <option value="">Use the sheet&apos;s Employee column</option>
+                  {employees.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-1 text-xs text-muted-foreground">
+                Project
+                <select
+                  value={project}
+                  onChange={(e) => {
+                    setProject(e.target.value);
+                    setResult(null);
+                  }}
+                  className="h-9 rounded-[var(--radius)] border border-input bg-background px-3 text-sm text-foreground max-md:h-11"
+                >
+                  <option value="">Use the sheet&apos;s Project column</option>
+                  {projects.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <p className="text-xs text-muted-foreground">Rows with only Hours are placed from 09:00, one after another on the same day. Day and Work From Home are not used.</p>
+          </fieldset>
+
           <div aria-live="polite" className="grid gap-2">
             {result && !result.ok && (
               <p role="alert" className="rounded-md border border-destructive/40 px-3 py-2 text-destructive">
@@ -127,6 +176,7 @@ export function ImportButton() {
                     Days from {day(result.from)} to {day(result.to)}.
                   </p>
                 )}
+                {result.ignoredColumns.length > 0 && <p className="text-muted-foreground">Columns not used: {result.ignoredColumns.join(", ")}.</p>}
                 {result.duplicates > 0 && (
                   <p>
                     {result.duplicates} already {result.duplicates === 1 ? "exists" : "exist"} in the work log (same person, day, time and project) and will be skipped.

@@ -30,6 +30,7 @@ export type ImportCheck =
       sample: ImportRow[];
       problemCount: number;
       problems: RowProblem[];
+      ignoredColumns: string[];
     }
   | { ok: false; error: string };
 
@@ -48,7 +49,7 @@ function plain(v: ExcelJS.CellValue): unknown {
   return v;
 }
 
-async function loadFile(form: FormData): Promise<{ rows: ImportRow[]; problems: RowProblem[]; duplicates: number }> {
+async function loadFile(form: FormData): Promise<{ rows: ImportRow[]; problems: RowProblem[]; duplicates: number; ignoredColumns: string[] }> {
   const file = form.get("file");
   if (!(file instanceof File) || file.size === 0) throw new TimesheetError("Choose an Excel file first.");
   if (file.size > MAX_BYTES) throw new TimesheetError("That file is too large. Keep it under 900 KB.");
@@ -73,7 +74,14 @@ async function loadFile(form: FormData): Promise<{ rows: ImportRow[]; problems: 
   });
 
   const [employees, projects] = await Promise.all([listEmployees(), activeProjectNames()]);
-  const parsed = parseImportRows(table, { employees, projects, today: todayInOffice() });
+  // For a sheet with no Employee or Project column (a personal sheet), the person and the project are chosen in the dialog.
+  const employeeId = String(form.get("employeeId") ?? "");
+  const projectName = String(form.get("project") ?? "").trim();
+  const fallbackUser = employeeId ? employees.find((e) => e.id === employeeId) : undefined;
+  if (employeeId && !fallbackUser) throw new TimesheetError("That employee could not be found.");
+  const fallbackProject = projectName ? projects.find((p) => p.toLowerCase() === projectName.toLowerCase()) : undefined;
+  if (projectName && !fallbackProject) throw new TimesheetError("That project isn't active.");
+  const parsed = parseImportRows(table, { employees, projects, today: todayInOffice(), fallbackUser, fallbackProject });
   if ("fatal" in parsed) throw new TimesheetError(parsed.fatal);
 
   // Entries that are already in the work log are left out, so uploading the same sheet twice adds nothing twice.
@@ -86,7 +94,7 @@ async function loadFile(form: FormData): Promise<{ rows: ImportRow[]; problems: 
     duplicates = rows.length - fresh.length;
     rows = fresh;
   }
-  return { rows, problems: parsed.problems, duplicates };
+  return { rows, problems: parsed.problems, duplicates, ignoredColumns: parsed.ignoredColumns };
 }
 
 function fail(e: unknown): { ok: false; error: string } {
@@ -105,7 +113,7 @@ async function requireAdminUser() {
 export async function checkImportAction(form: FormData): Promise<ImportCheck> {
   try {
     await requireAdminUser();
-    const { rows, problems, duplicates } = await loadFile(form);
+    const { rows, problems, duplicates, ignoredColumns } = await loadFile(form);
     const dates = rows.map((r) => r.date).sort();
     return {
       ok: true,
@@ -117,6 +125,7 @@ export async function checkImportAction(form: FormData): Promise<ImportCheck> {
       sample: rows.slice(0, 5),
       problemCount: problems.length,
       problems: problems.slice(0, 30),
+      ignoredColumns,
     };
   } catch (e) {
     return fail(e);

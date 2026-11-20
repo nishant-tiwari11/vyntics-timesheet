@@ -119,3 +119,44 @@ describe("a real Excel file", () => {
     expect(parsed.rows[0]).toMatchObject({ date: "2026-11-17", start: "09:00", end: "12:00", project: "Training" });
   });
 });
+
+describe("a personal sheet (Date, Day, Work Done, Hours, Work From Home)", () => {
+  const personal = [
+    ["Date", "Day", "Work Done", "Hours", "Work From Home (Yes/No)"],
+    ["01/10/2026", "Thursday", "1. worked on the issues\n- adding audit logs\n- refined the admin panel ui\n2. worked on the career page", 7, "No"],
+    ["02/10/2026", "Friday", "1. worked on deciding the sub pages\n2. worked on case studies", 7, "No"],
+    ["02/10/2026", "Friday", "Second part of the day", 1, "No"],
+    [null, null, null, null, null],
+  ];
+  const diya = employees[0];
+
+  it("needs the person and the project to be chosen, and says so", () => {
+    const r = parseImportRows(personal, ctx);
+    expect(r).toHaveProperty("fatal");
+    expect((r as { fatal: string }).fatal).toMatch(/choose the project/);
+    expect((r as { fatal: string }).fatal).toMatch(/choose the employee/);
+  });
+
+  it("turns it into the current format: 09:00 start, the hours as the length, line breaks kept", () => {
+    const r = ok(parseImportRows(personal, { ...ctx, fallbackUser: diya, fallbackProject: "Client work" }));
+    expect(r.problems).toEqual([]);
+    expect(r.skippedEmpty).toBe(1);
+    expect(r.ignoredColumns).toEqual([]);
+    expect(r.rows.map((x) => [x.person, x.date, x.project, x.start, x.end])).toEqual([
+      ["Diya Gupta", "2026-10-01", "Client work", "09:00", "16:00"],
+      ["Diya Gupta", "2026-10-02", "Client work", "09:00", "16:00"],
+      ["Diya Gupta", "2026-10-02", "Client work", "16:00", "17:00"], // a second row on the same day follows the first
+    ]);
+    expect(r.rows[0].text).toBe("1. worked on the issues\n- adding audit logs\n- refined the admin panel ui\n2. worked on the career page");
+  });
+
+  it("finds the header row even when there are title lines above it", () => {
+    const r = ok(parseImportRows([["My timesheet"], [], ...personal], { ...ctx, fallbackUser: diya, fallbackProject: "Training" }));
+    expect(r.rows).toHaveLength(3);
+  });
+
+  it("reports unknown extra columns", () => {
+    const r = ok(parseImportRows([["Date", "Work Done", "Hours", "Mood"], ["01/10/2026", "x", 2, "good"]], { ...ctx, fallbackUser: diya, fallbackProject: "Training" }));
+    expect(r.ignoredColumns).toEqual(["Mood"]);
+  });
+});
