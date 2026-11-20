@@ -171,9 +171,9 @@ export async function SnapshotRow() {
         const StateIcon = ICON[state];
         return (
           <li key={p.id} className="ts-snap">
-            {/* The whole card is a link to this person's work log for today (the work log search matches names). */}
+            {/* The whole card is a link to exactly this person's work log for today. */}
             <Link
-              href={`/timesheet/worklog?view=day&date=${today}&q=${encodeURIComponent(p.name.slice(0, 60))}`}
+              href={`/timesheet/worklog?view=day&date=${today}&user=${p.id}`}
               className="ts-snap-link"
               aria-label={`${p.name}, ${fmtHours(p.hours)} of ${DAY_TARGET}h today, ${label}. Open their work log`}
             />

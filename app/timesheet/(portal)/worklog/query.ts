@@ -1,6 +1,7 @@
 // The Work log page's settings, kept in the address so a view can be bookmarked, shared, and survives a refresh.
 // Pure code (no server-only imports), so the server page, the client filters and the tests can all use it.
 
+import { isUuid } from "@/lib/avatar";
 import { addDays, formatRange, formatYmd, isYmd, mondayOf, monthRange } from "@/lib/timesheet/dates";
 
 export const WORKLOG_PATH = "/timesheet/worklog";
@@ -46,6 +47,8 @@ export type WorkQuery = {
   project: string;
   status: StatusId;
   q: string;
+  /** Only this person's entries (an admin sees everyone's, so this picks one). Empty means everyone. */
+  user: string;
   sort: SortId;
   dir: "asc" | "desc";
   page: number;
@@ -72,6 +75,7 @@ export function parseWorkQuery(raw: Record<string, string | string[] | undefined
     project: project && project !== "all" && project.length <= 60 ? project : "all",
     status: STATUS_OPTIONS.find((s) => s.id === one(raw.status))?.id ?? "all",
     q: (one(raw.q) ?? "").trim().slice(0, 60),
+    user: isUuid(one(raw.user)) ? (one(raw.user) as string) : "",
     sort: SORTS.find((s) => s.id === one(raw.sort))?.id ?? "date",
     dir: one(raw.dir) === "asc" ? "asc" : "desc",
     page: Number.isInteger(page) && page >= 1 && page <= 10000 ? page : 1,
@@ -90,6 +94,7 @@ export function workHref(query: WorkQuery, change: Partial<WorkQuery>, today: st
   if (next.project !== "all") params.set("project", next.project);
   if (next.status !== "all") params.set("status", next.status);
   if (next.q) params.set("q", next.q);
+  if (next.user) params.set("user", next.user);
   if (next.sort !== "date") params.set("sort", next.sort);
   if (next.dir !== "desc") params.set("dir", next.dir);
   if (next.size !== DEFAULT_SIZE) params.set("size", String(next.size));
@@ -99,13 +104,14 @@ export function workHref(query: WorkQuery, change: Partial<WorkQuery>, today: st
 }
 
 /** Is any filter (not the period) in use? */
-export const hasFilters = (q: WorkQuery) => q.project !== "all" || q.status !== "all" || q.q !== "" || q.from !== "" || q.to !== "";
+export const hasFilters = (q: WorkQuery) => q.project !== "all" || q.status !== "all" || q.q !== "" || q.user !== "" || q.from !== "" || q.to !== "";
 
 /** The filters off again, keeping the period being shown. */
-export const clearedFilters: Pick<WorkQuery, "project" | "status" | "q" | "from" | "to" | "page"> = {
+export const clearedFilters: Pick<WorkQuery, "project" | "status" | "q" | "user" | "from" | "to" | "page"> = {
   project: "all",
   status: "all",
   q: "",
+  user: "",
   from: "",
   to: "",
   page: 1,

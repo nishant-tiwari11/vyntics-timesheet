@@ -66,12 +66,13 @@ export function daysLeftToEdit(entry: Pick<Entry, "date" | "status">, today: str
 export const editHint = (left: number) => (left === 0 ? "Last day to edit: locks tonight" : `Locks Sunday night (${left} ${left === 1 ? "day" : "days"} left)`);
 
 /** Apply the project, status and search filters. (The period is already applied when loading.) */
-export function filterEntries(entries: Entry[], query: Pick<WorkQuery, "project" | "status" | "q">): Entry[] {
+export function filterEntries(entries: Entry[], query: Pick<WorkQuery, "project" | "status" | "q"> & { user?: string }): Entry[] {
   const term = query.q.toLowerCase();
   return entries.filter(
     (e) =>
       (query.project === "all" || e.project === query.project) &&
       (query.status === "all" || e.status === query.status) &&
+      (!query.user || e.userId === query.user) &&
       (!term || e.text.toLowerCase().includes(term) || e.project.toLowerCase().includes(term) || e.person.toLowerCase().includes(term))
   );
 }

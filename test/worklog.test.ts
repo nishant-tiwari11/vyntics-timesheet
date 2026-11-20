@@ -79,6 +79,12 @@ describe("filtering, grouping and pages", () => {
     expect(filterEntries(list, { project: "all", status: "all", q: "PLANNING" }).map((x) => x.id)).toEqual(["a"]);
   });
 
+  it("can show exactly one person", () => {
+    const two = [...list, e({ id: "z", userId: "someone-else", date: "2026-11-12", project: "Client work", text: "Other", status: "pending" })];
+    expect(filterEntries(two, { project: "all", status: "all", q: "", user: "someone-else" }).map((x) => x.id)).toEqual(["z"]);
+    expect(filterEntries(two, { project: "all", status: "all", q: "", user: "" }).map((x) => x.id)).toEqual(["a", "b", "c", "z"]);
+  });
+
   it("groups by day, newest first, entries by start time, and totals skip rejected hours", () => {
     const groups = groupByDay(list, { sort: "date", dir: "desc" });
     expect(groups.map((g) => g.date)).toEqual(["2026-11-12", "2026-11-10"]);
