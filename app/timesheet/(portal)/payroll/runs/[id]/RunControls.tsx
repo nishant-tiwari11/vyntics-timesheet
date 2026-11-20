@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { formatMoney, parseMoney } from "@/lib/payroll/money";
+import { payBreakdown } from "@/lib/payroll/breakdown";
+import { formatMoney, parseMoney, toRupeeText } from "@/lib/payroll/money";
 import type { RunRow, RunStatus } from "@/lib/payroll/runs";
 import {
   addAdjustmentAction,
@@ -18,6 +19,7 @@ import {
   finalizeRunAction,
   markPaidAction,
   reopenRunAction,
+  setBonusAction,
   setManualLopAction,
   setReviewedAction,
 } from "../../runsActions";
@@ -221,6 +223,64 @@ export function RunActions({
   );
 }
 
+// ---------------------------- Bonus, and the total with its breakdown ----------------------------
+
+/** Base + bonus + other earnings - deductions + expenses reimbursed = final total. Shared with the history page. */
+export function PayTotal({ p, currency }: { p: RunRow["payslip"]; currency: string }) {
+  const b = payBreakdown(p);
+  const rows: [string, number, boolean][] = [
+    ["Base salary", b.base, true],
+    ["Bonus", b.bonus, b.bonus > 0],
+    ["Other earnings", b.otherEarnings, b.otherEarnings !== 0],
+    ["Deductions", -b.deductions, b.deductions > 0],
+    ["Expenses reimbursed", b.expenses, b.expenses > 0],
+    ["Rounding", b.rounding, b.rounding !== 0],
+  ];
+  return (
+    <dl className="grid gap-1 rounded-md border bg-muted/30 p-3 text-sm" aria-label="Final pay breakdown">
+      {rows
+        .filter((r) => r[2])
+        .map(([label, amount]) => (
+          <div key={label} className="flex justify-between gap-3">
+            <dt>{label}</dt>
+            <dd className="tabular-nums">{amount < 0 ? `− ${formatMoney(-amount, currency)}` : formatMoney(amount, currency)}</dd>
+          </div>
+        ))}
+      <div className="flex justify-between gap-3 border-t pt-1.5 font-semibold">
+        <dt>Final total</dt>
+        <dd className="tabular-nums">{formatMoney(b.total, currency)}</dd>
+      </div>
+    </dl>
+  );
+}
+
+function BonusField({ runId, row, currency }: { runId: string; row: RunRow; currency: string }) {
+  const current = row.adjustments.filter((a) => a.kind === "bonus" && a.label === "Bonus").reduce((n, a) => n + a.amount, 0);
+  const [value, setValue] = useState(current ? toRupeeText(current) : "");
+  const [pending, startTransition] = useTransition();
+  function save() {
+    const paise = value.trim() === "" ? 0 : parseMoney(value);
+    if (paise === null) return void toast.error("Enter an amount like 5000 or 5000.50.");
+    startTransition(async () => {
+      const res = await setBonusAction(runId, row.userId, paise);
+      if (!res.ok) toast.error(res.error);
+      else toast.success(paise > 0 ? "Bonus saved." : "Bonus removed.");
+    });
+  }
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor={`bonus-${row.userId}`}>Bonus ({currency})</Label>
+      <div className="flex items-center gap-2">
+        <Input id={`bonus-${row.userId}`} inputMode="decimal" className="w-36" value={value} onChange={(e) => setValue(e.target.value)} disabled={pending} placeholder="0" />
+        <Button type="button" variant="outline" onClick={save} disabled={pending}>
+          {pending ? "Saving..." : "Save bonus"}
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">Added on top of salary for this month only. Leave empty or 0 for no bonus.</p>
+    </div>
+  );
+}
+
 // ---------------------------- One employee: lines, adjustments, loss of pay ----------------------------
 
 const KINDS = [
@@ -364,22 +424,8 @@ export function EmployeeDetails({ runId, row, currency, locked }: { runId: strin
               </p>
             </div>
           )}
-          <p className="flex flex-wrap justify-between gap-2 border-t pt-3 text-sm">
-            <span>
-              Gross <strong className="tabular-nums">{formatMoney(p.gross, currency)}</strong>
-            </span>
-            <span>
-              Deductions <strong className="tabular-nums">{formatMoney(p.totalDeductions, currency)}</strong>
-            </span>
-            {p.reimbursement > 0 && (
-              <span>
-                Expenses <strong className="tabular-nums">{formatMoney(p.reimbursement, currency)}</strong>
-              </span>
-            )}
-            <span>
-              Net pay <strong className="tabular-nums">{formatMoney(p.net, currency)}</strong>
-            </span>
-          </p>
+          <PayTotal p={p} currency={currency} />
+          {!locked && <BonusField runId={runId} row={row} currency={currency} />}
 
           {!locked && (
             <div className="grid gap-5 border-t pt-4">

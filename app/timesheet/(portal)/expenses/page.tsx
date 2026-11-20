@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
 import Link from "next/link";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { listBillsFor } from "@/lib/expenses/bills";
@@ -20,6 +22,8 @@ const day = (d: string) => formatYmd(d, { day: "numeric", month: "short", year: 
 // Your own expense claims. Approved ones are paid back with your salary: the "Payroll month" column and the note under
 // each status say which month's salary they will be paid with.
 export default async function ExpensesPage() {
+  // An admin reviews everyone's claims instead of submitting their own.
+  if ((await getCurrentUser())?.role === "admin") redirect("/timesheet/payroll/expenses");
   let claims: ClaimRow[] = [];
   let categories: CategoryRow[] = [];
   let bills = new Map<string, Bill[]>();

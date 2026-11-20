@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
 import "../dashboard/dashboard.css";
 import { Suspense } from "react";
 import { addDays, todayInOffice } from "@/lib/timesheet/dates";
@@ -14,6 +16,8 @@ export const metadata = { title: "Leave & WFH" };
 export const dynamic = "force-dynamic";
 
 export default async function LeavePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  // An admin decides requests (Admin > Leave & approvals); they do not apply here.
+  if ((await getCurrentUser())?.role === "admin") redirect("/timesheet/admin?tab=requests");
   const raw = (await searchParams).type;
   const t = Array.isArray(raw) ? raw[0] : raw;
   const initialType = t === "wfh" || t === "comp" ? t : "leave";

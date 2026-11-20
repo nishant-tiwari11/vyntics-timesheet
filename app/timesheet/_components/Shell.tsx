@@ -39,6 +39,7 @@ export default async function Shell({
             <MobileNav user={user} />
             <PageTitle />
             <CommandPalette role={role} />
+            {role === "admin" ? <span className="ts-search" aria-hidden="true" /> : (
             <form action="/timesheet/dashboard#logs" method="get" role="search" className="ts-search">
               <label htmlFor="ts-search-input" className="ts-sr-only">
                 Search time logs
@@ -55,6 +56,7 @@ export default async function Shell({
               />
               <input type="hidden" name="range" value="all" />
             </form>
+            )}
             <div className="ts-topbar-right">
               <NotificationsBell />
               <UserMenu id={id} name={shown} email={email} roleLabel={ROLE_LABEL[role]} />

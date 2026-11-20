@@ -10,7 +10,7 @@ const root = path.resolve(__dirname, "..");
 const navSource = fs.readFileSync(path.join(root, "app/timesheet/_components/NavLinks.tsx"), "utf8");
 
 // Employee links, then admin links (the lists in NavLinks.tsx).
-const hrefs = [...navSource.matchAll(/href: "(\/timesheet\/[a-z-]+)"/g)].map((m) => m[1]);
+const hrefs = [...new Set([...navSource.matchAll(/href: "(\/timesheet\/[a-z/-]+)(?:\?[^"]*)?"/g)].map((m) => m[1]))];
 
 const pageFile = (href: string) => path.join(root, "app/timesheet/(portal)", href.replace("/timesheet/", ""), "page.tsx");
 
@@ -29,13 +29,18 @@ describe("sidebar links", () => {
       const target = m[1];
       // Allowed: a guard sending people away (login, dashboard for non-admins), or staying inside the same section.
       const stays = target.startsWith(href);
-      const guard = target === "/timesheet/login" || (target === "/timesheet/dashboard" && /role/.test(source));
+      const guard =
+        target === "/timesheet/login" ||
+        (target === "/timesheet/dashboard" && /role/.test(source)) ||
+        // An admin has no employee version of the page (no own salary, claims or leave): they are sent to the admin one.
+        (/\.role === "admin"/.test(source) && /^\/timesheet\/(admin|payroll)/.test(target));
       expect(stays || guard, `${href} redirects to ${target}`).toBe(true);
     }
   });
 
   it("every link has a different page title", () => {
-    const titles = hrefs.map((h) => titleFor(h));
+    // The admin's Expenses (all claims) deliberately shares its title with the employee's Expenses: no one sees both.
+    const titles = hrefs.filter((h) => h !== "/timesheet/payroll/expenses").map((h) => titleFor(h));
     expect(new Set(titles).size).toBe(titles.length);
   });
 

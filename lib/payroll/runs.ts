@@ -395,6 +395,23 @@ export async function addAdjustment(runId: string, userId: string, input: { kind
   await audit("adjustment_added", "payroll_run", runId, `Added a ${input.kind} for an employee`);
 }
 
+/** The one "Bonus" amount for a person in a run (the quick field on the run page). 0 removes it. Other adjustments are untouched. */
+export async function setBonus(runId: string, userId: string, amount: number): Promise<void> {
+  assertId(runId, "payroll run");
+  assertId(userId, "employee");
+  if (!Number.isInteger(amount) || amount < 0 || amount >= MAX_PAISE) throw new TimesheetError("Enter a bonus of zero or more.");
+  const admin = await requireAdmin();
+  await openRun(runId);
+  const supabase = await db();
+  const { error: delError } = await supabase.from("payroll_adjustments").delete().eq("run_id", runId).eq("user_id", userId).eq("kind", "bonus").eq("label", "Bonus");
+  if (delError) throw toError(delError, "Couldn't save the bonus. Please try again.");
+  if (amount > 0) {
+    const { error } = await supabase.from("payroll_adjustments").insert({ run_id: runId, user_id: userId, kind: "bonus", label: "Bonus", amount_paise: amount, created_by: admin.id });
+    if (error) throw toError(error, "Couldn't save the bonus. Please try again.");
+  }
+  await audit("bonus_set", "payroll_run", runId, amount > 0 ? "Set a bonus for an employee" : "Removed a bonus for an employee");
+}
+
 export async function deleteAdjustment(runId: string, adjustmentId: string): Promise<void> {
   assertId(runId, "payroll run");
   assertId(adjustmentId, "adjustment");

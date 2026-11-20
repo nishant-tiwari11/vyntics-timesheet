@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
 import { Download } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -91,6 +93,8 @@ function ExpenseBreakdown({ detail, currency }: { detail: PayslipDetail; currenc
 }
 
 export default async function SalaryPage({ searchParams }: { searchParams: Promise<{ month?: string; tab?: string }> }) {
+  // An admin runs payroll for everyone; they have no salary of their own here.
+  if ((await getCurrentUser())?.role === "admin") redirect("/timesheet/payroll");
   const raw = await searchParams;
 
   let slips: PayslipListItem[] = [];

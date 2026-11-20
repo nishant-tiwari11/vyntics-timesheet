@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { payBreakdown } from "@/lib/payroll/breakdown";
 import { formatMoney } from "@/lib/payroll/money";
 import { getRunDetail, type RunDetail } from "@/lib/payroll/runs";
 import { formatYmd, todayInOffice } from "@/lib/timesheet/dates";
@@ -48,12 +49,13 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
     (t, r) => ({
       employees: t.employees + 1,
       gross: t.gross + r.payslip.gross,
+      bonus: t.bonus + payBreakdown(r.payslip).bonus,
       deductions: t.deductions + r.payslip.totalDeductions,
       reimbursement: t.reimbursement + r.payslip.expenses.reduce((n, e) => n + e.amount, 0),
       claims: t.claims + r.payslip.expenses.length,
       net: t.net + r.payslip.net,
     }),
-    { employees: 0, gross: 0, deductions: 0, reimbursement: 0, claims: 0, net: 0 },
+    { employees: 0, gross: 0, bonus: 0, deductions: 0, reimbursement: 0, claims: 0, net: 0 },
   );
   const withExpenses = rows.filter((r) => r.payslip.expenses.length > 0);
   const title = formatYmd(`${run.month}-01`, { month: "long", year: "numeric" });
@@ -91,13 +93,14 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
         )
       )}
 
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-6">
         {[
           ["Employees", String(totals.employees)],
           ["Gross", formatMoney(totals.gross, currency)],
+          ["Bonus", formatMoney(totals.bonus, currency)],
           ["Deductions", formatMoney(totals.deductions, currency)],
           ["Expenses", formatMoney(totals.reimbursement, currency)],
-          ["Net pay", formatMoney(totals.net, currency)],
+          ["Total payout", formatMoney(totals.net, currency)],
         ].map(([label, value]) => (
           <div key={label} className="rounded-lg border p-3">
             <dt className="text-sm text-muted-foreground">{label}</dt>
@@ -120,10 +123,11 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
                 <TableHead>Employee</TableHead>
                 <TableHead className="text-right">Payable days</TableHead>
                 <TableHead className="text-right">LOP / absent</TableHead>
-                <TableHead className="text-right">Gross</TableHead>
+                <TableHead className="text-right">Base salary</TableHead>
+                <TableHead className="text-right">Bonus</TableHead>
                 <TableHead className="text-right">Deductions</TableHead>
                 <TableHead className="text-right">Expenses</TableHead>
-                <TableHead className="text-right">Net pay</TableHead>
+                <TableHead className="text-right">Final total</TableHead>
                 <TableHead>
                   <span className="sr-only">Actions</span>
                 </TableHead>
@@ -147,7 +151,8 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
                   <TableCell className="text-right tabular-nums">
                     {r.payslip.lopDays} / {r.payslip.absentDays}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{formatMoney(r.payslip.gross, currency)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatMoney(payBreakdown(r.payslip).base, currency)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{payBreakdown(r.payslip).bonus > 0 ? formatMoney(payBreakdown(r.payslip).bonus, currency) : "-"}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatMoney(r.payslip.totalDeductions, currency)}</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {r.payslip.expenses.length === 0 ? (

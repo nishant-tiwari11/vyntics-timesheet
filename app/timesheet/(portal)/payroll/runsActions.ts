@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { addAdjustment, createRun, deleteAdjustment, deleteDraftRun, finalizeRun, markPaid, reopenRun, setManualLop, setReviewed } from "@/lib/payroll/runs";
+import { addAdjustment, createRun, deleteAdjustment, deleteDraftRun, finalizeRun, markPaid, reopenRun, setBonus, setManualLop, setReviewed } from "@/lib/payroll/runs";
 import { answerQuery } from "@/lib/payroll/queries";
 import { TimesheetError } from "@/lib/timesheet/errors";
 import { logError } from "@/lib/timesheet/log";
@@ -37,6 +37,16 @@ export async function createRunAction(month: string): Promise<RunResult> {
 export async function addAdjustmentAction(runId: string, userId: string, input: { kind: "bonus" | "arrears" | "reimbursement" | "deduction"; label: string; amount: number }): Promise<RunResult> {
   try {
     await addAdjustment(runId, userId, input);
+    refresh(runId);
+    return { ok: true };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function setBonusAction(runId: string, userId: string, amount: number): Promise<RunResult> {
+  try {
+    await setBonus(runId, userId, amount);
     refresh(runId);
     return { ok: true };
   } catch (e) {

@@ -4,7 +4,7 @@ import type { Database } from "./types";
 import { supabaseEnv } from "./env";
 
 const LOGIN = "/timesheet/login";
-const HOME = "/timesheet/dashboard";
+const HOME = "/timesheet"; // the index page sends each role to its own start page
 const ADMIN = "/timesheet/admin";
 const CALLBACK = "/timesheet/auth/callback";
 

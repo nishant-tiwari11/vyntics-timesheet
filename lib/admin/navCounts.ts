@@ -52,8 +52,11 @@ export async function loadNavCounts(): Promise<Record<string, number>> {
   const add = (href: string, n: number | null | undefined) => {
     if (n && n > 0) counts[href] = n;
   };
-  if (admin) add("/timesheet/admin", admin.requests + admin.logs + admin.compOff + (docs ?? 0));
-  add("/timesheet/payroll", expenses);
+  if (admin) {
+    add("/timesheet/admin?tab=requests", admin.requests + admin.logs + admin.compOff);
+    add("/timesheet/admin", docs); // documents waiting for review
+  }
+  add("/timesheet/payroll/expenses", expenses);
   if (team) add("/timesheet/team", team.members.reduce((n, m) => n + m.pendingLogs + m.pendingExpenses + m.openRequests, 0));
   add("/timesheet/leave", mine);
   return counts;

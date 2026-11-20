@@ -34,10 +34,12 @@ export default async function PayrollExpensesPage({ searchParams }: { searchPara
   let months: MonthChoice[] = [];
   let defaultMonth = "";
   let bills = new Map<string, Bill[]>();
+  let everyone: ClaimRow[] = [];
   let error: string | null = null;
   try {
-    const [list, cats, choice] = await Promise.all([listAllClaims({ filter: runId ? "all" : filter, runId, q }), listCategories(true), approvalMonths()]);
+    const [list, cats, choice, all] = await Promise.all([listAllClaims({ filter: runId ? "all" : filter, runId, q }), listCategories(true), approvalMonths(), listAllClaims({ filter: "all" })]);
     claims = list;
+    everyone = all;
     categories = cats;
     months = choice.months;
     defaultMonth = choice.defaultMonth;
@@ -55,6 +57,14 @@ export default async function PayrollExpensesPage({ searchParams }: { searchPara
     return s ? `?${s}` : "";
   };
   const catBy = new Map(categories.map((c) => [c.id, c]));
+  const sum = (statuses: string[], pick: (c: ClaimRow) => number) => everyone.filter((c) => statuses.includes(c.status)).reduce((n, c) => n + pick(c), 0);
+  const count = (statuses: string[]) => everyone.filter((c) => statuses.includes(c.status)).length;
+  const summary: [string, string, string][] = [
+    ["Waiting for a decision", String(count(["pending"])), formatMoney(sum(["pending"], (c) => c.claimed))],
+    ["Approved, going into payroll", String(count(["approved", "added_to_payroll"])), formatMoney(sum(["approved", "added_to_payroll"], (c) => c.approved ?? 0))],
+    ["Reimbursed", String(count(["reimbursed"])), formatMoney(sum(["reimbursed"], (c) => c.approved ?? 0))],
+    ["Rejected", String(count(["rejected"])), formatMoney(sum(["rejected"], (c) => c.claimed))],
+  ];
   const total = claims.reduce((n, c) => n + (c.approved ?? 0), 0);
 
   return (
@@ -71,6 +81,20 @@ export default async function PayrollExpensesPage({ searchParams }: { searchPara
           Export CSV
         </a>
       </div>
+
+      {!error && !runId && (
+        <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Expense overview">
+          {summary.map(([label, n, amount]) => (
+            <div key={label} className="rounded-lg border p-3">
+              <dt className="text-sm text-muted-foreground">{label}</dt>
+              <dd className="mt-0.5 text-lg font-semibold tabular-nums">{amount}</dd>
+              <dd className="text-xs text-muted-foreground">
+                {n} {n === "1" ? "claim" : "claims"}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
 
       {runId ? (
         <p role="note" className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed p-3 text-sm">

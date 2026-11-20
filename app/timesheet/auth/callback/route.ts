@@ -28,5 +28,5 @@ export async function GET(request: NextRequest) {
     return login(verdict === "disabled" || verdict === "expired" ? verdict : "not_allowed");
   }
 
-  return NextResponse.redirect(new URL("/timesheet/dashboard", url.origin));
+  return NextResponse.redirect(new URL("/timesheet", url.origin));
 }

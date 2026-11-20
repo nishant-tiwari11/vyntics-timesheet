@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { useNavCounts } from "./NavCounts";
 
 const ICONS = {
@@ -72,7 +73,17 @@ const ICONS = {
 
 type IconName = keyof typeof ICONS;
 
-const LINKS: { href: string; label: string; icon: IconName }[] = [
+type NavLink = {
+  href: string;
+  label: string;
+  icon: IconName;
+  /** Only the exact address counts (a prefix would also light up every page below it). */
+  exact?: boolean;
+  /** For a link to a `?tab=` view of one page: the tab values that belong to it. */
+  tabs?: string[];
+};
+
+const LINKS: NavLink[] = [
   { href: "/timesheet/dashboard", label: "Dashboard", icon: "dashboard" },
   { href: "/timesheet/leave", label: "Leave & WFH", icon: "leave" },
   { href: "/timesheet/worklog", label: "Work log", icon: "worklog" },
@@ -80,20 +91,35 @@ const LINKS: { href: string; label: string; icon: IconName }[] = [
   { href: "/timesheet/expenses", label: "Expenses", icon: "expenses" },
   { href: "/timesheet/salary", label: "My Salary", icon: "salary" },
 ];
-const TEAM_LINK: { href: string; label: string; icon: IconName } = { href: "/timesheet/team", label: "Team", icon: "team" };
-const ADMIN_LINKS: { href: string; label: string; icon: IconName }[] = [
+const TEAM_LINK: NavLink = { href: "/timesheet/team", label: "Team", icon: "team" };
+
+// An admin is the owner / HR / manager, not an employee: no own timesheet, leave, expenses or salary here. They see the
+// company: people, everyone's work logs, requests to approve, expense claims and payroll.
+const ADMIN_MENU: NavLink[] = [
+  { href: "/timesheet/admin", label: "Overview", icon: "admin", exact: true },
+  { href: "/timesheet/admin/access", label: "Employees", icon: "team" },
+  { href: "/timesheet/worklog", label: "Work logs", icon: "worklog" },
+  { href: "/timesheet/admin?tab=requests", label: "Leave & approvals", icon: "leave", tabs: ["requests", "logs", "compoff"] },
+  { href: "/timesheet/calendar", label: "Calendar", icon: "calendar" },
+  { href: "/timesheet/payroll/expenses", label: "Expenses", icon: "expenses" },
   { href: "/timesheet/payroll", label: "Payroll", icon: "payroll" },
-  { href: "/timesheet/admin", label: "Admin", icon: "admin" },
+  { href: "/timesheet/admin/reports", label: "Reports", icon: "events" },
+  { href: "/timesheet/admin/settings", label: "Settings", icon: "salary" },
 ];
 
 export function titleFor(pathname: string): string {
   if (pathname.startsWith("/timesheet/leave")) return "Leave & WFH";
   if (pathname.startsWith("/timesheet/worklog")) return "Work log";
   if (pathname.startsWith("/timesheet/salary")) return "My Salary";
+  if (pathname.startsWith("/timesheet/payroll/expenses")) return "Expenses";
   if (pathname.startsWith("/timesheet/expenses")) return "Expenses";
   if (pathname.startsWith("/timesheet/team")) return "Team";
   if (pathname.startsWith("/timesheet/payroll")) return "Payroll";
   if (pathname.startsWith("/timesheet/calendar")) return "Calendar";
+  if (pathname.startsWith("/timesheet/admin/access")) return "Employees";
+  if (pathname.startsWith("/timesheet/admin/reports")) return "Reports";
+  if (pathname.startsWith("/timesheet/admin/settings")) return "Settings";
+  if (pathname === "/timesheet/admin" || pathname === "/timesheet/admin/") return "Admin overview";
   if (pathname.startsWith("/timesheet/admin")) return "Admin";
   if (pathname.startsWith("/timesheet/profile")) return "Profile";
   return "Dashboard";
@@ -103,27 +129,61 @@ export function PageTitle() {
   return <span className="ts-topbar-title">{titleFor(usePathname())}</span>;
 }
 
+function menuFor(role: string): NavLink[] {
+  return role === "admin" ? ADMIN_MENU : role === "manager" ? [...LINKS, TEAM_LINK] : LINKS;
+}
+
 /** The menu items this role can see, in order. The command palette uses the same list. */
 export function portalLinks(role: string): { href: string; label: string }[] {
-  const links = role === "admin" ? [...LINKS, TEAM_LINK, ...ADMIN_LINKS] : role === "manager" ? [...LINKS, TEAM_LINK] : LINKS;
-  return links.map(({ href, label }) => ({ href, label }));
+  return menuFor(role).map(({ href, label }) => ({ href, label }));
+}
+
+/** Which link is open: the one with the longest matching address ("Expenses" beats "Payroll" on /payroll/expenses). */
+export function currentHref(links: NavLink[], pathname: string, tab: string | null): string | null {
+  let best: { href: string; score: number } | null = null;
+  for (const l of links) {
+    const path = l.href.split("?")[0];
+    let score = -1;
+    if (l.tabs) {
+      if (pathname === path && tab !== null && l.tabs.includes(tab)) score = path.length + 1000;
+    } else if (l.exact) {
+      // The overview is open on its own address, unless a tab that belongs to another link is chosen.
+      const taken = tab !== null && links.some((o) => o.tabs?.includes(tab));
+      if (pathname === path && !taken) score = path.length;
+    } else if (pathname === path || pathname.startsWith(`${path}/`)) score = path.length;
+    if (score >= 0 && (!best || score > best.score)) best = { href: l.href, score };
+  }
+  return best?.href ?? null;
 }
 
 // The menu: an icon and a label for each page. What is waiting for you shows as a number (and, when the menu is collapsed to
 // icons, as a dot with the number in its label). The page you are on has a bar down its left edge and a filled background, so
 // it isn't shown by colour alone.
 export default function NavLinks({ isAdmin, isManager = false, onNavigate }: { isAdmin: boolean; isManager?: boolean; onNavigate?: () => void }) {
+  // useSearchParams needs a Suspense boundary; until it is ready the menu is drawn without a ?tab= selection.
+  return (
+    <Suspense fallback={<NavList isAdmin={isAdmin} isManager={isManager} tab={null} onNavigate={onNavigate} />}>
+      <NavWithTab isAdmin={isAdmin} isManager={isManager} onNavigate={onNavigate} />
+    </Suspense>
+  );
+}
+
+function NavWithTab(props: { isAdmin: boolean; isManager: boolean; onNavigate?: () => void }) {
+  return <NavList {...props} tab={useSearchParams().get("tab")} />;
+}
+
+function NavList({ isAdmin, isManager, tab, onNavigate }: { isAdmin: boolean; isManager: boolean; tab: string | null; onNavigate?: () => void }) {
   const pathname = usePathname();
   const counts = useNavCounts();
-  const links = isAdmin ? [...LINKS, TEAM_LINK, ...ADMIN_LINKS] : isManager ? [...LINKS, TEAM_LINK] : LINKS;
-  const current = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const links = menuFor(isAdmin ? "admin" : isManager ? "manager" : "employee");
+  const open = currentHref(links, pathname, tab);
 
   return (
     <nav className="ts-nav" aria-label="Portal">
       {links.map((l) => {
         const n = counts[l.href] ?? 0;
         return (
-          <Link key={l.href} href={l.href} onClick={onNavigate} className="ts-nav-link" aria-current={current(l.href) ? "page" : undefined} title={l.label}>
+          <Link key={l.href} href={l.href} onClick={onNavigate} className="ts-nav-link" aria-current={open === l.href ? "page" : undefined} title={l.label}>
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="ts-nav-icon">
               {ICONS[l.icon]}
             </svg>
