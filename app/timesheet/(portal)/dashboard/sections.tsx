@@ -112,6 +112,7 @@ export async function StatCards() {
         tone="a"
         icon={<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>}
         value={fmtHours(hours)}
+        of={fmtHours(target)}
         label="Logged this week"
         ring={target > 0 ? hours / target : 0}
         status={
@@ -119,12 +120,6 @@ export async function StatCards() {
             ? { kind: "good", text: "Target reached" }
             : { kind: "neutral", text: `${fmtHours(Math.max(target - hours, 0))} to go` }
         }
-      />
-      <Stat
-        tone="b"
-        icon={<><path d="M3 17l6-6 4 4 8-8" /><path d="M15 7h6v6" /></>}
-        value={fmtHours(target)}
-        label="Target this week"
       />
       <Stat
         tone="c"

@@ -41,7 +41,7 @@ export function StatsSkeleton() {
   return (
     <SkeletonRegion label="This week">
       <ul className="ts-stats" aria-hidden="true">
-        {["a", "b", "c", "d"].map((tone) => (
+        {["a", "c", "d"].map((tone) => (
           <li key={tone} className={`ts-stat ts-stat-${tone}`}>
             <Skeleton width={42} height={42} radius={10} style={{ gridArea: "icon" }} />
             <Skeleton width="55%" height={24} style={{ gridArea: "value", margin: "3px 0" }} />

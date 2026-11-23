@@ -1,6 +1,4 @@
 import { cookies } from "next/headers";
-import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { ROLE_LABEL, type Role } from "@/lib/access/config";
 import { CommandPalette } from "./CommandPalette";
 import { CompleteProfilePrompt } from "./CompleteProfilePrompt";
@@ -39,24 +37,8 @@ export default async function Shell({
             <MobileNav user={user} />
             <PageTitle />
             <CommandPalette role={role} />
-            {role === "admin" ? <span className="ts-search" aria-hidden="true" /> : (
-            <form action="/timesheet/dashboard#logs" method="get" role="search" className="ts-search">
-              <label htmlFor="ts-search-input" className="ts-sr-only">
-                Search time logs
-              </label>
-              <Search className="size-4" aria-hidden="true" />
-              <Input
-                id="ts-search-input"
-                name="q"
-                type="search"
-                maxLength={60}
-                className="h-11 border-transparent bg-muted/60 pl-9 shadow-none transition-colors placeholder:text-muted-foreground hover:bg-muted focus-visible:border-input focus-visible:bg-background md:h-9"
-                placeholder="Search time logs and projects"
-                autoComplete="off"
-              />
-              <input type="hidden" name="range" value="all" />
-            </form>
-            )}
+            {/* Keeps the top bar's spacing: the notification bell and your picture stay on the right. */}
+            <span className="ts-search" aria-hidden="true" />
             <div className="ts-topbar-right">
               <NotificationsBell />
               <UserMenu id={id} name={shown} email={email} roleLabel={ROLE_LABEL[role]} />

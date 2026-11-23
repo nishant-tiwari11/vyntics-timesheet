@@ -451,7 +451,7 @@
 
 .ts-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   margin: 0;
   padding: 0;
@@ -702,30 +702,14 @@
   pointer-events: none;
 }
 
-@media (max-width: 1000px) {
+@media (max-width: 760px) {
   .ts-stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 @media (max-width: 520px) {
   .ts-greeting {
     font-size: 24px;
-  }
-  .ts-stats {
-    gap: 10px;
-  }
-  .ts-stat {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "icon" "value" "label";
-    row-gap: 4px;
-    padding: 14px;
-  }
-  .ts-stat-icon {
-    width: 36px;
-    height: 36px;
-  }
-  .ts-stat-value {
-    font-size: 22px;
   }
 }
 @media (max-width: 640px) {

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { myBalance } from "@/lib/timesheet/compOff";
 import { daysText, type CompOffBalance } from "@/lib/timesheet/compOffCore";
 import { logError } from "@/lib/timesheet/log";
@@ -21,9 +23,11 @@ export default async function CompOffCard() {
         <h2 className="ts-h2" id="comp-off-card-title">
           Comp-off
         </h2>
-        <Link href="/timesheet/leave#comp-off" className="ts-link">
-          Earn or use
-        </Link>
+        <Button asChild variant="outline" className="max-md:min-h-11">
+          <Link href="/timesheet/leave#comp-off">
+            <Sparkles aria-hidden="true" /> Earn or use comp-off
+          </Link>
+        </Button>
       </div>
       {error || !balance ? (
         <SectionError message={error ?? "Couldn't load your comp-off."} />
