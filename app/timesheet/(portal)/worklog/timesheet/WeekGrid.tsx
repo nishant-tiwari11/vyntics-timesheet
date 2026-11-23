@@ -22,7 +22,7 @@ export type GridProps = {
 };
 
 // The grid itself: a header with the days, one row per project, a totals row, and the Submit button. Typing in a
-// box saves through the same add / change / delete actions the Track time window uses, and the totals follow at
+// box saves through the same add / change / delete actions as the rest of the page, and the totals follow at
 // once; if a save fails the box goes back to what it was and a message says why.
 export default function WeekGrid({ days, entries, myId, today, projects }: GridProps) {
   const [extra, setExtra] = useState<string[]>([]);
@@ -108,7 +108,7 @@ export default function WeekGrid({ days, entries, myId, today, projects }: GridP
           <div role="rowgroup" className="grid gap-px border-y bg-border">
             {rows.length === 0 && (
               <p className="bg-background px-4 py-8 text-center text-sm text-muted-foreground">
-                Nothing logged {wide ? "this week" : "on this day"}. Press Track time, or add a project below and type your hours.
+                Nothing logged {wide ? "this week" : "on this day"}. Use the box above to add your hours, or add a project below and type them in.
               </p>
             )}
             {rows.map((row) => (

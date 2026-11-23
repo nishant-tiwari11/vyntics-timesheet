@@ -1,15 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Plus, Sparkles } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { addLogAction } from "../../dashboard/actions";
 import { dayLogsAction } from "../actions";
 import { formatYmd } from "@/lib/timesheet/dates";
-import { fmtMinutes, parseDuration, planAddEntry } from "./gridModel";
-import { parseQuickAdd } from "./quickAdd";
+import { parseDuration, planAddEntry } from "./gridModel";
 
 const NOTE_MAX = 500;
 
@@ -18,26 +17,15 @@ const selectClass =
 
 // Add to your work log without opening a window: pick the project, type the hours and what you worked on, press Add.
 // It is for today unless you change the day. The sentence box above is a shortcut that fills the project, day and hours for you ("2 hours Client work
-// Monday"). It saves through the same add action as the Track time window, so every check (no future days, the Sunday
+// Monday"). It saves through the same add action as the Add time log window, so every check (no future days, the Sunday
 // lock, the 500 character limit) is the same.
 export function QuickAddBar({ today, projects }: { today: string; projects: string[] }) {
-  const [sentence, setSentence] = useState("");
   const [project, setProject] = useState(projects[0] ?? "");
   const [date, setDate] = useState(today);
   const [hours, setHours] = useState("");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [changingDay, setChangingDay] = useState(false);
-
-  function fill(e: React.FormEvent) {
-    e.preventDefault();
-    const found = parseQuickAdd(sentence, today, projects);
-    if (found.date) setDate(found.date);
-    if (found.project) setProject(found.project);
-    if (found.minutes !== null) setHours(fmtMinutes(found.minutes));
-    if (found.date === null && found.minutes === null && found.project === null) toast.info("Try something like: 2 hours Client work Monday");
-    setSentence("");
-  }
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
@@ -77,21 +65,6 @@ export function QuickAddBar({ today, projects }: { today: string; projects: stri
         <h2 id="quick-add-title" className="ts-h2">
           Add to your work log
         </h2>
-        <form onSubmit={fill} aria-label="Quick fill" className="flex w-full max-w-sm items-center gap-2 rounded-full border bg-background py-1 pr-1 pl-3 focus-within:border-foreground">
-          <Sparkles className="size-4 shrink-0" aria-hidden="true" />
-          <input
-            value={sentence}
-            onChange={(e) => setSentence(e.target.value)}
-            maxLength={120}
-            autoComplete="off"
-            aria-label="Quick fill: type the hours, the project and the day"
-            placeholder="Quick fill: 2 hours Client work Monday"
-            className="min-w-0 flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-muted-foreground max-md:min-h-9"
-          />
-          <button type="submit" className="rounded-full bg-muted px-3 py-1 text-xs font-medium hover:bg-muted/70 max-md:min-h-9">
-            Fill
-          </button>
-        </form>
       </div>
 
       <form onSubmit={add} className="grid gap-2" aria-label="Add a work log entry">

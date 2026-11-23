@@ -3,7 +3,6 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Entry } from "@/app/timesheet/(portal)/worklog/model";
 import { buildRows } from "@/app/timesheet/(portal)/worklog/timesheet/gridModel";
-import { parseQuickAdd } from "@/app/timesheet/(portal)/worklog/timesheet/quickAdd";
 
 const TODAY = "2026-11-17"; // a Tuesday
 
@@ -54,16 +53,6 @@ describe("the grid with a project list from the database", () => {
   it("still works with the built-in names when no list is given", () => {
     const rows = buildRows({ entries: [entry({ project: "Internal" })], myId: "me", days: [TODAY], today: TODAY });
     expect(rows[0].cells[0].state).toBe("editable");
-  });
-});
-
-describe("quick add with a project list from the database", () => {
-  it("recognises a project by name from the list it is given", () => {
-    expect(parseQuickAdd("2 hours on research", "2026-11-18", ["Research", "Client work"]).project).toBe("Research");
-    expect(parseQuickAdd("2 hours on training", "2026-11-18", ["Research", "Client work"]).project).toBeNull(); // not in this list
-  });
-  it("still knows the built-in names without a list", () => {
-    expect(parseQuickAdd("45 min meetings", "2026-11-18").project).toBe("Meetings");
   });
 });
 

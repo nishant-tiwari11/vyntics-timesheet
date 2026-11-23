@@ -124,8 +124,8 @@ function Row({
   );
 }
 
-function Pager({ query, today, page, last, rows }: { query: WorkQuery; today: string; page: number; last: number; rows: number }) {
-  if (last <= 1) return <p className="px-4 py-3 text-sm text-muted-foreground" role="status">{rows} {rows === 1 ? "row" : "rows"}</p>;
+function Pager({ query, today, page, last }: { query: WorkQuery; today: string; page: number; last: number }) {
+  if (last <= 1) return null;
   const link = (n: number) => workHref(query, { page: n }, today);
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
@@ -213,25 +213,23 @@ export async function LogList({ query }: { query: WorkQuery }) {
   }
 
   const shownEntries = filtered.length;
-  const sortNote = query.sort === "date" ? null : "Entries are sorted inside each day.";
+  // Rejected entries don't count towards the hours, same as everywhere else.
+  const totalHours = filtered.filter((e) => e.status !== "rejected").reduce((sum, e) => sum + (e.hours ?? 0), 0);
+  const sortNote = query.sort === "date" || shownEntries === 0 ? null : "Entries are sorted inside each day.";
 
   return (
     <section aria-label="Time logs" className="grid gap-2">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-        <p role="status">
-          {shownEntries} {shownEntries === 1 ? "entry" : "entries"}
-          {filtersOn ? " match" : ""}
-          {sortNote ? `. ${sortNote}` : ""}
-        </p>
-        <Link
-          href={workHref(query, { sort: "date", dir: query.sort === "date" && query.dir === "desc" ? "asc" : "desc", page: 1 }, today)}
-          scroll={false}
-          className="inline-flex min-h-8 items-center gap-1 rounded-sm hover:underline max-md:min-h-11"
-        >
-          {query.sort === "date" && query.dir === "asc" ? <ArrowUp className="size-3.5" aria-hidden="true" /> : <ArrowDown className="size-3.5" aria-hidden="true" />}
-          {query.sort === "date" && query.dir === "asc" ? "Oldest day first" : "Newest day first"}
-        </Link>
-      </div>
+      {shownEntries > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+          <p role="status">
+            <strong className="font-semibold text-foreground">
+              {shownEntries} {shownEntries === 1 ? "entry" : "entries"}
+            </strong>
+            {filtersOn ? " match" : ""} · {fmtDuration(totalHours)} {me.admin ? "in total" : "logged"}
+            {sortNote ? ` · ${sortNote}` : ""}
+          </p>
+        </div>
+      )}
 
       {truncated && (
         <p className="rounded-md border border-dashed px-3 py-2 text-sm" role="note">
@@ -240,7 +238,7 @@ export async function LogList({ query }: { query: WorkQuery }) {
       )}
 
       <div role="table" aria-label="Time logs, grouped by day" className="overflow-hidden rounded-xl border bg-card max-md:border-0 max-md:bg-transparent">
-        <div role="rowgroup" className="hidden md:block">
+        <div role="rowgroup" className={shownEntries === 0 ? "hidden" : "hidden md:block"}>
           <div role="row" className={`${GRID} border-b bg-muted/50 py-2 text-sm`}>
             <SortHeader id="project" label="Project" query={query} today={today} />
             <SortHeader id="time" label="Time" query={query} today={today} />
@@ -278,16 +276,14 @@ export async function LogList({ query }: { query: WorkQuery }) {
                     </span>
                   )}
                 </div>
-                <div role="cell" className="flex items-center gap-3">
-                  {g.missing ? (
-                    <AddLogButton today={today} date={g.date} label="Add entry" variant="outline" size="sm" />
-                  ) : (
+                {!g.missing && (
+                  <div role="cell" className="flex items-center gap-3">
                     <span className="text-sm font-semibold tabular-nums">
                       <span className="sr-only">Day total: </span>
                       {fmtDuration(g.total)}
                     </span>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
               {g.shown.map((e) => (
                 <Row key={e.id} entry={e} data={{ me, compOff, off }} today={today} />
@@ -297,7 +293,7 @@ export async function LogList({ query }: { query: WorkQuery }) {
         })}
 
       </div>
-      <Pager query={query} today={today} page={slice.page} last={slice.last} rows={slice.total} />
+      <Pager query={query} today={today} page={slice.page} last={slice.last} />
     </section>
   );
 }

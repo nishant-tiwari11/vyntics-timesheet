@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
 import { todayInOffice } from "@/lib/timesheet/dates";
 import { activeProjectNames, allProjectNames } from "@/lib/timesheet/projectList";
-import { CopyYesterdayButton } from "./CopyYesterdayButton";
 import { ImportButton } from "./ImportButton";
 import { listEmployees } from "@/lib/timesheet/admin";
 import { loadWorkLog } from "./data";
@@ -16,9 +15,7 @@ import { DateRangeNavigator } from "./timesheet/DateRangeNavigator";
 import { GridSkeleton } from "./timesheet/GridSkeleton";
 import { LazyGrid } from "./timesheet/LazyGrid";
 import { QuickAddBar } from "./timesheet/QuickAddBar";
-import { RecurringButton } from "./timesheet/RecurringButton";
 import { TimesheetHeader } from "./timesheet/TimesheetHeader";
-import { TrackTimeButton, TrackTimeProvider } from "./timesheet/TrackTime";
 
 export const metadata = { title: "Work log" };
 
@@ -42,16 +39,12 @@ export default async function WorkLogPage({
   const period = periodOf(query, today);
 
   return (
-    <TrackTimeProvider today={today}>
+    <>
       <div className="ts-page ts-dash grid gap-5">
         <TimesheetHeader query={query} today={today} />
 
         <div className="flex flex-wrap items-center gap-3">
-          <TrackTimeButton date={query.date <= today ? query.date : today} />
           <DateRangeNavigator query={query} today={today} />
-          <div className="ml-auto">
-            <RecurringButton />
-          </div>
         </div>
 
         <QuickAddBar today={today} projects={projects} />
@@ -66,17 +59,17 @@ export default async function WorkLogPage({
               <h2 id="entries-title" className="ts-h2">
                 Entries
               </h2>
-              <p className="ts-muted">{admin ? "Everyone's time logs. Edit, delete, approve or export them here." : "The detail behind the hours: edit, delete or export."}</p>
+              <p className="ts-muted">{admin ? "Everyone's time logs. Edit, delete, approve or export them here." : "Everything you have logged, day by day. Edit or delete an entry while its week is open."}</p>
             </div>
-            {admin ? <ImportButton employees={employees} projects={projects} /> : <CopyYesterdayButton today={today} />}
+            {admin && <ImportButton employees={employees} projects={projects} />}
           </div>
-          <WorkLogFilters query={query} today={today} projects={everyProject} />
+          <WorkLogFilters query={query} today={today} projects={everyProject} showCopy={!admin} />
           <Suspense key={`list-${key}`} fallback={<ListSkeleton />}>
             <LogList query={query} />
           </Suspense>
         </section>
       </div>
-    </TrackTimeProvider>
+    </>
   );
 }
 

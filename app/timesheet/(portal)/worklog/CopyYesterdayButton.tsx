@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useEffectEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CopyPlus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -13,7 +13,7 @@ type Source = { date: string; count: number; todayCount: number };
 
 // "Copy yesterday's entries": finds your latest earlier day (up to 7 days back), asks first, then adds the
 // same entries to today as new pending entries.
-export function CopyYesterdayButton({ today }: { today: string }) {
+export function CopyYesterdayButton({ today, hideButton = false, startSignal = 0 }: { today: string; /** Show only the confirmation window; something else (a menu item) starts it. */ hideButton?: boolean; /** Goes up by one each time the menu item is chosen. */ startSignal?: number }) {
   const router = useRouter();
   const [source, setSource] = useState<Source | null>(null);
   const [looking, startLook] = useTransition();
@@ -39,14 +39,21 @@ export function CopyYesterdayButton({ today }: { today: string }) {
     });
   }
 
+  const start = useEffectEvent(() => look());
+  useEffect(() => {
+    if (startSignal > 0) start();
+  }, [startSignal]);
+
   const label = source ? formatYmd(source.date, { weekday: "long", day: "numeric", month: "short" }) : "";
 
   return (
     <>
-      <Button type="button" variant="outline" className="max-md:min-h-11" onClick={look} disabled={looking}>
-        {looking ? <Loader2 className="animate-spin" aria-hidden="true" /> : <CopyPlus aria-hidden="true" />}
-        Copy yesterday&apos;s entries
-      </Button>
+      {!hideButton && (
+        <Button type="button" variant="outline" className="max-md:min-h-11" onClick={look} disabled={looking}>
+          {looking ? <Loader2 className="animate-spin" aria-hidden="true" /> : <CopyPlus aria-hidden="true" />}
+          Copy yesterday&apos;s entries
+        </Button>
+      )}
       <Dialog open={!!source} onOpenChange={(open) => !open && !copying && setSource(null)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>

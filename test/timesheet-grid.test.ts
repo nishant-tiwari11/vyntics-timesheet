@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { buildRows, fmtMinutes, parseDuration, planAddEntry, planSave } from "@/app/timesheet/(portal)/worklog/timesheet/gridModel";
-import { parseQuickAdd } from "@/app/timesheet/(portal)/worklog/timesheet/quickAdd";
 import type { Entry } from "@/app/timesheet/(portal)/worklog/model";
 
 // 2026-11-17 is a Tuesday.
@@ -107,22 +106,6 @@ describe("planSave", () => {
     expect(planSave(filled, 120, "Client work", [])).toEqual({ kind: "none" });
     const future = buildRows({ entries: [], myId: "me", days: ["2026-11-20"], today: TODAY, extra: ["Internal"] })[0].cells[0];
     expect(planSave(future, 60, "Internal", [])).toEqual({ kind: "none" });
-  });
-});
-
-describe("parseQuickAdd", () => {
-  it("reads hours and a weekday (the latest one on or before today)", () => {
-    expect(parseQuickAdd("Log 8 hours for Friday", TODAY)).toEqual({ minutes: 480, date: "2026-11-13", project: null });
-    expect(parseQuickAdd("log 2.5 hrs yesterday", TODAY)).toMatchObject({ minutes: 150, date: "2026-11-16" });
-    expect(parseQuickAdd("4h on tuesday", TODAY)).toMatchObject({ minutes: 240, date: TODAY });
-  });
-  it("reads H:MM, minutes, today and a project name", () => {
-    expect(parseQuickAdd("1:30 training today", TODAY)).toEqual({ minutes: 90, date: TODAY, project: "Training" });
-    expect(parseQuickAdd("45 min meetings", TODAY)).toMatchObject({ minutes: 45, date: null, project: "Meetings" });
-  });
-  it("leaves out what it can't find", () => {
-    expect(parseQuickAdd("hello", TODAY)).toEqual({ minutes: null, date: null, project: null });
-    expect(parseQuickAdd("log 30 hours", TODAY).minutes).toBeNull();
   });
 });
 
