@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ROLE_LABEL, toRole } from "@/lib/access/config";
 import { AVATAR_BUCKET, avatarPath, isUuid } from "@/lib/avatar";
-import { profileCompletion, requiredChecklist } from "@/lib/documents/config";
+import { requiredChecklist } from "@/lib/documents/config";
 import { listDocuments, type DocumentList } from "@/lib/documents/server";
 import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
 import { createClient } from "@/lib/supabase/server";
@@ -28,7 +28,9 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   const asked = one(raw.user);
   const targetId = me.role === "admin" && isUuid(asked) ? asked : me.id;
   const own = targetId === me.id;
-  const tab = one(raw.tab) === "documents" ? "documents" : "overview";
+  // Documents are for HR to manage (Admin > Documents). An employee's own profile has no Documents tab: they hand those in once,
+  // during onboarding.
+  const tab = !own && one(raw.tab) === "documents" ? "documents" : "overview";
 
   const supabase = await createClient();
   const { data: profile } = await supabase
@@ -54,10 +56,8 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   const hasPhoto = (photo.data ?? []).some((f) => f.name === avatarPath(profile.id));
   const isAdmin = me.role === "admin";
   const canChangePhoto = isAdmin || (own && me.role !== "viewer");
-  const canEditDocs = own && me.role !== "viewer";
-
+  
   const checklist = requiredChecklist(docs.ready ? docs.current.map((d) => ({ category: d.category, status: d.status })) : []);
-  const completion = profileCompletion({ hasPhoto, hasName: !!profile.full_name?.trim(), docsDone: checklist.done, docsTotal: checklist.total });
 
   const base = own ? "/timesheet/profile" : `/timesheet/profile?user=${profile.id}`;
   const tabHref = (t: string) => (t === "overview" ? base : `${base}${base.includes("?") ? "&" : "?"}tab=${t}`);
@@ -72,7 +72,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   return (
     <div className="ts-page ts-dash grid max-w-4xl gap-5">
       {!own && (
-        <Link href="/timesheet/admin?tab=employees" className="ts-link text-sm">
+        <Link href="/timesheet/admin/access" className="ts-link text-sm">
           ← Back to employees
         </Link>
       )}
@@ -86,20 +86,9 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
             <p className="mt-1 text-sm">{own ? "Your profile" : "Viewing as admin"}</p>
           </div>
         </div>
-        <div>
-          <div className="flex items-baseline justify-between gap-2 text-sm">
-            <span className="font-medium">Profile completion</span>
-            <span role="status">{completion.percent}%</span>
-          </div>
-          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={completion.percent} aria-label="Profile completion">
-            <div className="h-full bg-foreground transition-[width]" style={{ width: `${completion.percent}%` }} />
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {completion.done} of {completion.total} steps: a photo, a name, and {checklist.total} required documents ({checklist.done} uploaded).
-          </p>
-        </div>
       </header>
 
+      {!own && (
       <nav aria-label="Profile sections" className="flex gap-1 border-b">
         {[
           { id: "overview", label: "Overview" },
@@ -115,6 +104,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
           </Link>
         ))}
       </nav>
+      )}
 
       {tab === "overview" ? (
         <section aria-labelledby="details-title" className="rounded-xl border bg-card p-5">
@@ -147,7 +137,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
           checklist={checklist}
           today={todayInOffice()}
           isAdmin={isAdmin}
-          canEdit={canEditDocs}
+          canEdit={false}
         />
       )}
     </div>

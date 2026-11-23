@@ -1,6 +1,6 @@
 import "server-only";
 import { db, requireAdmin, requireUser } from "./auth";
-import { assertCanSpend } from "./compOff";
+import { isDayPart, type DayPart } from "./leaveCore";
 import { TimesheetError, assertDate, assertId, toError } from "./errors";
 import type { Request, RequestWithPerson } from "./types";
 
@@ -46,8 +46,8 @@ export async function createRequest(input: {
   from: string;
   to: string;
   note?: string;
-  /** Pay for this leave with comp-off days. */
-  compOff?: boolean;
+  /** A full day, or the first or second half. Only a single day can be a half day. */
+  part?: DayPart;
 }): Promise<Request> {
   if (input.type !== "leave" && input.type !== "wfh") {
     throw new TimesheetError("Please choose Leave or Work from home.");
@@ -55,13 +55,13 @@ export async function createRequest(input: {
   const from = assertDate(input.from, "start date");
   const to = assertDate(input.to, "end date");
   if (to < from) throw new TimesheetError("The end date can't be before the start date.");
-  if (input.compOff && input.type !== "leave") throw new TimesheetError("Comp-off can only be used for leave.");
+  const part: DayPart = input.part && isDayPart(input.part) ? input.part : "full";
+  if (part !== "full" && (from !== to || input.type !== "leave")) throw new TimesheetError("A half day is only for leave on a single day.");
   const note = input.note?.trim() ?? "";
   if (note.length > 500) throw new TimesheetError("The reason can be up to 500 characters.");
 
   const me = await requireUser();
-  // Comp-off leave needs enough unexpired credit, with days already booked taken into account.
-  if (input.compOff) await assertCanSpend(me.id, from, to);
+  // The admin decides what kind of leave it is (paid, comp-off or unpaid) when approving, so nothing is chosen here.
   const supabase = await db();
   // user_id and status come from the server, never from the caller.
   const { data, error } = await supabase
@@ -73,7 +73,7 @@ export async function createRequest(input: {
       to_date: to,
       reason: note || null,
       status: "pending",
-      comp_off: input.compOff === true,
+      day_part: part,
     })
     .select()
     .single();

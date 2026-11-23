@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Fragment, Suspense } from "react";
 import { useNavCounts } from "./NavCounts";
 
-const ICONS = {
+export const ICONS = {
   dashboard: (
     <>
       <rect x="3" y="3" width="7" height="7" rx="1.5" />
@@ -63,6 +63,48 @@ const ICONS = {
       <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 5.2a3 3 0 0 1 0 5.6M18 14.4c1.8.8 3 2.6 3 5.6" />
     </>
   ),
+  projects: (
+    <>
+      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    </>
+  ),
+  documents: (
+    <>
+      <path d="M6 3h9l4 4v14H6z" />
+      <path d="M14 3v5h5M9 15l2 2 4-4" />
+    </>
+  ),
+  approvals: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8 12.5l2.7 2.7L16 9.5" />
+    </>
+  ),
+  holidays: (
+    <>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" />
+    </>
+  ),
+  reports: (
+    <>
+      <path d="M4 20V4M4 20h16" />
+      <path d="M8 16v-5M12 16V7M16 16v-8" />
+    </>
+  ),
+  audit: (
+    <>
+      <path d="M8 4h8a2 2 0 0 1 2 2v14l-3-2-3 2-3-2-3 2V6a2 2 0 0 1 2-2z" />
+      <path d="M9.5 9h5M9.5 12.5h5" />
+    </>
+  ),
+  settings: (
+    <>
+      <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+      <circle cx="15" cy="7" r="2" />
+      <circle cx="9" cy="17" r="2" />
+    </>
+  ),
   admin: (
     <>
       <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" />
@@ -73,10 +115,12 @@ const ICONS = {
 
 type IconName = keyof typeof ICONS;
 
-type NavLink = {
+export type NavLink = {
   href: string;
   label: string;
   icon: IconName;
+  /** A heading the item sits under in the admin sidebar. */
+  group?: string;
   /** Only the exact address counts (a prefix would also light up every page below it). */
   exact?: boolean;
   /** For a link to a `?tab=` view of one page: the tab values that belong to it. */
@@ -96,15 +140,19 @@ const TEAM_LINK: NavLink = { href: "/timesheet/team", label: "Team", icon: "team
 // An admin is the owner / HR / manager, not an employee: no own timesheet, leave, expenses or salary here. They see the
 // company: people, everyone's work logs, requests to approve, expense claims and payroll.
 const ADMIN_MENU: NavLink[] = [
-  { href: "/timesheet/admin", label: "Overview", icon: "admin", exact: true },
-  { href: "/timesheet/admin/access", label: "Employees", icon: "team" },
-  { href: "/timesheet/worklog", label: "Work logs", icon: "worklog" },
-  { href: "/timesheet/admin?tab=requests", label: "Leave & approvals", icon: "leave", tabs: ["requests", "logs", "compoff"] },
-  { href: "/timesheet/calendar", label: "Calendar", icon: "calendar" },
-  { href: "/timesheet/payroll/expenses", label: "Expenses", icon: "expenses" },
-  { href: "/timesheet/payroll", label: "Payroll", icon: "payroll" },
-  { href: "/timesheet/admin/reports", label: "Reports", icon: "events" },
-  { href: "/timesheet/admin/settings", label: "Settings", icon: "salary" },
+  { href: "/timesheet/admin", label: "Overview", icon: "dashboard", exact: true },
+  { href: "/timesheet/admin/access", label: "Employees", icon: "team", group: "People" },
+  { href: "/timesheet/admin/documents", label: "Documents", icon: "documents", group: "People" },
+  { href: "/timesheet/admin/approvals", label: "Approvals", icon: "approvals", group: "People" },
+  { href: "/timesheet/worklog", label: "Work logs", icon: "worklog", group: "Work" },
+  { href: "/timesheet/admin/projects", label: "Projects", icon: "projects", group: "Work" },
+  { href: "/timesheet/calendar", label: "Calendar", icon: "calendar", group: "Work" },
+  { href: "/timesheet/admin?tab=holidays", label: "Holidays & leave", icon: "holidays", tabs: ["holidays"], group: "Work" },
+  { href: "/timesheet/payroll/expenses", label: "Expenses", icon: "expenses", group: "Money" },
+  { href: "/timesheet/payroll", label: "Payroll", icon: "payroll", group: "Money" },
+  { href: "/timesheet/admin/reports", label: "Reports", icon: "reports", group: "Company" },
+  { href: "/timesheet/admin/audit", label: "Audit log", icon: "audit", group: "Company" },
+  { href: "/timesheet/admin/settings", label: "Settings", icon: "settings", group: "Company" },
 ];
 
 export function titleFor(pathname: string): string {
@@ -117,6 +165,9 @@ export function titleFor(pathname: string): string {
   if (pathname.startsWith("/timesheet/payroll")) return "Payroll";
   if (pathname.startsWith("/timesheet/calendar")) return "Calendar";
   if (pathname.startsWith("/timesheet/admin/access")) return "Employees";
+  if (pathname.startsWith("/timesheet/admin/documents")) return "Documents";
+  if (pathname.startsWith("/timesheet/admin/projects")) return "Projects";
+  if (pathname.startsWith("/timesheet/admin/audit")) return "Audit log";
   if (pathname.startsWith("/timesheet/admin/reports")) return "Reports";
   if (pathname.startsWith("/timesheet/admin/settings")) return "Settings";
   if (pathname === "/timesheet/admin" || pathname === "/timesheet/admin/") return "Admin overview";
@@ -129,7 +180,7 @@ export function PageTitle() {
   return <span className="ts-topbar-title">{titleFor(usePathname())}</span>;
 }
 
-function menuFor(role: string): NavLink[] {
+export function menuFor(role: string): NavLink[] {
   return role === "admin" ? ADMIN_MENU : role === "manager" ? [...LINKS, TEAM_LINK] : LINKS;
 }
 
@@ -180,9 +231,12 @@ function NavList({ isAdmin, isManager, tab, onNavigate }: { isAdmin: boolean; is
 
   return (
     <nav className="ts-nav" aria-label="Portal">
-      {links.map((l) => {
+      {links.map((l, i) => {
         const n = counts[l.href] ?? 0;
+        const heading = l.group && l.group !== links[i - 1]?.group ? <span className="ts-nav-group">{l.group}</span> : null;
         return (
+          <Fragment key={l.href}>
+          {heading}
           <Link key={l.href} href={l.href} onClick={onNavigate} className="ts-nav-link" aria-current={open === l.href ? "page" : undefined} title={l.label}>
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="ts-nav-icon">
               {ICONS[l.icon]}
@@ -195,6 +249,7 @@ function NavList({ isAdmin, isManager, tab, onNavigate }: { isAdmin: boolean; is
               </span>
             )}
           </Link>
+          </Fragment>
         );
       })}
     </nav>

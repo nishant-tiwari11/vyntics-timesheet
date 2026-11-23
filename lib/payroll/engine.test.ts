@@ -418,3 +418,41 @@ describe("expense reimbursement", () => {
     expect(p.net).toBe(rupees(1500));
   });
 });
+
+describe("leave the admin decided", () => {
+  const decided = (kind: "paid" | "comp_off" | "unpaid", fraction = 1, hours = 0) => ({ leaveDecision: { kind, fraction }, hoursHundredths: hours });
+
+  it("pays a paid leave day even when the monthly allowance is zero", () => {
+    const p = run({ days: month({ "2026-11-12": decided("paid") }) });
+    expect(p.paidLeaveDays).toBe(1);
+    expect(p.lopDays).toBe(0);
+    expect(p.payableDays).toBe(30);
+  });
+  it("pays a comp-off leave day", () => {
+    const p = run({ days: month({ "2026-11-12": decided("comp_off") }) });
+    expect(p.compOffLeaveDays).toBe(1);
+    expect(p.lopDays).toBe(0);
+  });
+  it("takes pay off for an unpaid leave day", () => {
+    const p = run({ days: month({ "2026-11-12": decided("unpaid") }) });
+    expect(p.lopDays).toBe(1);
+    expect(p.payableDays).toBe(29);
+  });
+  it("counts a half day: half paid, the other half worked", () => {
+    const p = run({ days: month({ "2026-11-12": decided("paid", 0.5, 400) }) });
+    expect(p.paidLeaveDays).toBe(0.5);
+    expect(p.presentDays).toBe(20.5);
+    expect(p.absentDays).toBe(0);
+    expect(p.payableDays).toBe(30);
+  });
+  it("counts the unworked half of a half day as absent", () => {
+    const p = run({ days: month({ "2026-11-12": decided("comp_off", 0.5, 0) }) });
+    expect(p.absentDays).toBe(0.5);
+    expect(p.payableDays).toBe(29.5);
+  });
+  it("takes half the pay off for an unpaid half day", () => {
+    const p = run({ days: month({ "2026-11-12": decided("unpaid", 0.5, 400) }) });
+    expect(p.lopDays).toBe(0.5);
+    expect(p.payableDays).toBe(29.5);
+  });
+});

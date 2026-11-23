@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { dayWord } from "@/lib/timesheet/leaveCore";
 import { myBalance } from "@/lib/timesheet/compOff";
 import { daysText, type CompOffBalance } from "@/lib/timesheet/compOffCore";
 import { logError } from "@/lib/timesheet/log";
@@ -27,7 +28,7 @@ export default async function CompOffCard() {
       </div>
       {error || !balance ? (
         <SectionError message={error ?? "Couldn't load your comp-off."} />
-      ) : balance.available === 0 && balance.expiringSoon === 0 ? (
+      ) : balance.balance === 0 && balance.expiringSoon === 0 && balance.earned === 0 ? (
         <div className="ts-empty">
           <strong>No comp-off days yet</strong>
           <p>Work on a weekly off day or a holiday and you can earn one to use later.</p>
@@ -35,8 +36,8 @@ export default async function CompOffCard() {
       ) : (
         <dl className="grid grid-cols-2 gap-3">
           <div>
-            <dt className="text-sm text-muted-foreground">Available</dt>
-            <dd className="text-2xl font-semibold tabular-nums">{daysText(balance.available)}</dd>
+            <dt className="text-sm text-muted-foreground">Balance</dt>
+            <dd className={`text-2xl font-semibold tabular-nums ${balance.balance < 0 ? "text-destructive" : ""}`}>{dayWord(balance.balance)}</dd>
           </div>
           <div>
             <dt className="text-sm text-muted-foreground">Expiring in 14 days</dt>

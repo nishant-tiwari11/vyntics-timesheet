@@ -71,7 +71,7 @@ export default async function DashboardPage({
             <h2 className="ts-h2s" id="snap-title">
               Today&apos;s snapshot <span className="ts-muted ts-section-date">{formatTodayLong()}</span>
             </h2>
-            <Link href="/timesheet/admin?tab=logs" className="ts-link">
+            <Link href="/timesheet/worklog" className="ts-link">
               View all work logs
             </Link>
           </div>

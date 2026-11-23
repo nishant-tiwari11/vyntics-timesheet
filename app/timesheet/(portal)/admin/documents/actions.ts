@@ -5,6 +5,8 @@ import { isUuid } from "@/lib/avatar";
 import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
 import { createClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/timesheet/log";
+import { reopenOnboarding, revealAccount } from "@/lib/onboarding/server";
+import { TimesheetError } from "@/lib/timesheet/errors";
 
 export type DocActionResult = { ok: true; message?: string } | { ok: false; error: string };
 
@@ -57,4 +59,32 @@ export async function setManagerSensitiveAction(userId: string, allowed: boolean
   if (!res.ok) return res;
   revalidatePath("/timesheet/admin/documents");
   return { ok: true, message: allowed ? "This manager can now see sensitive documents." : "This manager can no longer see sensitive documents." };
+}
+
+/** The full bank account number of one employee, shown to an admin who asks for it. */
+export async function revealAccountAction(userId: string): Promise<{ ok: true; value: string } | { ok: false; error: string }> {
+  const denied = await admin();
+  if (denied) return { ok: false, error: denied };
+  if (!isUuid(userId)) return { ok: false, error: "That person could not be found." };
+  try {
+    return { ok: true, value: await revealAccount(userId) };
+  } catch (e) {
+    if (!(e instanceof TimesheetError)) logError("reveal-account", e);
+    return { ok: false, error: e instanceof TimesheetError ? e.message : "Something went wrong. Please try again." };
+  }
+}
+
+/** Open a submitted onboarding again so the employee can change their answers. */
+export async function reopenOnboardingAction(userId: string): Promise<DocActionResult> {
+  const denied = await admin();
+  if (denied) return { ok: false, error: denied };
+  if (!isUuid(userId)) return { ok: false, error: "That person could not be found." };
+  try {
+    await reopenOnboarding(userId);
+    revalidatePath("/timesheet/admin/documents");
+    return { ok: true };
+  } catch (e) {
+    if (!(e instanceof TimesheetError)) logError("reopen-onboarding", e);
+    return { ok: false, error: e instanceof TimesheetError ? e.message : "Something went wrong. Please try again." };
+  }
 }

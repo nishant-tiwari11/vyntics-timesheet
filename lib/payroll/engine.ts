@@ -76,6 +76,12 @@ export type DayFact = {
   leave: boolean;
   /** Approved leave paid for with comp-off days covers this day. */
   compOffLeave: boolean;
+  /**
+   * Leave an admin approved with a decision: paid, comp-off or unpaid, for a whole day (1) or half a day (0.5). When this is set
+   * it is the whole story for the day (`leave` and `compOffLeave` are false). Older approved leave has none and follows the
+   * monthly paid-leave allowance below.
+   */
+  leaveDecision?: { kind: "paid" | "comp_off" | "unpaid"; fraction: number } | null;
   wfh: boolean;
   /** Approved timesheet hours that day, in hundredths of an hour (850 = 8.5 hours). */
   hoursHundredths: number;
@@ -177,7 +183,18 @@ export function computePayslip(input: EngineInput): Payslip {
     employedDays += 1;
     if (working) {
       employedWorkingDays += 1;
-      if (d.compOffLeave) {
+      if (d.leaveDecision) {
+        // The admin decided what this leave is. A half day leaves the other half to be worked (or missed).
+        const { kind, fraction } = d.leaveDecision;
+        if (kind === "paid") paidLeaveDays += fraction;
+        else if (kind === "comp_off") compOffLeaveDays += fraction;
+        else lopLeaveDays += fraction;
+        const rest = 1 - fraction;
+        if (rest > 0) {
+          if (d.hoursHundredths > 0 || d.wfh) presentDays += rest;
+          else absentDays += rest;
+        }
+      } else if (d.compOffLeave) {
         compOffLeaveDays += 1; // paid
       } else if (d.leave) {
         leaveSeen += 1;
@@ -188,7 +205,7 @@ export function computePayslip(input: EngineInput): Payslip {
       } else {
         presentDays += 1;
       }
-      if (d.wfh && !d.leave && !d.compOffLeave) wfhDays += 1;
+      if (d.wfh && !d.leave && !d.compOffLeave && !d.leaveDecision) wfhDays += 1;
       if (s.overtimeEnabled && d.hoursHundredths > s.standardHundredths) {
         overtimeHundredths += d.hoursHundredths - s.standardHundredths;
       }
@@ -221,7 +238,8 @@ export function computePayslip(input: EngineInput): Payslip {
 
   const earnings: Line[] = [];
   const deductions: Line[] = [];
-  const pro = (amount: Paise): Paise => (baseDays > 0 ? proRate(amount, payableDays, baseDays) : 0);
+  // Counted in half days, so a half-day leave works out exactly (whole days give the same result as before).
+  const pro = (amount: Paise): Paise => (baseDays > 0 ? proRate(amount, Math.round(payableDays * 2), baseDays * 2) : 0);
 
   // Salary, pro-rated by payable days.
   const basic = structure ? pro(structure.basic) : 0;

@@ -8,7 +8,7 @@ import { relativeTime, toneOf, type Tone } from "@/lib/notifications";
 import type { Approvals, NotificationItem } from "@/app/api/notifications/route";
 import { markNotificationsReadAction } from "./notificationsActions";
 
-const APPROVALS_HREF = "/timesheet/admin?tab=requests";
+const APPROVALS_HREF = "/timesheet/admin/approvals";
 const REFRESH_EVERY_MS = 90_000;
 
 const TONE: Record<Tone, { icon: typeof Info; label: string; className: string }> = {

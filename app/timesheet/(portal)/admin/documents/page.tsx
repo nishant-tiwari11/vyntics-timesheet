@@ -1,7 +1,7 @@
 import "../../dashboard/dashboard.css";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { loadAdminDocuments } from "@/lib/documents/admin";
+import { loadAdminOnboarding } from "@/lib/onboarding/server";
 import { loadOfferTemplate } from "@/lib/documents/offerTemplate";
 import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
 import { todayInOffice } from "@/lib/timesheet/dates";
@@ -19,8 +19,9 @@ export default async function AdminDocumentsPage() {
 
   let data;
   let template;
+  let onboarding;
   try {
-    [data, template] = await Promise.all([loadAdminDocuments(), loadOfferTemplate()]);
+    [data, template, onboarding] = await Promise.all([loadAdminDocuments(), loadOfferTemplate(), loadAdminOnboarding()]);
   } catch (e) {
     if (!(e instanceof TimesheetError)) logError("admin documents", e);
     return (
@@ -35,18 +36,16 @@ export default async function AdminDocumentsPage() {
 
   return (
     <div className="ts-page ts-dash grid gap-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
+      <div className="grid gap-1">
         <h1 className="ts-h1">Documents</h1>
-        <Link href="/timesheet/admin" className="ts-link text-sm">
-          ← Back to Admin
-        </Link>
+        <p className="text-sm text-muted-foreground">Issue offer and joining letters, check what new employees submit, and follow their onboarding.</p>
       </div>
       {!data.ready ? (
         <p role="note" className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
           Documents aren&apos;t set up yet. Run <code>supabase/step26_documents.sql</code> and <code>supabase/step27_document_admin.sql</code> in Supabase.
         </p>
       ) : (
-        <AdminDocuments docs={data.docs} employees={data.employees} audit={data.audit} truncated={data.truncated} today={todayInOffice()} offerTemplate={template} />
+        <AdminDocuments docs={data.docs} employees={data.employees} audit={data.audit} truncated={data.truncated} today={todayInOffice()} offerTemplate={template} onboarding={onboarding.rows} />
       )}
     </div>
   );

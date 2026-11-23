@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { daysText } from "@/lib/timesheet/compOffCore";
+import { PART_LABEL, type DayPart } from "@/lib/timesheet/leaveCore";
 import { workingDays } from "@/lib/timesheet/dates";
 import { FormField, Input, Textarea } from "../../_components/Fields";
 import { createRequestAction } from "./actions";
@@ -12,7 +12,6 @@ const REASON_MAX = 120;
 const TYPES = [
   { value: "leave", label: "Leave", sub: "A day or more off" },
   { value: "wfh", label: "Work from home", sub: "Working remotely" },
-  { value: "comp", label: "Comp-off", sub: "Use days you earned" },
 ] as const;
 
 type Kind = (typeof TYPES)[number]["value"];
@@ -20,17 +19,17 @@ type Kind = (typeof TYPES)[number]["value"];
 export default function ApplyForm({
   today,
   offDays = [],
-  compOff = null,
   initialType = "leave",
 }: {
   /** Which kind the form starts on (the quick actions on the dashboard use this). */
   initialType?: "leave" | "wfh" | "comp";
   today: string;
   offDays?: string[];
-  /** Your comp-off balance, or null if it could not be loaded. */
+  /** No longer used: your admin decides if a leave is paid or comp-off when approving. Kept so older callers still work. */
   compOff?: { available: number; expiringSoon: number } | null;
 }) {
-  const [type, setType] = useState<Kind>(initialType);
+  const [type, setType] = useState<Kind>(initialType === "wfh" ? "wfh" : "leave");
+  const [part, setPart] = useState<DayPart>("full");
   const [from, setFrom] = useState(today);
   const [to, setTo] = useState(today);
   const [note, setNote] = useState("");
@@ -57,20 +56,16 @@ export default function ApplyForm({
     else if (from < today) found.from = "The start date can't be in the past.";
     if (!to) found.to = "Choose the last day.";
     else if (from && to < from) found.to = "The end date can't be before the start date.";
-    if (type === "comp" && !found.from && !found.to) {
-      const have = compOff?.available ?? 0;
-      if (days === 0) found.to = "Those dates are all weekends or holidays, so there is nothing to take comp-off for.";
-      else if (days > have) found.to = `You have ${daysText(have)} of comp-off available, and this request needs ${daysText(days)}.`;
-    }
     setErrors(found);
     if (found.from || found.to) return;
 
     startTransition(async () => {
-      const result = await createRequestAction({ type: type === "wfh" ? "wfh" : "leave", compOff: type === "comp", from, to, note });
+      const result = await createRequestAction({ type, from, to, note, part: type === "leave" && from === to ? part : "full" });
       if (result.ok) {
         toast.success("Request sent. Your admin will review it.");
         setSuccess(true);
         setNote("");
+        setPart("full");
         setFrom(today);
         setTo(today);
       } else {
@@ -98,14 +93,6 @@ export default function ApplyForm({
           </button>
         ))}
       </div>
-
-      {type === "comp" && (
-        <p className="ts-hint" role="status">
-          {compOff
-            ? `You have ${daysText(compOff.available)} of comp-off available${compOff.expiringSoon > 0 ? `, and ${daysText(compOff.expiringSoon)} expires soon` : ""}. Each working day uses one day.`
-            : "Couldn't load your comp-off balance. Try again in a moment."}
-        </p>
-      )}
 
       <div className="ts-apply-dates">
         <FormField label="From" required error={errors.from}>
@@ -140,6 +127,17 @@ export default function ApplyForm({
           <span>Weekends and holidays aren&apos;t counted</span>
         </p>
       </div>
+
+      {type === "leave" && from && from === to && days > 0 && (
+        <div className="ts-apply-types" role="radiogroup" aria-label="Full or half day">
+          {(["full", "first_half", "second_half"] as const).map((p) => (
+            <button key={p} type="button" role="radio" aria-checked={part === p} className="ts-apply-type" onClick={() => setPart(p)} disabled={pending}>
+              <span className="ts-apply-type-title">{PART_LABEL[p]}</span>
+              <span className="ts-apply-type-sub">{p === "full" ? "The whole day" : p === "first_half" ? "Morning off" : "Afternoon off"}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <FormField
         label={

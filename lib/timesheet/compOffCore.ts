@@ -47,8 +47,10 @@ export type CompOffBalance = {
   available: number;
   /** Part of `available` that expires within EXPIRING_SOON_DAYS. */
   expiringSoon: number;
-  /** Days of leave that no credit covers (should be 0; shown if data was changed by hand). */
+  /** Days of comp-off leave taken that no credit covers yet: what the person owes, to be earned back by working a weekend or holiday. */
   shortfall: number;
+  /** What the person has right now: available credit, or minus what they owe. Can be negative. */
+  balance: number;
 };
 
 export const EXPIRING_SOON_DAYS = 14;
@@ -75,17 +77,19 @@ export function daysSpent(from: string, to: string, offDays: ReadonlySet<string>
 
 /**
  * The balance, worked out from scratch.
- * Each leave day spends one day of credit, oldest expiry first, and a credit can only pay for a day on or before its
- * expiry date. Because nothing is stored, a rejected or cancelled leave request simply stops being listed and its days
+ * Each leave day spends one day of credit (half a day for a half-day leave), oldest expiry first, and a credit can only pay
+ * for a day on or before its expiry date. A day that no credit covers is a debt (shortfall): the person took the leave first,
+ * and credit earned later pays it back automatically (earning date does not matter, only expiry). Because nothing is stored, a rejected or cancelled leave request simply stops being listed and its days
  * come back, and an expired credit can never be spent.
  */
-export function computeBalance(credits: CompOffCredit[], useDates: string[], today: string): CompOffBalance {
+export function computeBalance(credits: CompOffCredit[], useDates: (string | { date: string; days: number })[], today: string): CompOffBalance {
   const sorted = [...credits].sort((a, b) => a.expiresOn.localeCompare(b.expiresOn) || a.id.localeCompare(b.id));
   const left = new Map(sorted.map((c) => [c.id, c.credit]));
   let shortfall = 0;
 
-  for (const date of [...useDates].sort()) {
-    let need = 1;
+  const uses = useDates.map((u) => (typeof u === "string" ? { date: u, days: 1 } : u)).sort((a, b) => a.date.localeCompare(b.date));
+  for (const { date, days } of uses) {
+    let need = days;
     for (const c of sorted) {
       if (need <= 0) break;
       const have = left.get(c.id) ?? 0;
@@ -117,6 +121,7 @@ export function computeBalance(credits: CompOffCredit[], useDates: string[], tod
     available: round(available),
     expiringSoon: round(expiringSoon),
     shortfall: round(shortfall),
+    balance: round(available - shortfall),
   };
 }
 

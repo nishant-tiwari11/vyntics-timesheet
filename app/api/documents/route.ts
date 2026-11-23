@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { DOC_BUCKET, DOC_MAX_BYTES, KIND_MIME, checkMeta, kindFromName } from "@/lib/documents/config";
+import { DOC_BUCKET, DOC_MAX_BYTES, KIND_MIME, categoryOf, checkMeta, kindFromName, kindSuits } from "@/lib/documents/config";
 import { deleteDocument, listDocuments } from "@/lib/documents/server";
 import { detectKind } from "@/lib/documents/sniff";
 import { isUuid } from "@/lib/avatar";
@@ -59,6 +59,12 @@ export async function POST(request: NextRequest) {
     const kind = await detectKind(bytes);
     const named = kindFromName(file.name);
     if (!kind || kind !== named) return fail("Only PDF, DOC, DOCX, JPG and PNG files are accepted, and the file must match its type.", 400);
+
+    if (!kindSuits(meta.data.category, kind)) {
+      return fail(categoryOf(meta.data.category)?.accept === "image" ? "This one must be a JPG or PNG photo." : "This one must be a PDF file.", 400);
+    }
+    // Offer and joining letters are issued by HR; an employee only downloads them.
+    if (categoryOf(meta.data.category)?.group === "hr" && me.role !== "admin") return fail("Only HR can add this document.", 403);
 
     const supabase = await createClient();
     const key = `${target}/${crypto.randomUUID()}`; // the stored name is random; the real name is only kept as text in the database

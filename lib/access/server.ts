@@ -1,4 +1,5 @@
 import "server-only";
+import { nameFromEmail } from "@/lib/nameFromEmail";
 import { db, requireAdmin } from "@/lib/timesheet/auth";
 import { TimesheetError, toError } from "@/lib/timesheet/errors";
 import { allowedDomains, isAllowedDomain, toRole, type Role, type SignInMethod } from "./config";
@@ -23,6 +24,9 @@ export type AccessRow = {
   /** Has this person signed in at least once (they have a profile)? */
   signedIn: boolean;
   managerEmail: string;
+  /** From the payroll employee details; empty until an admin sets it. */
+  department: string;
+  joinedOn: string | null;
   seeded: boolean;
   isSelf: boolean;
 };
@@ -44,11 +48,14 @@ export async function loadAccess(): Promise<AccessData> {
   const me = await requireAdmin();
   const supabase = await db();
   const domains = allowedDomains();
-  const [profiles, allowed, audit] = await Promise.all([
+  const [profiles, allowed, audit, details] = await Promise.all([
     supabase.from("profiles").select("id, email, full_name, role, status, access_expires_on, last_login_at, manager_id").limit(5000),
     supabase.from("allowed_users").select("email, name, role, status, expires_on, login_method, seeded").limit(5000),
     supabase.from("access_audit").select("id, actor_email, action, target, detail, created_at").order("created_at", { ascending: false }).limit(60),
+    // Optional: before the payroll tables exist there are no departments, and that must not break this page.
+    supabase.from("employee_details").select("user_id, department, joined_on").limit(5000),
   ]);
+  const detailBy = new Map((details.error ? [] : details.data).map((d) => [d.user_id, d]));
   for (const r of [profiles, allowed, audit]) {
     if (r.error && MISSING.has(r.error.code ?? "")) return { ready: false, rows: [], audit: [], managers: [], domains };
     if (r.error) throw toError(r.error, "Couldn't load the access list. Please try again.");
@@ -70,6 +77,8 @@ export async function loadAccess(): Promise<AccessData> {
       lastLogin: p.last_login_at,
       signedIn: true,
       managerEmail: p.manager_id ? (emailOfId.get(p.manager_id) ?? "") : "",
+      department: detailBy.get(p.id)?.department ?? "",
+      joinedOn: detailBy.get(p.id)?.joined_on ?? null,
       seeded: false,
       isSelf: p.id === me.id,
     });
@@ -94,6 +103,8 @@ export async function loadAccess(): Promise<AccessData> {
         lastLogin: null,
         signedIn: false,
         managerEmail: "",
+        department: "",
+        joinedOn: null,
         seeded: a.seeded,
         isSelf: false,
       });
@@ -103,6 +114,8 @@ export async function loadAccess(): Promise<AccessData> {
   for (const row of byEmail.values()) {
     if (row.type === "domain" && !isAllowedDomain(row.email, domains)) row.type = "manual";
   }
+  // A work address gives the name by itself, even before the person has signed in.
+  for (const row of byEmail.values()) if (!row.name) row.name = nameFromEmail(row.email)?.full ?? "";
   const rows = [...byEmail.values()].sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email));
   return {
     ready: true,
@@ -180,4 +193,15 @@ export async function setManager(email: string, managerEmail: string): Promise<v
   const supabase = await db();
   const { error } = await supabase.rpc("access_set_manager", { p_email: e, p_manager_email: m });
   return rpcError(error, "Couldn't set the manager. Please try again.");
+}
+
+/** An admin sets someone's name (for people whose email isn't on the company domain; the others get it from their email). */
+export async function setPersonName(userId: string, first: string, last: string): Promise<void> {
+  await requireAdmin();
+  const name = [first, last].map((s) => String(s ?? "").trim()).filter(Boolean).join(" ");
+  if (!/^[0-9a-f-]{36}$/i.test(userId)) throw new TimesheetError("That person could not be found.");
+  if (!name || name.length > 100) throw new TimesheetError("Enter a first name (and a last name if they have one), up to 100 characters in all.");
+  const supabase = await db();
+  const { error } = await supabase.rpc("admin_set_name" as never, { p_user: userId, p_name: name } as never);
+  return rpcError(error, "Couldn't save the name. Please try again.");
 }

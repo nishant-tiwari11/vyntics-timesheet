@@ -2,6 +2,7 @@
 
 import { logError } from "@/lib/timesheet/log";
 import { revalidatePath } from "next/cache";
+import type { DayPart } from "@/lib/timesheet/leaveCore";
 import { TimesheetError } from "@/lib/timesheet/errors";
 import { todayInOffice } from "@/lib/timesheet/dates";
 import { cancelRequest, createRequest } from "@/lib/timesheet/requests";
@@ -22,7 +23,7 @@ export async function createRequestAction(input: {
   from: string;
   to: string;
   note: string;
-  compOff?: boolean;
+  part?: DayPart;
 }): Promise<ActionResult> {
   try {
     // The browser also limits these, but the server re-checks everything.
@@ -32,7 +33,7 @@ export async function createRequestAction(input: {
     if (typeof input?.note === "string" && input.note.trim().length > REASON_MAX) {
       throw new TimesheetError(`Keep the reason to ${REASON_MAX} characters or fewer.`);
     }
-    await createRequest({ type: input.type, from: input.from, to: input.to, note: input.note, compOff: input.compOff === true });
+    await createRequest({ type: input.type, from: input.from, to: input.to, note: input.note, part: input.part });
     revalidatePath("/timesheet/leave");
     revalidatePath("/timesheet/dashboard");
     return { ok: true };

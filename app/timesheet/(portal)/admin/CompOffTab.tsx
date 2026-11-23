@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getSettings, listAll, report, type CompOffReportRow } from "@/lib/timesheet/compOff";
+import { getSettings, listAll } from "@/lib/timesheet/compOff";
 import { daysText, type CompOffRequest, type CompOffSettings } from "@/lib/timesheet/compOffCore";
 import { formatYmd } from "@/lib/timesheet/dates";
 import { TimesheetError } from "@/lib/timesheet/errors";
 import { logError } from "@/lib/timesheet/log";
 import { cn } from "@/lib/utils";
 import { SectionError } from "../dashboard/sections";
-import { CompOffSettingsForm, DecideCompOff, ExportReport } from "./CompOffControls";
+import { DecideCompOff, EditRulesButton } from "./CompOffControls";
 
-const BASE = "/timesheet/admin?tab=compoff";
+const BASE = "/timesheet/admin/approvals?view=compoff";
 const STATUS = { pending: "○ Pending", approved: "✓ Approved", rejected: "✕ Rejected", cancelled: "Cancelled" } as const;
 
 async function load<T>(fn: () => Promise<T>): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
@@ -36,14 +36,15 @@ function Heading({ title, children }: { title: string; children?: React.ReactNod
 
 export async function CompOffTab({ filterParam }: { filterParam?: string }) {
   const filter = filterParam === "all" ? "all" : "pending";
-  const [requests, settings, rep] = await Promise.all([load(() => listAll(filter)), load(getSettings), load(report)]);
+  const [requests, settings] = await Promise.all([load(() => listAll(filter)), load(getSettings)]);
 
   return (
     <div className="grid gap-8">
       {/* Requests */}
       <section aria-label="Comp-off requests">
-        <Heading title="Comp-off requests">
-          <nav aria-label="Filter requests" className="flex gap-1.5">
+        <Heading title="Comp-off credit requests">
+          <nav aria-label="Filter requests" className="flex flex-wrap items-center gap-1.5">
+            {settings.ok && <EditRulesButton settings={settings.data as CompOffSettings} />}
             <Link href={BASE} aria-current={filter === "pending" ? "page" : undefined} className={pill(filter === "pending")}>
               Waiting
             </Link>
@@ -57,31 +58,10 @@ export async function CompOffTab({ filterParam }: { filterParam?: string }) {
         ) : requests.data.length === 0 ? (
           <div className="ts-card ts-empty">
             <strong>{filter === "pending" ? "Nothing is waiting for a decision" : "No comp-off requests yet"}</strong>
-            <p>Requests appear here when employees ask for comp-off for weekend or holiday work.</p>
+            <p>Credit requests appear here when employees work on a weekend or holiday.</p>
           </div>
         ) : (
           <RequestsTable rows={requests.data} />
-        )}
-      </section>
-
-      {/* Rules */}
-      <section aria-label="Comp-off rules">
-        <Heading title="Rules" />
-        <div className="ts-card">{!settings.ok ? <SectionError message={settings.error} /> : <CompOffSettingsForm settings={settings.data as CompOffSettings} />}</div>
-      </section>
-
-      {/* Report */}
-      <section aria-label="Comp-off report">
-        <Heading title="Report">{rep.ok && <ExportReport rows={rep.data} />}</Heading>
-        {!rep.ok ? (
-          <SectionError message={rep.error} />
-        ) : rep.data.length === 0 ? (
-          <div className="ts-card ts-empty">
-            <strong>No comp-off balances yet</strong>
-            <p>Earned, used and expiring comp-off per employee will show here once requests are approved.</p>
-          </div>
-        ) : (
-          <ReportTable rows={rep.data} />
         )}
       </section>
     </div>
@@ -147,41 +127,6 @@ function RequestsTable({ rows }: { rows: CompOffRequest[] }) {
               </TableRow>
             );
           })}
-        </TableBody>
-      </Table>
-    </div>
-  );
-}
-
-function ReportTable({ rows }: { rows: CompOffReportRow[] }) {
-  return (
-    <div className="overflow-x-auto rounded-lg border">
-      <Table>
-        <caption className="sr-only">Comp-off earned, used and expiring per employee</caption>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Employee</TableHead>
-            <TableHead className="text-right">Earned</TableHead>
-            <TableHead className="text-right">Used</TableHead>
-            <TableHead className="text-right">Expired</TableHead>
-            <TableHead className="text-right">Available</TableHead>
-            <TableHead className="text-right">Expiring in 14 days</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((r) => (
-            <TableRow key={r.userId}>
-              <TableCell>
-                <div className="font-medium">{r.name}</div>
-                <div className="text-xs text-muted-foreground">{r.email}</div>
-              </TableCell>
-              <TableCell className="text-right tabular-nums">{r.earned}</TableCell>
-              <TableCell className="text-right tabular-nums">{r.used}</TableCell>
-              <TableCell className="text-right tabular-nums">{r.expired}</TableCell>
-              <TableCell className="text-right font-medium tabular-nums">{r.available}</TableCell>
-              <TableCell className="text-right tabular-nums">{r.expiringSoon > 0 ? `${r.expiringSoon}` : "0"}</TableCell>
-            </TableRow>
-          ))}
         </TableBody>
       </Table>
     </div>

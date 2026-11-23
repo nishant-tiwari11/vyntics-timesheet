@@ -3,6 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { getSettings, listMine, myBalance } from "@/lib/timesheet/compOff";
 import { daysText, type CompOffRequest } from "@/lib/timesheet/compOffCore";
 import { addDays, formatYmd, todayInOffice } from "@/lib/timesheet/dates";
+import { dayWord } from "@/lib/timesheet/leaveCore";
 import { TimesheetError } from "@/lib/timesheet/errors";
 import { offDatesBetween } from "@/lib/timesheet/holidays";
 import { logError } from "@/lib/timesheet/log";
@@ -44,7 +45,7 @@ export default async function CompOffSection() {
         <>
           <dl className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              ["Available", daysText(loaded.balance.available)],
+              ["Balance", dayWord(loaded.balance.balance)],
               ["Expiring soon", daysText(loaded.balance.expiringSoon)],
               ["Earned", daysText(loaded.balance.earned)],
               ["Used", daysText(loaded.balance.used)],
@@ -55,9 +56,13 @@ export default async function CompOffSection() {
               </div>
             ))}
           </dl>
+          {loaded.balance.shortfall > 0 && (
+            <p role="status" className="mb-4 rounded-md border border-dashed px-3 py-2 text-sm">
+              You took {dayWord(loaded.balance.shortfall)} of comp-off leave before earning it. Work on a weekend or holiday to pay it back.
+            </p>
+          )}
           <p className="mb-4 text-sm text-muted-foreground">
-            Work on a weekend, a public holiday or a festival creates a comp-off request automatically from your time log. You can also ask yourself with Earn comp-off. Credits expire {loaded.settings.expiryDays} days after approval. Use them from the
-            leave form above by choosing Comp-off.
+            Work on a weekend, a public holiday or a festival creates a comp-off request automatically from your time log. You can also ask yourself with Earn comp-off. Credits expire {loaded.settings.expiryDays} days after approval. When you take leave, your admin decides while approving whether it is paid leave or comp-off.
           </p>
 
           {loaded.history.length === 0 ? (

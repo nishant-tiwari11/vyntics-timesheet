@@ -15,6 +15,7 @@ import {
 import { isWeekend, todayInOffice } from "./dates";
 import { TimesheetError, assertDate, assertId, toError } from "./errors";
 import { listHolidaysBetween } from "./holidays";
+import { isDayPart, leaveDays } from "./leaveCore";
 import { isDayOff } from "./holidayTypes";
 import { listMyHoursByDate } from "./logs";
 import { displayName } from "./people";
@@ -98,11 +99,20 @@ async function offSet(from: string, to: string): Promise<Set<string>> {
   return new Set(list.filter((h) => isDayOff(h.type)).map((h) => h.date));
 }
 
-/** Credits and booked leave days for these people (an admin may ask for anyone; everyone else only for themselves). */
-async function loadLedger(userIds: string[] | "all") {
+/**
+ * Credits and the comp-off leave taken, for these people (an admin may ask for anyone; everyone else only for themselves).
+ * Leave counts once an admin has approved it as comp-off leave (half days cost half). Leave an employee asked to pay with
+ * comp-off under the old form, and that is still waiting, is held against the balance too.
+ */
+export async function loadLedger(userIds: string[] | "all") {
   const supabase = await db();
   let credits = supabase.from("comp_off_requests").select("id, user_id, credit, expires_on").eq("status", "approved").not("expires_on", "is", null);
-  let leave = supabase.from("requests").select("user_id, from_date, to_date").eq("comp_off", true).in("status", ["pending", "approved"]);
+  let leave = supabase
+    .from("requests")
+    .select("user_id, from_date, to_date, day_part, status, leave_kind, comp_off")
+    .eq("type", "leave")
+    .or("leave_kind.eq.comp_off,comp_off.eq.true")
+    .in("status", ["pending", "approved"]);
   if (userIds !== "all") {
     credits = credits.in("user_id", userIds);
     leave = leave.in("user_id", userIds);
@@ -110,8 +120,9 @@ async function loadLedger(userIds: string[] | "all") {
   const [c, l] = await Promise.all([credits.limit(5000), leave.limit(5000)]);
   if (c.error) throw toError(c.error, "Couldn't load comp-off. Please try again.");
   if (l.error) throw toError(l.error, "Couldn't load comp-off. Please try again.");
+  const taken = l.data.filter((r) => (r.leave_kind === "comp_off" && r.status === "approved") || (r.leave_kind === null && r.comp_off));
 
-  const dates = l.data.flatMap((r) => [r.from_date, r.to_date]).sort();
+  const dates = taken.flatMap((r) => [r.from_date, r.to_date]).sort();
   const off = dates.length ? await offSet(dates[0], dates[dates.length - 1]) : new Set<string>();
 
   const creditsBy = new Map<string, CompOffCredit[]>();
@@ -120,10 +131,10 @@ async function loadLedger(userIds: string[] | "all") {
     list.push({ id: r.id, credit: r.credit, expiresOn: r.expires_on as string });
     creditsBy.set(r.user_id, list);
   }
-  const usesBy = new Map<string, string[]>();
-  for (const r of l.data) {
+  const usesBy = new Map<string, { date: string; days: number }[]>();
+  for (const r of taken) {
     const list = usesBy.get(r.user_id) ?? [];
-    list.push(...daysSpent(r.from_date, r.to_date, off));
+    list.push(...leaveDays(r.from_date, r.to_date, isDayPart(r.day_part) ? r.day_part : "full", off));
     usesBy.set(r.user_id, list);
   }
   return { creditsBy, usesBy };

@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 
 export default async function LeavePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   // An admin decides requests (Admin > Leave & approvals); they do not apply here.
-  if ((await getCurrentUser())?.role === "admin") redirect("/timesheet/admin?tab=requests");
+  if ((await getCurrentUser())?.role === "admin") redirect("/timesheet/admin/approvals");
   const raw = (await searchParams).type;
   const t = Array.isArray(raw) ? raw[0] : raw;
   const initialType = t === "wfh" || t === "comp" ? t : "leave";

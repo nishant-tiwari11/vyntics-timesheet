@@ -2,8 +2,8 @@ import { cookies } from "next/headers";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ROLE_LABEL, type Role } from "@/lib/access/config";
+import { AdminTopNav } from "./AdminTopNav";
 import { CommandPalette } from "./CommandPalette";
-import { CompleteProfilePrompt } from "./CompleteProfilePrompt";
 import { MobileNav } from "./MobileNav";
 import { NavCountsProvider } from "./NavCounts";
 import { PageTitle } from "./NavLinks";
@@ -16,12 +16,15 @@ export default async function Shell({
   email,
   name,
   role,
+  rejectedDocs = 0,
   children,
 }: {
   id: string;
   email: string;
   name?: string | null;
   role: Role;
+  /** Documents HR sent back to this person. */
+  rejectedDocs?: number;
   children: React.ReactNode;
 }) {
   const shown = name || email;
@@ -31,10 +34,11 @@ export default async function Shell({
 
   return (
     <NavCountsProvider>
-      <div className="ts-shell">
+      <div className="ts-shell" data-topnav={role === "admin" && collapsed}>
         <Sidebar user={user} initialCollapsed={collapsed} />
 
         <div className="ts-content">
+          {role === "admin" && <AdminTopNav />}
           <header className="ts-topbar">
             <MobileNav user={user} />
             <PageTitle />
@@ -62,7 +66,14 @@ export default async function Shell({
               <UserMenu id={id} name={shown} email={email} roleLabel={ROLE_LABEL[role]} />
             </div>
           </header>
-          {role !== "viewer" && <CompleteProfilePrompt userId={id} />}
+          {rejectedDocs > 0 && (
+            <p role="alert" className="mx-6 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              HR sent back {rejectedDocs} {rejectedDocs === 1 ? "document" : "documents"}. Please upload {rejectedDocs === 1 ? "it" : "them"} again.
+              <a href="/timesheet/onboarding" className="font-medium underline underline-offset-4">
+                Fix now
+              </a>
+            </p>
+          )}
           <main className="ts-main">
             {role === "viewer" && (
               <p role="note" className="mb-4 rounded-md border border-dashed px-3 py-2 text-sm">

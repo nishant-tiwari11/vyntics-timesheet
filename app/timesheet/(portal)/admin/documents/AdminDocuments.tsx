@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { Bell, Check, Download, Eye, FileArchive, Loader2, Search, X } from "lucide-react";
+import { Check, Download, Eye, FileArchive, Loader2, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,18 +11,21 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CATEGORIES, STATUS_LABEL, categoryLabel, expiryState, fmtSize, type DocStatus } from "@/lib/documents/config";
+import { OFFERED_CATEGORIES, STATUS_LABEL, categoryLabel, expiryState, fmtSize, type DocStatus } from "@/lib/documents/config";
 import type { AdminDoc, AuditRow, EmployeeDocs } from "@/lib/documents/admin";
 import { formatInstantDate, formatYmd } from "@/lib/timesheet/dates";
 import { UserAvatar } from "../../../_components/UserAvatar";
 import { DocumentPreviewModal, type PreviewDoc } from "../../profile/documents/DocumentPreviewModal";
 import { StatusBadge } from "../../profile/documents/DocumentList";
 import { ReviewDialog, type ReviewTarget } from "../../profile/documents/ReviewDialog";
-import { sendReminderAction, setManagerSensitiveAction } from "./actions";
+import { setManagerSensitiveAction } from "./actions";
+import type { OnboardingRow } from "@/lib/onboarding/server";
+import { ActionRequired } from "./ActionRequired";
 import { OfferLetterTab, type OfferTemplateInfo } from "./OfferLetterTab";
+import { OnboardingAdmin } from "./OnboardingAdmin";
 
 const ALL = "__all__";
-type View = "documents" | "missing" | "offer" | "activity" | "managers";
+type View = "action" | "onboarding" | "documents" | "offer" | "activity" | "managers";
 type Quick = "all" | "pending" | "expiring";
 
 const ACTION: Record<string, string> = {
@@ -36,10 +39,10 @@ const ACTION: Record<string, string> = {
   visibility: "Changed visibility of",
 };
 
-const profileLink = (id: string) => `/timesheet/profile?user=${id}&tab=documents`;
+const profileLink = (id: string) => `/timesheet/admin/access/${id}`;
 
-export function AdminDocuments({ docs, employees, audit, truncated, today, offerTemplate }: { docs: AdminDoc[]; employees: EmployeeDocs[]; audit: AuditRow[]; truncated: boolean; today: string; offerTemplate: OfferTemplateInfo }) {
-  const [view, setView] = useState<View>("documents");
+export function AdminDocuments({ docs, employees, audit, truncated, today, offerTemplate, onboarding }: { docs: AdminDoc[]; employees: EmployeeDocs[]; audit: AuditRow[]; truncated: boolean; today: string; offerTemplate: OfferTemplateInfo; onboarding: OnboardingRow[] }) {
+  const [view, setView] = useState<View>("action");
   const [quick, setQuick] = useState<Quick>("all");
   const [q, setQ] = useState("");
   const [category, setCategory] = useState(ALL);
@@ -50,11 +53,14 @@ export function AdminDocuments({ docs, employees, audit, truncated, today, offer
   const [zipping, setZipping] = useState(false);
   const [, startTransition] = useTransition();
   const [sensitive, setSensitive] = useState<Record<string, boolean>>({});
-  const [reminded, setReminded] = useState<Set<string>>(new Set());
 
   const pending = docs.filter((d) => d.status === "pending").length;
   const expiring = docs.filter((d) => expiryState(d.expiryDate, today) !== null).length;
-  const needsDocs = employees.filter((e) => e.missing.length > 0 && (e.role === "employee" || e.role === "manager"));
+  const people = employees.filter((e) => e.role === "employee" || e.role === "manager");
+  const hasLetter = (id: string, cat: string) => docs.some((d) => d.userId === id && d.category === cat && d.status !== "rejected");
+  const lettersToIssue = people.filter((e) => !hasLetter(e.id, "offer_letter") || !hasLetter(e.id, "appointment_letter")).length;
+  const toVerify = docs.filter((d) => d.status === "pending" && !["offer_letter", "appointment_letter"].includes(d.category)).length;
+  const unfinished = onboarding.filter((r) => r.status !== "submitted").length;
 
   const needle = q.trim().toLowerCase();
   const shown = docs.filter(
@@ -90,16 +96,6 @@ export function AdminDocuments({ docs, employees, audit, truncated, today, offer
     setZipping(false);
   }
 
-  function remind(e: EmployeeDocs) {
-    startTransition(async () => {
-      const res = await sendReminderAction(e.id);
-      if (res.ok) {
-        setReminded((s) => new Set(s).add(e.id));
-        toast.success(res.message ?? "Reminder sent.");
-      } else toast.error(res.error);
-    });
-  }
-
   function toggleSensitive(e: EmployeeDocs, allowed: boolean) {
     setSensitive((s) => ({ ...s, [e.id]: allowed }));
     startTransition(async () => {
@@ -113,8 +109,9 @@ export function AdminDocuments({ docs, employees, audit, truncated, today, offer
   }
 
   const tabs: { id: View; label: string; count?: number }[] = [
-    { id: "documents", label: "Documents", count: docs.length },
-    { id: "missing", label: "Missing documents", count: needsDocs.length },
+    { id: "action", label: "Action required", count: lettersToIssue + toVerify },
+    { id: "onboarding", label: "Onboarding", count: unfinished },
+    { id: "documents", label: "All documents", count: docs.length },
     { id: "offer", label: "Offer letter" },
     { id: "activity", label: "Activity" },
     { id: "managers", label: "Manager access" },
@@ -164,7 +161,7 @@ export function AdminDocuments({ docs, employees, audit, truncated, today, offer
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={ALL}>All categories</SelectItem>
-                {CATEGORIES.map((c) => (
+                {OFFERED_CATEGORIES.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.label}
                   </SelectItem>
@@ -298,40 +295,19 @@ export function AdminDocuments({ docs, employees, audit, truncated, today, offer
         </section>
       )}
 
-      {view === "missing" && (
-        <section className="grid gap-3" aria-label="Employees with missing documents">
-          <p className="text-sm text-muted-foreground">Employees who haven&apos;t uploaded every required document. Send a reminder and it appears in their notifications (once a day per person).</p>
-          {needsDocs.length === 0 ? (
-            <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground" role="status">
-              Everyone has uploaded all required documents.
-            </p>
-          ) : (
-            <ul className="divide-y rounded-xl border bg-card">
-              {[...needsDocs]
-                .sort((a, b) => b.missing.length - a.missing.length || a.name.localeCompare(b.name))
-                .map((e) => (
-                  <li key={e.id} className="grid gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                    <div className="flex min-w-0 items-start gap-3">
-                      <UserAvatar userId={e.id} name={e.name} className="size-8 text-xs" />
-                      <div className="min-w-0">
-                        <Link href={profileLink(e.id)} className="font-medium hover:underline">
-                          {e.name}
-                        </Link>
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          {e.done} of {e.total} uploaded
-                        </span>
-                        <p className="text-xs break-words text-muted-foreground">Missing: {e.missing.join(", ")}</p>
-                      </div>
-                    </div>
-                    <Button type="button" variant="outline" size="sm" className="max-md:min-h-11" disabled={reminded.has(e.id)} onClick={() => remind(e)}>
-                      <Bell aria-hidden="true" /> {reminded.has(e.id) ? "Reminded" : "Send reminder"}
-                    </Button>
-                  </li>
-                ))}
-            </ul>
-          )}
-        </section>
+      {view === "action" && (
+        <ActionRequired
+          docs={docs}
+          employees={employees}
+          pendingOnboarding={unfinished}
+          onOpenLetters={() => setView("offer")}
+          onOpenOnboarding={() => setView("onboarding")}
+          onPreview={setPreview}
+          onReview={setReview}
+        />
       )}
+
+      {view === "onboarding" && <OnboardingAdmin rows={onboarding} onPreview={setPreview} onReview={setReview} />}
 
       {view === "offer" && <OfferLetterTab employees={employees.filter((e) => e.role !== "viewer")} today={today} template={offerTemplate} />}
 

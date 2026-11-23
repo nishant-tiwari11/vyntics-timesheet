@@ -28,5 +28,8 @@ export async function GET(request: NextRequest) {
     return login(verdict === "disabled" || verdict === "expired" ? verdict : "not_allowed");
   }
 
+  // The name comes from the work email (ved.sharma@vyntics.com is Ved Sharma). Before step35 this function doesn't exist, which is fine.
+  await supabase.rpc("profile_sync_name" as never);
+
   return NextResponse.redirect(new URL("/timesheet", url.origin));
 }
