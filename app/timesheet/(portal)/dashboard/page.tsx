@@ -1,6 +1,5 @@
 import "./dashboard.css";
 import Link from "next/link";
-import { Home, Palmtree, Receipt } from "lucide-react";
 import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
 import { formatTodayLong, greeting, todayInOffice } from "@/lib/timesheet/dates";
@@ -46,20 +45,8 @@ export default async function DashboardPage({
           </h1>
           <p className="ts-muted">{formatTodayLong()}</p>
         </div>
-      </header>
-
-      <nav className="ts-quick" aria-label="Quick actions">
         <AddLogButton today={today} />
-        <Link href="/timesheet/leave?type=leave" className="ts-quick-link">
-          <Palmtree aria-hidden="true" /> Apply leave
-        </Link>
-        <Link href="/timesheet/leave?type=wfh" className="ts-quick-link">
-          <Home aria-hidden="true" /> Request WFH
-        </Link>
-        <Link href="/timesheet/expenses" className="ts-quick-link">
-          <Receipt aria-hidden="true" /> Add expense
-        </Link>
-      </nav>
+      </header>
 
       <Suspense fallback={<StatsSkeleton />}>
         <StatCards />

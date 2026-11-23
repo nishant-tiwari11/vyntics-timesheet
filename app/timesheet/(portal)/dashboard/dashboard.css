@@ -1378,43 +1378,6 @@
 }
 
 /* ---------- Dashboard: status, ring, quick actions, snapshot grid ---------- */
-.ts-quick {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.ts-quick-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  padding: 0 14px;
-  border: 1px solid var(--ts-border);
-  border-radius: var(--ts-radius);
-  background: var(--ts-surface);
-  color: var(--ts-text);
-  font-size: 14px;
-  font-weight: 500;
-  text-decoration: none;
-}
-.ts-quick-link:hover {
-  background: var(--muted);
-}
-.ts-quick-link:focus-visible {
-  outline: 2px solid var(--ring, currentColor);
-  outline-offset: 2px;
-}
-.ts-quick-link svg {
-  width: 16px;
-  height: 16px;
-}
-@media (max-width: 640px) {
-  .ts-quick > * {
-    flex: 1 1 calc(50% - 10px);
-    justify-content: center;
-    min-height: 44px;
-  }
-}
 
 .ts-ring {
   position: relative;
@@ -1634,3 +1597,4 @@
   outline: 2px solid var(--ts-text);
   outline-offset: 2px;
 }
+
