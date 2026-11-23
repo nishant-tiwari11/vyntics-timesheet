@@ -36,7 +36,7 @@ const icon = (l: NavLink) => (
   </svg>
 );
 
-const LINKS = menuFor("admin");
+const LINKS = menuFor("admin").filter((l) => l.pill !== false);
 const ITEMS: LiquidNavItem[] = LINKS.map((l) => ({ label: l.label, icon: icon(l), fx: FX[l.icon] ?? "pop" }));
 // Icons only, so the floating pill stays small; each one has its name as a tooltip and for screen readers.
 

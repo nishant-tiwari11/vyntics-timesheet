@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { setOnboardingSkip } from "@/lib/onboarding/server";
 import { addMany, addUser, removeUser, resetPassword, setManager, setPersonName, updateUser } from "@/lib/access/server";
 import type { AddUserInput } from "@/lib/access/schemas";
 import { TimesheetError } from "@/lib/timesheet/errors";
@@ -18,9 +19,12 @@ function fail(e: unknown): AccessResult {
 
 const refresh = () => revalidatePath("/timesheet/admin/access");
 
-export async function addUserAction(input: AddUserInput): Promise<AccessResult> {
+export async function addUserAction(input: AddUserInput & { skipOnboarding?: boolean }): Promise<AccessResult> {
   try {
-    await addUser(input);
+    const { skipOnboarding, ...rest } = input;
+    await addUser(rest);
+    // "Skip onboarding": they sign in and use the portal straight away, without the documents and bank details.
+    if (skipOnboarding === true) await setOnboardingSkip(String(rest.email ?? ""), true);
     refresh();
     return { ok: true };
   } catch (e) {

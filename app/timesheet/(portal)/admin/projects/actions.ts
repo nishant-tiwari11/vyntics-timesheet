@@ -24,10 +24,17 @@ async function call(fn: string, args: Record<string, unknown>, done: string): Pr
   return { ok: true, message: done };
 }
 
-export async function addProjectAction(name: string): Promise<ProjectResult> {
+export async function addProjectAction(name: string, category: string): Promise<ProjectResult> {
   const n = typeof name === "string" ? name.trim() : "";
   if (!n) return { ok: false, error: "Enter the project's name." };
-  return call("project_add", { p_name: n }, `Added ${n}.`);
+  const cat = category === "client" || category === "internal" ? category : "other";
+  return call("project_add", { p_name: n, p_category: cat }, `Added ${n}.`);
+}
+
+export async function setProjectCategoryAction(id: string, category: string): Promise<ProjectResult> {
+  if (!isUuid(id)) return { ok: false, error: "That project could not be found." };
+  if (category !== "client" && category !== "internal" && category !== "other") return { ok: false, error: "Choose client work, internal or other." };
+  return call("project_set_category", { p_id: id, p_category: category }, "Moved.");
 }
 
 export async function renameProjectAction(id: string, name: string): Promise<ProjectResult> {

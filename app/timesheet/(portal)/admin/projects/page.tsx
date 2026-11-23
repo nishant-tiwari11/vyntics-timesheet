@@ -33,14 +33,14 @@ export default async function ProjectsPage() {
 
   const projects: ProjectView[] = rows.map((p) => {
     const u = usage.get(p.name);
-    return { id: p.id, name: p.name, active: p.active, entries: u?.entries ?? 0, hours: u?.hours ?? 0, lastUsed: u?.last_used ?? "" };
+    return { id: p.id, name: p.name, active: p.active, category: p.category, entries: u?.entries ?? 0, hours: u?.hours ?? 0, lastUsed: u?.last_used ?? "" };
   });
 
   return (
     <>
       <div className="grid gap-1">
         <h1 className="ts-h1">Projects</h1>
-        <p className="ts-muted">What people can log time against.</p>
+        <p className="ts-muted">What people can log time against, grouped as client work, internal work and other. Hours already logged stay when a project is archived.</p>
       </div>
       {ready ? (
         <ProjectsManager projects={projects} />

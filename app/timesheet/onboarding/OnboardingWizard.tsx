@@ -1,19 +1,19 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
-import { CheckCircle2, Circle, FileText, Loader2, Trash2, Upload } from "lucide-react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { CheckCircle2, Circle, FileText } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DOC_MAX_BYTES, STATUS_LABEL, acceptAttrFor, categoryLabel, fmtSize, kindFromName, kindSuits } from "@/lib/documents/config";
+import { categoryLabel } from "@/lib/documents/config";
 import type { DocRow } from "@/lib/documents/server";
 import type { MyOnboarding } from "@/lib/onboarding/server";
-import { ACCOUNT_TYPES, checkBank, missingForSubmit, neededDocs, type Answers } from "@/lib/onboarding/rules";
+import { ACCOUNT_RE, ACCOUNT_TYPES, IFSC_RE, checkBank, missingForSubmit, neededDocs, type Answers } from "@/lib/onboarding/rules";
 import { saveOnboardingAction } from "./actions";
+import { UploadSlot } from "./UploadSlot";
 
 // ---------------------------- small pieces ----------------------------
 
@@ -43,119 +43,6 @@ function Radio({ name, checked, onChange, label, disabled }: { name: string; che
   );
 }
 
-function DocStatus({ doc }: { doc: DocRow }) {
-  return (
-    <Badge variant={doc.status === "verified" ? "default" : doc.status === "rejected" ? "destructive" : "outline"}>{STATUS_LABEL[doc.status]}</Badge>
-  );
-}
-
-/** One file to upload: shows what is there, lets you add, replace or remove it. */
-function UploadSlot({ category, label, hint, docs, multiple, locked, replaceable }: { category: string; label: string; hint: string; docs: DocRow[]; multiple?: boolean; locked: boolean; replaceable: boolean }) {
-  const router = useRouter();
-  const input = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState(false);
-  const [replacing, setReplacing] = useState<string | null>(null);
-  const mine = docs.filter((d) => d.category === category);
-
-  async function send(file: File, replaceId?: string) {
-    const kind = kindFromName(file.name);
-    if (!kind || !kindSuits(category, kind)) return toast.error(category === "passport_photo" ? "Please choose a JPG or PNG photo." : "Please choose a PDF file.");
-    if (file.size > DOC_MAX_BYTES) return toast.error("That file is over 10 MB.");
-    const form = new FormData();
-    form.set("file", file);
-    form.set("category", category);
-    form.set("name", categoryLabel(category));
-    if (replaceId) form.set("replaceId", replaceId);
-    setBusy(true);
-    try {
-      const res = await fetch("/api/documents", { method: "POST", body: form });
-      const body = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-      if (!res.ok || !body.ok) toast.error(body.error ?? "Couldn't upload. Please try again.");
-      else {
-        toast.success("Uploaded.");
-        router.refresh();
-      }
-    } catch {
-      toast.error("Couldn't reach the server. Please try again.");
-    }
-    setBusy(false);
-    setReplacing(null);
-  }
-
-  async function remove(id: string) {
-    setBusy(true);
-    const res = await fetch(`/api/documents?id=${id}`, { method: "DELETE" }).catch(() => null);
-    const body = (await res?.json().catch(() => ({}))) as { ok?: boolean; error?: string } | undefined;
-    if (!res?.ok || !body?.ok) toast.error(body?.error ?? "Couldn't remove it. Please try again.");
-    else router.refresh();
-    setBusy(false);
-  }
-
-  const canAdd = !locked && (multiple || mine.length === 0);
-
-  return (
-    <div className="grid gap-2 rounded-lg border p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="text-sm font-medium">{label}</p>
-          <p className="text-xs text-muted-foreground">{hint}</p>
-        </div>
-        {canAdd && (
-          <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => input.current?.click()}>
-            {busy ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Upload className="size-4" aria-hidden="true" />}
-            {mine.length === 0 ? "Choose file" : "Add another"}
-          </Button>
-        )}
-      </div>
-      <input
-        ref={input}
-        type="file"
-        className="sr-only"
-        tabIndex={-1}
-        accept={acceptAttrFor(category)}
-        multiple={multiple && !replacing}
-        aria-label={`Upload ${label}`}
-        onChange={async (e) => {
-          const files = Array.from(e.target.files ?? []);
-          e.target.value = "";
-          for (const f of files) await send(f, replacing ?? undefined);
-        }}
-      />
-      {mine.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Nothing uploaded yet.</p>
-      ) : (
-        <ul className="grid gap-2">
-          {mine.map((d) => (
-            <li key={d.id} className="grid gap-1 rounded-md bg-muted/50 p-2 text-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="flex min-w-0 items-center gap-2">
-                  <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                  <span className="truncate">{d.filename}</span>
-                  <span className="shrink-0 text-xs text-muted-foreground">{fmtSize(d.size)}</span>
-                </span>
-                <span className="flex items-center gap-2">
-                  <DocStatus doc={d} />
-                  {d.status === "rejected" && replaceable && (
-                    <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => (setReplacing(d.id), input.current?.click())}>
-                      Upload a new one
-                    </Button>
-                  )}
-                  {!locked && d.status !== "verified" && (
-                    <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => remove(d.id)} aria-label={`Remove ${d.filename}`}>
-                      <Trash2 className="size-4" aria-hidden="true" />
-                    </Button>
-                  )}
-                </span>
-              </div>
-              {d.status === "rejected" && d.statusReason && <p className="text-xs text-destructive">HR says: {d.statusReason}</p>}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
 // ---------------------------- the whole form ----------------------------
 
 export function OnboardingWizard({ name, email, initial }: { name: string; email: string; initial: MyOnboarding }) {
@@ -164,7 +51,26 @@ export function OnboardingWizard({ name, email, initial }: { name: string; email
   const [again, setAgain] = useState(initial.answers.bank.account);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [saved, setSaved] = useState<"idle" | "saving" | "saved">("idle");
   const locked = initial.submitted;
+
+  // Answers are saved by themselves a moment after you stop typing, so nothing is lost and HR can see how far you got.
+  const first = useRef(true);
+  useEffect(() => {
+    if (locked) return;
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setSaved("saving");
+      // A half-typed account number or IFSC would be refused, so only well-formed ones are sent while drafting.
+      const bank = { ...a.bank, account: ACCOUNT_RE.test(a.bank.account) ? a.bank.account : "", ifsc: IFSC_RE.test(a.bank.ifsc) ? a.bank.ifsc : "" };
+      const res = await saveOnboardingAction({ answers: { ...a, bank }, accountAgain: again, submit: false });
+      setSaved(res.ok ? "saved" : "idle");
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [a, again, locked]);
 
   const onboardingDocs = initial.docs.filter((d) => d.status !== "rejected");
   const uploaded = new Set(onboardingDocs.map((d) => d.category));
@@ -297,11 +203,11 @@ export function OnboardingWizard({ name, email, initial }: { name: string; email
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="bank-account">Account number</Label>
-            <Input id="bank-account" inputMode="numeric" value={a.bank.account} maxLength={20} autoComplete="off" onChange={(e) => setBank({ account: e.target.value.replace(/\s/g, "") })} />
+            <Input id="bank-account" inputMode="numeric" pattern="[0-9]*" value={a.bank.account} maxLength={20} autoComplete="off" onChange={(e) => setBank({ account: e.target.value.replace(/\D/g, "") })} />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="bank-account-again">Account number again</Label>
-            <Input id="bank-account-again" inputMode="numeric" value={again} maxLength={20} autoComplete="off" onChange={(e) => setAgain(e.target.value.replace(/\s/g, ""))} aria-invalid={again !== "" && again !== a.bank.account} />
+            <Input id="bank-account-again" inputMode="numeric" pattern="[0-9]*" value={again} maxLength={20} autoComplete="off" onChange={(e) => setAgain(e.target.value.replace(/\D/g, ""))} aria-invalid={again !== "" && again !== a.bank.account} />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="bank-ifsc">IFSC code</Label>
@@ -377,6 +283,9 @@ export function OnboardingWizard({ name, email, initial }: { name: string; email
             Save and finish later
           </Button>
         </div>
+        <p className="text-xs text-muted-foreground" role="status">
+          {saved === "saving" ? "Saving your answers..." : saved === "saved" ? "Your answers are saved." : "Your answers are saved as you go."}
+        </p>
         <p className="text-xs text-muted-foreground">After you submit, HR checks your documents. You can&apos;t edit your answers after that, but you can replace anything HR sends back.</p>
       </div>
     </div>

@@ -69,7 +69,7 @@ export default async function Shell({
           {rejectedDocs > 0 && (
             <p role="alert" className="mx-6 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               HR sent back {rejectedDocs} {rejectedDocs === 1 ? "document" : "documents"}. Please upload {rejectedDocs === 1 ? "it" : "them"} again.
-              <a href="/timesheet/onboarding" className="font-medium underline underline-offset-4">
+              <a href="/timesheet/profile?tab=documents" className="font-medium underline underline-offset-4">
                 Fix now
               </a>
             </p>

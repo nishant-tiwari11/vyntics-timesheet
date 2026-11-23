@@ -60,7 +60,7 @@ export function AdminDocuments({ docs, employees, audit, truncated, today, offer
   const hasLetter = (id: string, cat: string) => docs.some((d) => d.userId === id && d.category === cat && d.status !== "rejected");
   const lettersToIssue = people.filter((e) => !hasLetter(e.id, "offer_letter") || !hasLetter(e.id, "appointment_letter")).length;
   const toVerify = docs.filter((d) => d.status === "pending" && !["offer_letter", "appointment_letter"].includes(d.category)).length;
-  const unfinished = onboarding.filter((r) => r.status !== "submitted").length;
+  const unfinished = onboarding.filter((r) => r.status !== "submitted" && r.status !== "skipped").length;
 
   const needle = q.trim().toLowerCase();
   const shown = docs.filter(

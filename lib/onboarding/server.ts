@@ -71,7 +71,13 @@ export async function getOnboardingGate(): Promise<OnboardingGate> {
       return { locked: false, rejected: 0 };
     }
     const submitted = (row.data as unknown as { submitted_at: string | null } | null)?.submitted_at ?? null;
-    return { locked: submitted === null, rejected: rejected.error ? 0 : (rejected.count ?? 0) };
+    let locked = submitted === null;
+    if (locked) {
+      // An admin can skip onboarding for a person (kept by email). Before step38 the function doesn't exist: nobody is skipped.
+      const skipped = await supabase.rpc("onboarding_exempt" as never);
+      if (!skipped.error && skipped.data === true) locked = false;
+    }
+    return { locked, rejected: rejected.error ? 0 : (rejected.count ?? 0) };
   } catch (e) {
     logError("onboarding gate", e);
     return { locked: false, rejected: 0 };
@@ -144,7 +150,7 @@ export type OnboardingRow = {
   name: string;
   email: string;
   role: string;
-  status: "not_started" | "in_progress" | "submitted";
+  status: "not_started" | "in_progress" | "submitted" | "skipped";
   submittedAt: string | null;
   answers: Answers;
   /** The files this person's answers call for, each with the document (if uploaded). */
@@ -158,11 +164,13 @@ export type AdminOnboarding = { ready: boolean; rows: OnboardingRow[] };
 export async function loadAdminOnboarding(): Promise<AdminOnboarding> {
   await requireAdmin();
   const supabase = await createClient();
-  const [people, rows, docs] = await Promise.all([
+  const [people, rows, docs, exempt] = await Promise.all([
     supabase.from("profiles").select("id, full_name, email, role, status").limit(5000),
     supabase.from("employee_onboarding" as never).select(COLUMNS).limit(5000),
     supabase.from("employee_documents" as never).select("id, group_id, user_id, category, name, original_filename, mime_type, size_bytes, status, status_reason, visibility, issue_date, expiry_date, notes, uploaded_by, version, is_current, created_at").eq("is_current", true).is("deleted_at", null).limit(5000),
+    supabase.from("onboarding_exemptions" as never).select("email").limit(5000),
   ]);
+  const skippedEmails = new Set(exempt.error ? [] : ((exempt.data ?? []) as unknown as { email: string }[]).map((x) => x.email));
   if (people.error) throw toError(people.error, "Couldn't load onboarding. Please try again.");
   if (rows.error) {
     if (MISSING.has(rows.error.code ?? "")) return { ready: false, rows: [] };
@@ -191,7 +199,7 @@ export async function loadAdminOnboarding(): Promise<AdminOnboarding> {
         name: displayName(p),
         email: p.email,
         role: p.role,
-        status: (r?.submitted_at ? "submitted" : started ? "in_progress" : "not_started") as OnboardingRow["status"],
+        status: (r?.submitted_at ? "submitted" : skippedEmails.has(p.email.toLowerCase()) ? "skipped" : started ? "in_progress" : "not_started") as OnboardingRow["status"],
         submittedAt: r?.submitted_at ?? null,
         answers: a,
         items: neededDocs(a).map((n) => ({ category: n.category, label: n.label, doc: find(n.category) })),
@@ -219,4 +227,14 @@ export async function reopenOnboarding(userId: string): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("onboarding_reopen" as never, { p_user: userId } as never);
   if (error) throw toError(error, "Couldn't reopen the onboarding. Please try again.");
+}
+
+/** Skip onboarding for a person (they use the portal straight away), or require it again. Admin only. */
+export async function setOnboardingSkip(email: string, skip: boolean): Promise<void> {
+  await requireAdmin();
+  const e = String(email ?? "").trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) throw new TimesheetError("Enter a valid email address.");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("onboarding_skip" as never, { p_email: e, p_skip: skip === true } as never);
+  if (error) throw toError(error, "Couldn't change onboarding for this person. Please try again.");
 }

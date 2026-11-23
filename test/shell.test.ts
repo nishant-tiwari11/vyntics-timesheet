@@ -15,7 +15,7 @@ describe("the menu a role sees (the sidebar, the drawer and the command palette 
   });
   it("gives an admin the management menu, with none of the employee-facing pages", () => {
     const admin = labels("admin");
-    expect(admin).toEqual(["Overview", "Employees", "Documents", "Approvals", "Work logs", "Projects", "Calendar", "Holidays & leave", "Expenses", "Payroll", "Reports", "Audit log", "Settings"]);
+    expect(admin).toEqual(["Overview", "Employees", "Documents", "Approvals", "Work logs", "Projects", "Calendar", "Holidays & leave", "Expenses", "Payroll runs", "Salary structures", "Payroll history", "Payslip queries", "Payroll settings", "Reports", "Audit log", "Settings"]);
     for (const own of ["Dashboard", "My Salary", "Leave & WFH"]) expect(admin).not.toContain(own);
   });
   it("gives every link a portal address", () => {

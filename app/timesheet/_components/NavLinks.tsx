@@ -121,6 +121,8 @@ export type NavLink = {
   icon: IconName;
   /** A heading the item sits under in the admin sidebar. */
   group?: string;
+  /** Left out of the floating top menu (it only has room for the main pages). */
+  pill?: false;
   /** Only the exact address counts (a prefix would also light up every page below it). */
   exact?: boolean;
   /** For a link to a `?tab=` view of one page: the tab values that belong to it. */
@@ -149,7 +151,11 @@ const ADMIN_MENU: NavLink[] = [
   { href: "/timesheet/calendar", label: "Calendar", icon: "calendar", group: "Work" },
   { href: "/timesheet/admin?tab=holidays", label: "Holidays & leave", icon: "holidays", tabs: ["holidays"], group: "Work" },
   { href: "/timesheet/payroll/expenses", label: "Expenses", icon: "expenses", group: "Money" },
-  { href: "/timesheet/payroll", label: "Payroll", icon: "payroll", group: "Money" },
+  { href: "/timesheet/payroll/runs", label: "Payroll runs", icon: "payroll", group: "Payroll" },
+  { href: "/timesheet/payroll/structures", label: "Salary structures", icon: "salary", group: "Payroll", pill: false },
+  { href: "/timesheet/payroll/history", label: "Payroll history", icon: "reports", group: "Payroll", pill: false },
+  { href: "/timesheet/payroll/queries", label: "Payslip queries", icon: "leave", group: "Payroll", pill: false },
+  { href: "/timesheet/payroll/settings", label: "Payroll settings", icon: "settings", group: "Payroll", pill: false },
   { href: "/timesheet/admin/reports", label: "Reports", icon: "reports", group: "Company" },
   { href: "/timesheet/admin/audit", label: "Audit log", icon: "audit", group: "Company" },
   { href: "/timesheet/admin/settings", label: "Settings", icon: "settings", group: "Company" },
@@ -160,6 +166,11 @@ export function titleFor(pathname: string): string {
   if (pathname.startsWith("/timesheet/worklog")) return "Work log";
   if (pathname.startsWith("/timesheet/salary")) return "My Salary";
   if (pathname.startsWith("/timesheet/payroll/expenses")) return "Expenses";
+  if (pathname.startsWith("/timesheet/payroll/structures")) return "Salary structures";
+  if (pathname.startsWith("/timesheet/payroll/runs")) return "Payroll runs";
+  if (pathname.startsWith("/timesheet/payroll/history")) return "Payroll history";
+  if (pathname.startsWith("/timesheet/payroll/queries")) return "Payslip queries";
+  if (pathname.startsWith("/timesheet/payroll/settings")) return "Payroll settings";
   if (pathname.startsWith("/timesheet/expenses")) return "Expenses";
   if (pathname.startsWith("/timesheet/team")) return "Team";
   if (pathname.startsWith("/timesheet/payroll")) return "Payroll";

@@ -3,25 +3,31 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { TimesheetError } from "./errors";
 import { logError } from "./log";
+import { CATEGORY_ORDER, toCategory, type ProjectCategory } from "./projectCategories";
 import { PROJECTS } from "./projects";
 
 // The projects people can log time against: the list in the database (managed on Admin -> Projects, supabase/step31_projects.sql).
 // Until that step has been run, or if the list can't be read, the five built-in projects are used so time logging keeps working.
 
-export type ProjectRow = { id: string; name: string; active: boolean };
+export type ProjectRow = { id: string; name: string; active: boolean; category: ProjectCategory };
 
-const FALLBACK: ProjectRow[] = PROJECTS.map((name) => ({ id: name, name, active: true }));
+const FALLBACK: ProjectRow[] = PROJECTS.map((name) => ({ id: name, name, active: true, category: name === "Client work" ? "client" : name === "Internal" ? "internal" : "other" }));
 
-/** Every project, active and archived, A to Z. One read per request. */
+/** Every project, active and archived, by category and then A to Z. One read per request. */
 export const listProjects = cache(async (): Promise<ProjectRow[]> => {
   try {
     const supabase = await createClient();
-    const { data, error } = await supabase.from("projects" as never).select("id, name, active").order("name");
+    let { data, error } = await supabase.from("projects" as never).select("id, name, active, category").order("name");
+    // Before step37_project_categories.sql has been run there is no category column: read the list without it.
+    if (error && (error as { code?: string }).code === "42703") ({ data, error } = await supabase.from("projects" as never).select("id, name, active").order("name"));
     if (error) {
       if (!["42P01", "PGRST205"].includes((error as { code?: string }).code ?? "")) logError("projects", error);
       return FALLBACK;
     }
-    const rows = ((data ?? []) as unknown as ProjectRow[]).map((p) => ({ id: p.id, name: p.name, active: !!p.active }));
+    const rows = ((data ?? []) as unknown as ProjectRow[])
+      .map((p) => ({ id: p.id, name: p.name, active: !!p.active, category: toCategory(p.category) }))
+      // Client work first, then internal, then other; A to Z inside each. People see the list in this order.
+      .sort((a, b) => CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category) || a.name.localeCompare(b.name));
     return rows.length > 0 ? rows : FALLBACK;
   } catch (e) {
     // Next.js uses thrown errors to say "this page is dynamic" or "redirect"; those must pass through, not be treated as a failure.

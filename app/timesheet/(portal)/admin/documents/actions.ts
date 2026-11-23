@@ -5,7 +5,7 @@ import { isUuid } from "@/lib/avatar";
 import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
 import { createClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/timesheet/log";
-import { reopenOnboarding, revealAccount } from "@/lib/onboarding/server";
+import { reopenOnboarding, revealAccount, setOnboardingSkip } from "@/lib/onboarding/server";
 import { TimesheetError } from "@/lib/timesheet/errors";
 
 export type DocActionResult = { ok: true; message?: string } | { ok: false; error: string };
@@ -85,6 +85,20 @@ export async function reopenOnboardingAction(userId: string): Promise<DocActionR
     return { ok: true };
   } catch (e) {
     if (!(e instanceof TimesheetError)) logError("reopen-onboarding", e);
+    return { ok: false, error: e instanceof TimesheetError ? e.message : "Something went wrong. Please try again." };
+  }
+}
+
+/** Skip onboarding for one person, or require it again. */
+export async function setOnboardingSkipAction(email: string, skip: boolean): Promise<DocActionResult> {
+  const denied = await admin();
+  if (denied) return { ok: false, error: denied };
+  try {
+    await setOnboardingSkip(email, skip);
+    revalidatePath("/timesheet/admin/documents");
+    return { ok: true };
+  } catch (e) {
+    if (!(e instanceof TimesheetError)) logError("onboarding-skip", e);
     return { ok: false, error: e instanceof TimesheetError ? e.message : "Something went wrong. Please try again." };
   }
 }

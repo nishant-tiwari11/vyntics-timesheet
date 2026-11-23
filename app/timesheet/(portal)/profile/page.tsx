@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ROLE_LABEL, toRole } from "@/lib/access/config";
 import { AVATAR_BUCKET, avatarPath, isUuid } from "@/lib/avatar";
+import { emptyAnswers } from "@/lib/onboarding/rules";
 import { requiredChecklist } from "@/lib/documents/config";
 import { listDocuments, type DocumentList } from "@/lib/documents/server";
 import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
@@ -13,7 +14,9 @@ import { displayName } from "@/lib/timesheet/people";
 import { UserAvatar } from "../../_components/UserAvatar";
 import { AvatarUploader } from "./AvatarUploader";
 import { ChatReminderToggle } from "./ChatReminderToggle";
+import { loadMyOnboarding } from "@/lib/onboarding/server";
 import { DocumentsWorkspace } from "./documents/DocumentsWorkspace";
+import { MyDocuments } from "./MyDocuments";
 
 export const metadata = { title: "Profile" };
 
@@ -30,7 +33,8 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   const own = targetId === me.id;
   // Documents are for HR to manage (Admin > Documents). An employee's own profile has no Documents tab: they hand those in once,
   // during onboarding.
-  const tab = !own && one(raw.tab) === "documents" ? "documents" : "overview";
+  const ownDocs = own && (me.role === "employee" || me.role === "manager");
+  const tab = (!own || ownDocs) && one(raw.tab) === "documents" ? "documents" : "overview";
 
   const supabase = await createClient();
   const { data: profile } = await supabase
@@ -88,7 +92,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         </div>
       </header>
 
-      {!own && (
+      {(!own || ownDocs) && (
       <nav aria-label="Profile sections" className="flex gap-1 border-b">
         {[
           { id: "overview", label: "Overview" },
@@ -125,6 +129,8 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
             </div>
           )}
         </section>
+      ) : ownDocs ? (
+        <MyDocuments docs={docs.ready ? docs.current : []} answers={(await loadMyOnboarding().catch(() => null))?.answers ?? emptyAnswers()} />
       ) : !docs.ready ? (
         <p role="note" className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
           Documents aren&apos;t set up yet. An admin needs to run <code>supabase/step26_documents.sql</code> in Supabase.{docs.code && <span className="mt-1 block text-xs">Database error code: {docs.code}</span>}

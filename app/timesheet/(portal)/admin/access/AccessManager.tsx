@@ -6,6 +6,7 @@ import { UserAvatar } from "../../../_components/UserAvatar";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,10 +61,12 @@ function AddUserDialog() {
   const [method, setMethod] = useState<SignInMethod>("google");
   const [password, setPassword] = useState("");
   const [expiresOn, setExpiresOn] = useState("");
+  const [skipOnboarding, setSkipOnboarding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function reset() {
+    setSkipOnboarding(false);
     setEmail("");
     setFirst("");
     setLast("");
@@ -81,7 +84,7 @@ function AddUserDialog() {
     if (!fromEmail && !first.trim()) return setError("Enter the first name. Names are only taken from work email addresses.");
     const name = first.trim() || last.trim() ? joinName(first, last) : (fromEmail?.full ?? "");
     startTransition(async () => {
-      const res = await addUserAction({ email, name, role, method, password: method === "password" ? password : undefined, expiresOn: expiresOn || null });
+      const res = await addUserAction({ email, name, role, method, password: method === "password" ? password : undefined, expiresOn: expiresOn || null, skipOnboarding: skipOnboarding && role !== "admin" });
       if (!res.ok) {
         setError(res.error);
         return;
@@ -168,6 +171,15 @@ function AddUserDialog() {
               <Label htmlFor="add-expiry">Access ends on (optional)</Label>
               <Input id="add-expiry" type="date" value={expiresOn} onChange={(e) => setExpiresOn(e.target.value)} disabled={pending} />
             </div>
+            {role !== "admin" && (
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm">
+                <Checkbox checked={skipOnboarding} onCheckedChange={(c) => setSkipOnboarding(c === true)} className="mt-0.5" disabled={pending} aria-label="Skip onboarding" />
+                <span>
+                  <span className="font-medium">Skip onboarding</span>
+                  <span className="block text-xs text-muted-foreground">They sign in and use the portal straight away, without submitting documents or bank details. Admins never need onboarding.</span>
+                </span>
+              </label>
+            )}
             {error && (
               <p role="alert" className="text-sm text-destructive">
                 {error}

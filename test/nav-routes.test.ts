@@ -16,7 +16,7 @@ const pageFile = (href: string) => path.join(root, "app/timesheet/(portal)", hre
 
 describe("sidebar links", () => {
   it("found the links", () => {
-    expect(hrefs).toEqual(expect.arrayContaining(["/timesheet/dashboard", "/timesheet/worklog", "/timesheet/leave", "/timesheet/calendar", "/timesheet/admin", "/timesheet/payroll"]));
+    expect(hrefs).toEqual(expect.arrayContaining(["/timesheet/dashboard", "/timesheet/worklog", "/timesheet/leave", "/timesheet/calendar", "/timesheet/admin", "/timesheet/payroll/runs"]));
   });
 
   it.each(hrefs)("%s has its own page file", (href) => {

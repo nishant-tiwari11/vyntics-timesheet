@@ -157,8 +157,15 @@
 
 .ts-nav {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 4px;
+  min-height: 0; /* lets the menu scroll on its own, with the brand above and the user below staying put */
+  margin-right: -6px;
+  padding-right: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 
 .ts-nav-link {

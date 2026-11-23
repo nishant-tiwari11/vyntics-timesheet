@@ -14,9 +14,9 @@ import { UserAvatar } from "../../../_components/UserAvatar";
 import type { PreviewDoc } from "../../profile/documents/DocumentPreviewModal";
 import { StatusBadge } from "../../profile/documents/DocumentList";
 import type { ReviewTarget } from "../../profile/documents/ReviewDialog";
-import { reopenOnboardingAction, revealAccountAction, sendReminderAction } from "./actions";
+import { reopenOnboardingAction, revealAccountAction, sendReminderAction, setOnboardingSkipAction } from "./actions";
 
-const LABEL: Record<OnboardingRow["status"], string> = { not_started: "Not started", in_progress: "In progress", submitted: "Submitted" };
+const LABEL: Record<OnboardingRow["status"], string> = { not_started: "Not started", in_progress: "In progress", submitted: "Submitted", skipped: "Skipped" };
 
 function Details({ row, onPreview, onReview }: { row: OnboardingRow; onPreview: (d: PreviewDoc) => void; onReview: (t: ReviewTarget) => void }) {
   const router = useRouter();
@@ -137,6 +137,17 @@ export function OnboardingAdmin({ rows, onPreview, onReview }: { rows: Onboardin
   const [reminded, setReminded] = useState<Set<string>>(new Set());
   const [, startTransition] = useTransition();
 
+  const router = useRouter();
+  function skip(r: OnboardingRow, on: boolean) {
+    startTransition(async () => {
+      const res = await setOnboardingSkipAction(r.email, on);
+      if (res.ok) {
+        toast.success(on ? "Onboarding skipped. They can use the portal now." : "Onboarding is required again.");
+        router.refresh();
+      } else toast.error(res.error);
+    });
+  }
+
   function remind(r: OnboardingRow) {
     startTransition(async () => {
       const res = await sendReminderAction(r.userId);
@@ -152,8 +163,8 @@ export function OnboardingAdmin({ rows, onPreview, onReview }: { rows: Onboardin
 
   return (
     <section className="grid gap-3" aria-label="Onboarding">
-      <ul className="grid grid-cols-3 gap-3" aria-label="Summary">
-        {(["submitted", "in_progress", "not_started"] as const).map((s) => (
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="Summary">
+        {(["submitted", "in_progress", "not_started", "skipped"] as const).map((s) => (
           <li key={s} className="rounded-xl border bg-card p-3">
             <span className="block text-xs text-muted-foreground">{LABEL[s]}</span>
             <span className="text-2xl font-semibold tabular-nums">{count(s)}</span>
@@ -177,15 +188,20 @@ export function OnboardingAdmin({ rows, onPreview, onReview }: { rows: Onboardin
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
-                  <Badge variant="outline" className={r.status === "submitted" ? "border-foreground" : r.status === "not_started" ? "border-dashed" : ""}>
+                  <Badge variant="outline" className={r.status === "submitted" ? "border-foreground" : r.status === "not_started" || r.status === "skipped" ? "border-dashed" : ""}>
                     {LABEL[r.status]}
                   </Badge>
                   <span className="text-xs text-muted-foreground tabular-nums">
                     {done} of {r.items.length} files
                   </span>
-                  {r.status !== "submitted" && (
+                  {r.status !== "submitted" && r.status !== "skipped" && (
                     <Button type="button" size="sm" variant="outline" disabled={reminded.has(r.userId)} onClick={() => remind(r)}>
                       <Bell aria-hidden="true" /> {reminded.has(r.userId) ? "Reminded" : "Remind"}
+                    </Button>
+                  )}
+                  {r.status !== "submitted" && (
+                    <Button type="button" size="sm" variant="outline" onClick={() => skip(r, r.status !== "skipped")}>
+                      {r.status === "skipped" ? "Require onboarding" : "Skip onboarding"}
                     </Button>
                   )}
                   <Button type="button" size="sm" variant="ghost" aria-expanded={expanded} onClick={() => setOpen(expanded ? null : r.userId)}>

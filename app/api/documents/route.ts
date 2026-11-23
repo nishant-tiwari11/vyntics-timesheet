@@ -2,7 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { DOC_BUCKET, DOC_MAX_BYTES, KIND_MIME, categoryOf, checkMeta, kindFromName, kindSuits } from "@/lib/documents/config";
 import { deleteDocument, listDocuments } from "@/lib/documents/server";
 import { detectKind } from "@/lib/documents/sniff";
-import { isUuid } from "@/lib/avatar";
+import { AVATAR_BUCKET, AVATAR_SIZE, avatarPath, isUuid } from "@/lib/avatar";
+import { revalidatePath } from "next/cache";
+import sharp from "sharp";
 import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
 import { createClient } from "@/lib/supabase/server";
 import { TimesheetError } from "@/lib/timesheet/errors";
@@ -92,6 +94,17 @@ export async function POST(request: NextRequest) {
       await supabase.storage.from(DOC_BUCKET).remove([key]); // don't leave a file with no record
       logError("documents create", error);
       return fail(error.code === "P0001" ? error.message : "Couldn't save the document. Please try again.", 400);
+    }
+    // A passport-size photo also becomes the person's profile picture (a square WebP, like any other profile photo).
+    if (meta.data.category === "passport_photo") {
+      try {
+        const image = await sharp(Buffer.from(bytes), { limitInputPixels: 40_000_000 }).rotate().resize(AVATAR_SIZE, AVATAR_SIZE, { fit: "cover", position: "attention" }).webp({ quality: 82 }).toBuffer();
+        const saved = await supabase.storage.from(AVATAR_BUCKET).upload(avatarPath(target), image, { contentType: "image/webp", upsert: true, cacheControl: "300" });
+        if (saved.error) logError("documents photo to avatar", saved.error);
+        else revalidatePath("/timesheet", "layout");
+      } catch (e) {
+        logError("documents photo to avatar", e); // the document itself is saved; only the profile picture is skipped
+      }
     }
     return json({ ok: true, id: data });
   } catch (e) {
