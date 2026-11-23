@@ -109,7 +109,6 @@ export default async function EmployeePage({ params }: { params: Promise<{ id: s
               <Badge variant="outline" className={person.status === "disabled" ? "border-dashed" : expired ? "border-destructive text-destructive" : "border-foreground"}>
                 {person.status === "disabled" ? "○ Disabled" : expired ? "✕ Access expired" : "✓ Active"}
               </Badge>
-              {person.department && <Badge variant="secondary">{person.department}</Badge>}
             </div>
           </div>
         </div>
@@ -124,8 +123,7 @@ export default async function EmployeePage({ params }: { params: Promise<{ id: s
         </div>
       </header>
 
-      <dl className="grid grid-cols-2 gap-4 rounded-xl border bg-card p-4 sm:grid-cols-3 lg:grid-cols-6">
-        <Stat label="Department" value={person.department || "Not set"} />
+      <dl className="grid grid-cols-2 gap-4 rounded-xl border bg-card p-4 sm:grid-cols-3 lg:grid-cols-5">
         <Stat label="Joined" value={v.joinedOn ? day(v.joinedOn) : "Not set"} />
         <Stat label="Manager" value={person.managerEmail || "None"} />
         <Stat label="Signs in with" value={person.loginMethod === "password" ? "Email and password" : "Google"} />

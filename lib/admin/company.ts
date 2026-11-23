@@ -30,6 +30,8 @@ export type CompanyOverview = {
   payroll: { latest: RunSummary | null; open: number } | null;
   expenses: { pending: number; pendingAmount: number; approvedAmount: number; reimbursedAmount: number } | null;
   holidays: Holiday[] | null;
+  /** Everyone who is active, for the badge rail on the overview. */
+  people: { id: string; name: string; email: string; role: string; joinedOn: string }[] | null;
 };
 
 async function safely<T>(what: string, task: () => Promise<T>): Promise<T | null> {
@@ -144,5 +146,11 @@ export async function loadCompanyOverview(): Promise<CompanyOverview> {
         }
       : null,
     holidays,
+    people: people
+      ? active
+          .map((p) => ({ id: p.id, name: displayName(p), email: p.email, role: p.role, joinedOn: detailBy.get(p.id)?.joined_on ?? p.created_at.slice(0, 10) }))
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .slice(0, 24)
+      : null,
   };
 }

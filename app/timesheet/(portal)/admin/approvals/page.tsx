@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { isUuid } from "@/lib/avatar";
 import { getAdminCounts } from "@/lib/timesheet/admin";
 import { loadBalances, loadPendingRequests, type BalanceRow, type PendingRequest } from "@/lib/timesheet/approvals";
 import { formatInstantDate, formatRange } from "@/lib/timesheet/dates";
@@ -166,11 +167,17 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
   if (me?.role !== "admin") redirect("/timesheet/dashboard");
   const raw = await searchParams;
   const view = VIEWS.find((v) => v.id === one(raw.view))?.id ?? "requests";
+  // ?employee=<id> narrows the Leave & WFH and History lists to one person (the overview's dialer links here).
+  const only = isUuid(one(raw.employee)) ? (one(raw.employee) as string) : "";
+  const withEmployee = (href: string) => (only ? `${href}${href.includes("?") ? "&" : "?"}employee=${only}` : href);
 
-  const counts = await safely("counts", getAdminCounts);
-  const pendingRequests = view === "requests" ? await safely("requests", loadPendingRequests) : null;
-  const history = view === "history" ? await safely("history", async () => (await listAllRequests("all", 100)).filter((r) => r.status !== "pending")) : null;
-  const balances = view === "balances" ? await safely("balances", loadBalances) : null;
+  // The tab counts and the chosen tab's data do not depend on each other, so they are read at the same time.
+  const [counts, pendingRequests, history, balances] = await Promise.all([
+    safely("counts", getAdminCounts),
+    view === "requests" ? safely("requests", loadPendingRequests) : null,
+    view === "history" ? safely("history", async () => (await listAllRequests("all", only ? 200 : 100)).filter((r) => r.status !== "pending" && (!only || r.user_id === only))) : null,
+    view === "balances" ? safely("balances", loadBalances) : null,
+  ]);
 
   const badge = (id: View) => (!counts.ok ? 0 : id === "requests" ? counts.data.requests : id === "compoff" ? counts.data.compOff : 0);
 
@@ -181,13 +188,25 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
         <p className="text-sm text-muted-foreground">Leave, work from home and comp-off. Time logs aren&apos;t approved here; you can see and correct them on the Work logs page.</p>
       </div>
 
+      {only && (
+        <p role="note" className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed px-3 py-2 text-sm">
+          Showing one employee only.
+          <Link href={view === "requests" ? "/timesheet/admin/approvals" : `/timesheet/admin/approvals?view=${view}`} className="font-medium underline underline-offset-4">
+            Show everyone
+          </Link>
+          <Link href={`/timesheet/admin/access/${only}`} className="font-medium underline underline-offset-4">
+            Open their page
+          </Link>
+        </p>
+      )}
+
       <nav aria-label="Approval sections" className="flex gap-1 overflow-x-auto border-b">
         {VIEWS.map((v) => {
           const n = badge(v.id);
           return (
             <Link
               key={v.id}
-              href={v.id === "requests" ? "/timesheet/admin/approvals" : `/timesheet/admin/approvals?view=${v.id}`}
+              href={withEmployee(v.id === "requests" ? "/timesheet/admin/approvals" : `/timesheet/admin/approvals?view=${v.id}`)}
               aria-current={view === v.id ? "page" : undefined}
               className={cn(
                 "-mb-px inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors md:min-h-10",
@@ -210,11 +229,11 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
         pendingRequests &&
         (!pendingRequests.ok ? (
           <Problem message={pendingRequests.error} />
-        ) : pendingRequests.data.rows.length === 0 ? (
+        ) : pendingRequests.data.rows.filter((r: PendingRequest) => !only || r.userId === only).length === 0 ? (
           <Empty title="Nothing waiting">New leave and work-from-home requests will show up here.</Empty>
         ) : (
           <ul className="grid gap-4" aria-label="Requests waiting for a decision">
-            {pendingRequests.data.rows.map((r: PendingRequest) => (
+            {pendingRequests.data.rows.filter((r: PendingRequest) => !only || r.userId === only).map((r: PendingRequest) => (
               <RequestCard key={r.id} r={r} />
             ))}
           </ul>

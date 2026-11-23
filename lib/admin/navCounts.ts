@@ -57,7 +57,7 @@ export async function loadNavCounts(): Promise<Record<string, number>> {
     add("/timesheet/admin/documents", docs); // documents waiting for review
   }
   add("/timesheet/payroll/expenses", expenses);
-  if (team) add("/timesheet/team", team.members.reduce((n, m) => n + m.pendingLogs + m.pendingExpenses + m.openRequests, 0));
+  if (team) add("/timesheet/team/approvals", team.members.reduce((n, m) => n + m.openRequests + m.pendingCompOff, 0));
   add("/timesheet/leave", mine);
   return counts;
 }

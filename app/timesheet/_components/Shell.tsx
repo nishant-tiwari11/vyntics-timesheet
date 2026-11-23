@@ -2,10 +2,13 @@ import { cookies } from "next/headers";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ROLE_LABEL, type Role } from "@/lib/access/config";
-import { AdminTopNav } from "./AdminTopNav";
+import { LazyAdminTopNav } from "./LazyAdminTopNav";
 import { CommandPalette } from "./CommandPalette";
 import { MobileNav } from "./MobileNav";
+import { Suspense } from "react";
 import { NavCountsProvider } from "./NavCounts";
+import NavProgress from "./NavProgress";
+import { PrefetchWarmer } from "./PrefetchWarmer";
 import { PageTitle } from "./NavLinks";
 import { NotificationsBell } from "./NotificationsBell";
 import { Sidebar, type SideUser } from "./Sidebar";
@@ -33,12 +36,16 @@ export default async function Shell({
   const user: SideUser = { id, name: shown, email, roleLabel: ROLE_LABEL[role], isAdmin: role === "admin", isManager: role === "manager" };
 
   return (
-    <NavCountsProvider>
+    <NavCountsProvider userId={id}>
+      <Suspense fallback={null}>
+        <NavProgress />
+      </Suspense>
+      <PrefetchWarmer role={role} />
       <div className="ts-shell" data-topnav={role === "admin" && collapsed}>
         <Sidebar user={user} initialCollapsed={collapsed} />
 
         <div className="ts-content">
-          {role === "admin" && <AdminTopNav />}
+          {role === "admin" && <LazyAdminTopNav />}
           <header className="ts-topbar">
             <MobileNav user={user} />
             <PageTitle />

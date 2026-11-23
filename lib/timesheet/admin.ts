@@ -1,5 +1,6 @@
 import "server-only";
-import { db, requireAdmin } from "./auth";
+import { cache } from "react";
+import { db, requireAdmin, requireApprover } from "./auth";
 import { TimesheetError, assertId, toError } from "./errors";
 import type { Role } from "@/lib/access/config";
 import type { Person } from "./types";
@@ -41,7 +42,7 @@ export async function setRole(userId: string, role: "employee" | "admin"): Promi
 }
 
 /** How many items wait for a decision, not counting the admin's own (they can't decide those). */
-export async function getAdminCounts(): Promise<{ requests: number; logs: number; compOff: number }> {
+export const getAdminCounts = cache(async (): Promise<{ requests: number; logs: number; compOff: number }> => {
   const admin = await requireAdmin();
   const supabase = await db();
   const [requests, logs, compOff] = await Promise.all([
@@ -66,13 +67,13 @@ export async function getAdminCounts(): Promise<{ requests: number; logs: number
   if (logs.error) throw toError(logs.error, "Couldn't load counts.");
   if (compOff.error) throw toError(compOff.error, "Couldn't load counts.");
   return { requests: requests.count ?? 0, logs: logs.count ?? 0, compOff: compOff.count ?? 0 };
-}
+});
 
 export type LeaveCover = { user_id: string; from_date: string; to_date: string; owner: Person | null };
 
 /** Approved leave (not WFH) overlapping the given dates, for the "Also off" team-cover note. */
 export async function listApprovedLeaveBetween(from: string, to: string): Promise<LeaveCover[]> {
-  await requireAdmin();
+  await requireApprover();
   const supabase = await db();
   const { data, error } = await supabase
     .from("requests")

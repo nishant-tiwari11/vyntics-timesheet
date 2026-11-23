@@ -40,7 +40,11 @@ export async function listPayrollHistory(userId: string | null, limit = 240): Pr
     .limit(limit);
   if (userId) query = query.eq("user_id", userId);
 
-  const [slips, people] = await Promise.all([query, supabase.from("profiles").select("id, full_name, email").order("full_name", { ascending: true })]);
+  const [slips, people] = await Promise.all([
+    query,
+    supabase.from("profiles").select("id, full_name, email").order("full_name", { ascending: true }),
+    audit("viewed", "payroll_history", userId ?? undefined, userId ? "Opened one employee's payroll history" : "Opened the payroll history"),
+  ]);
   if (slips.error) throw toError(slips.error, "Couldn't load the payroll history. Please try again.");
   if (people.error) throw toError(people.error, "Couldn't load the payroll history. Please try again.");
 
@@ -62,6 +66,5 @@ export async function listPayrollHistory(userId: string | null, limit = 240): Pr
       payslip: { ...snap.payslip, reimbursement: snap.payslip.reimbursement ?? 0, expenses: snap.payslip.expenses ?? [] },
     };
   });
-  await audit("viewed", "payroll_history", userId ?? undefined, userId ? "Opened one employee's payroll history" : "Opened the payroll history");
   return { rows, people: people.data.map((p) => ({ id: p.id, name: displayName(p) })) };
 }

@@ -17,7 +17,8 @@ export type TeamMember = {
   roleLabel: string;
   /** Hours logged in the last 7 days (today and the 6 days before). */
   hoursThisWeek: number;
-  pendingLogs: number;
+  /** Comp-off credit requests waiting for a decision. */
+  pendingCompOff: number;
   pendingExpenses: number;
   openRequests: number;
 };
@@ -38,20 +39,19 @@ export async function loadTeam(): Promise<{ members: TeamMember[]; scope: "team"
 
   const today = todayInOffice();
   const from = addDays(today, -6);
-  const [logs, expenses, requests] = await Promise.all([
+  const [logs, expenses, requests, compOff] = await Promise.all([
     supabase.from("work_logs").select("user_id, hours, status, log_date").in("user_id", ids).gte("log_date", from).lte("log_date", today).limit(20000),
     supabase.from("expense_claims").select("user_id").in("user_id", ids).eq("status", "pending").limit(5000),
     supabase.from("requests").select("user_id").in("user_id", ids).eq("status", "pending").limit(5000),
+    supabase.from("comp_off_requests").select("user_id").in("user_id", ids).eq("status", "pending").limit(5000),
   ]);
   for (const r of [logs, requests]) if (r.error) throw toError(r.error, "Couldn't load your team. Please try again.");
   // Expenses exist only after step 23; before that the count is simply zero.
   const expenseRows = expenses.error ? [] : expenses.data;
 
   const hours = new Map<string, number>();
-  const pendingLogs = new Map<string, number>();
   for (const l of logs.data!) {
     if (l.status !== "rejected") hours.set(l.user_id, (hours.get(l.user_id) ?? 0) + (l.hours ?? 0));
-    if (l.status === "pending") pendingLogs.set(l.user_id, (pendingLogs.get(l.user_id) ?? 0) + 1);
   }
   const count = (rows: { user_id: string }[]) => {
     const m = new Map<string, number>();
@@ -60,6 +60,7 @@ export async function loadTeam(): Promise<{ members: TeamMember[]; scope: "team"
   };
   const exp = count(expenseRows);
   const req = count(requests.data!);
+  const comp = count(compOff.error ? [] : compOff.data);
 
   const members = people.data.map((p) => {
     const role = toRole(p.role) ?? "employee";
@@ -70,7 +71,7 @@ export async function loadTeam(): Promise<{ members: TeamMember[]; scope: "team"
       role,
       roleLabel: ROLE_LABEL[role],
       hoursThisWeek: Math.round((hours.get(p.id) ?? 0) * 100) / 100,
-      pendingLogs: pendingLogs.get(p.id) ?? 0,
+      pendingCompOff: comp.get(p.id) ?? 0,
       pendingExpenses: exp.get(p.id) ?? 0,
       openRequests: req.get(p.id) ?? 0,
     };

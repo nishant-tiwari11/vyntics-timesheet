@@ -15,20 +15,16 @@ export default async function ProjectsPage() {
   const me = await getCurrentUser();
   if (me?.role !== "admin") redirect("/timesheet/dashboard");
 
-  const rows = await listProjects();
+  // The list and how much each project is used do not depend on each other (usage is simply ignored before step31 has been run).
+  const supabase = await createClient();
+  const [rows, usageRes] = await Promise.all([listProjects(), Promise.resolve(supabase.rpc("project_usage" as never)).catch((e) => ({ data: null, error: e }))]);
   // Until step31_projects.sql has been run the list is the built-in names with no real ids, and nothing can be changed.
   const ready = rows.length > 0 && rows.every((p) => isUuid(p.id));
 
   const usage = new Map<string, Usage>();
   if (ready) {
-    try {
-      const supabase = await createClient();
-      const { data, error } = await supabase.rpc("project_usage" as never);
-      if (error) throw error;
-      for (const u of (data ?? []) as unknown as Usage[]) usage.set(u.name, { name: u.name, entries: Number(u.entries) || 0, hours: Math.round((Number(u.hours) || 0) * 100) / 100, last_used: u.last_used });
-    } catch (e) {
-      logError("projects usage", e);
-    }
+    if (usageRes.error) logError("projects usage", usageRes.error);
+    else for (const u of (usageRes.data ?? []) as unknown as Usage[]) usage.set(u.name, { name: u.name, entries: Number(u.entries) || 0, hours: Math.round((Number(u.hours) || 0) * 100) / 100, last_used: u.last_used });
   }
 
   const projects: ProjectView[] = rows.map((p) => {

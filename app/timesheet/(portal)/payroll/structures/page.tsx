@@ -18,10 +18,9 @@ export default async function StructuresPage() {
   let currency = "INR";
   let error: string | null = null;
   try {
-    const [list, settings] = await Promise.all([listEmployeeStructures(), getPayrollSettings()]);
+    const [list, settings] = await Promise.all([listEmployeeStructures(), getPayrollSettings(), audit("viewed", "salary_structures", undefined, "Opened the salary structures list")]);
     employees = list;
     currency = settings.currency;
-    await audit("viewed", "salary_structures", undefined, "Opened the salary structures list");
   } catch (e) {
     if (!(e instanceof TimesheetError)) logError("payroll-structures", e);
     error = e instanceof TimesheetError ? e.message : "Something went wrong. Please try again.";

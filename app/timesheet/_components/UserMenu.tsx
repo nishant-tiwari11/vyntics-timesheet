@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { LogOut, UserRound } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { clearLocalCache } from "@/lib/client/localCache";
 import { signOut } from "../actions";
 import { UserAvatar } from "./UserAvatar";
 
@@ -29,7 +30,7 @@ export function UserMenu({ id, name, email, roleLabel }: { id: string; name: str
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <form action={signOut}>
+          <form action={signOut} onSubmit={clearLocalCache}>
             <button type="submit" className="flex w-full items-center gap-2">
               <LogOut className="size-4" aria-hidden="true" /> Sign out
             </button>

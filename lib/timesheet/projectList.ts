@@ -13,8 +13,25 @@ export type ProjectRow = { id: string; name: string; active: boolean; category: 
 
 const FALLBACK: ProjectRow[] = PROJECTS.map((name) => ({ id: name, name, active: true, category: name === "Client work" ? "client" : name === "Internal" ? "internal" : "other" }));
 
-/** Every project, active and archived, by category and then A to Z. One read per request. */
+// The list changes only when an admin edits it, so a server keeps what it read for a short while instead of reading it on every page
+// (the work log, the forms and the filters all need it). forgetProjects() clears it right after an admin changes a project.
+const PROJECTS_TTL_MS = 20_000;
+let remembered: { at: number; rows: ProjectRow[] } | null = null;
+
+export function forgetProjects(): void {
+  remembered = null;
+}
+
+/** Every project, active and archived, by category and then A to Z. One read per request, and one per 20 seconds per server. */
 export const listProjects = cache(async (): Promise<ProjectRow[]> => {
+  if (remembered && Date.now() - remembered.at < PROJECTS_TTL_MS) return remembered.rows;
+  const rows = await readProjects();
+  // Only a real answer from the database is kept (the built-in fallback is not, so a fixed set-up shows at once).
+  if (rows !== FALLBACK) remembered = { at: Date.now(), rows };
+  return rows;
+});
+
+async function readProjects(): Promise<ProjectRow[]> {
   try {
     const supabase = await createClient();
     let { data, error } = await supabase.from("projects" as never).select("id, name, active, category").order("name");
@@ -36,7 +53,7 @@ export const listProjects = cache(async (): Promise<ProjectRow[]> => {
     logError("projects", e);
     return FALLBACK;
   }
-});
+}
 
 /** The names that can be chosen for a new entry. */
 export const activeProjectNames = cache(async (): Promise<string[]> => (await listProjects()).filter((p) => p.active).map((p) => p.name));

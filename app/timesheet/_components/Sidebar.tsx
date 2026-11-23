@@ -8,6 +8,7 @@ import { signOut } from "../actions";
 import logo from "../login/vyntics-logo.png";
 import NavLinks from "./NavLinks";
 import { UserAvatar } from "./UserAvatar";
+import { clearLocalCache } from "@/lib/client/localCache";
 import { setAdminTopNav } from "./topNavState";
 
 export type SideUser = { id: string; name: string; email: string; roleLabel: string; isAdmin: boolean; isManager: boolean };
@@ -35,7 +36,7 @@ export function SideBody({ user, collapsed = false, onNavigate }: { user: SideUs
             <span className="ts-side-role">{user.roleLabel}</span>
           </span>
         )}
-        <form action={signOut} className="ts-side-signout">
+        <form action={signOut} onSubmit={clearLocalCache} className="ts-side-signout">
           <button type="submit" className="ts-btn ts-btn-ghost ts-btn-sm" title="Sign out" aria-label="Sign out">
             <LogOut className="size-4" aria-hidden="true" />
             <span className="ts-side-signout-text">Sign out</span>

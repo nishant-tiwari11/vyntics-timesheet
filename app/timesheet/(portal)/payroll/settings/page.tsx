@@ -26,8 +26,7 @@ export default async function PayrollSettingsPage() {
   let activity: AuditRow[] = [];
   let error: string | null = null;
   try {
-    [settings, components, activity] = await Promise.all([getPayrollSettings(), listComponents(), listAudit(20)]);
-    await audit("viewed", "payroll_settings", undefined, "Opened the payroll settings");
+    [settings, components, activity] = await Promise.all([getPayrollSettings(), listComponents(), listAudit(20), audit("viewed", "payroll_settings", undefined, "Opened the payroll settings")]).then(([a, b, c]) => [a, b, c] as const);
   } catch (e) {
     if (!(e instanceof TimesheetError)) logError("payroll-settings", e);
     error = e instanceof TimesheetError ? e.message : "Something went wrong. Please try again.";

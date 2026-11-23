@@ -1,5 +1,5 @@
 import "server-only";
-import { db, requireAdmin, requireUser } from "./auth";
+import { db, requireAdmin, requireApprover, requireUser } from "./auth";
 import {
   DEFAULT_SETTINGS,
   computeBalance,
@@ -238,7 +238,8 @@ export async function cancelRequest(id: string): Promise<void> {
 // ---------------------------- Admin ----------------------------
 
 export async function listAll(filter: "pending" | "all" = "pending"): Promise<CompOffRequest[]> {
-  await requireAdmin();
+  // Admins see everyone; a manager only their direct reports (and their own, which they cannot decide).
+  await requireApprover();
   const supabase = await db();
   let query = supabase
     .from("comp_off_requests")
@@ -255,7 +256,7 @@ export async function listAll(filter: "pending" | "all" = "pending"): Promise<Co
 export async function decide(id: string, decision: "approved" | "rejected", note: string): Promise<void> {
   assertId(id, "request");
   if (decision !== "approved" && decision !== "rejected") throw new TimesheetError("Please choose approve or reject.");
-  const admin = await requireAdmin();
+  const admin = await requireApprover();
   const supabase = await db();
 
   const { data: current, error: readError } = await supabase

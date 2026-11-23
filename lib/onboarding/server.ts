@@ -1,4 +1,5 @@
 import "server-only";
+import { readDocumentsBase } from "@/lib/documents/admin";
 import { docRowFrom, listDocuments, type DocRow } from "@/lib/documents/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
@@ -57,14 +58,23 @@ export type OnboardingGate = { locked: boolean; rejected: number };
  * Is the signed-in person held at the onboarding page, and do they have documents HR sent back? Cheap enough to run on every
  * page. Before step35_onboarding.sql has been run nobody is held, so the portal never locks everyone out by accident.
  */
+// Someone who has been let through is not asked again for a minute on the same server, so moving between pages doesn't repeat
+// the look-ups. Only a "let through" answer is kept (never "held"), so submitting onboarding takes effect at once.
+const GATE_TTL_MS = 60_000;
+const passed = new Map<string, { at: number; rejected: number }>();
+
 export async function getOnboardingGate(): Promise<OnboardingGate> {
   const me = await getCurrentUser();
   if (!me || !mustOnboard(me.role)) return { locked: false, rejected: 0 };
+  const known = passed.get(me.id);
+  if (known && Date.now() - known.at < GATE_TTL_MS) return { locked: false, rejected: known.rejected };
   try {
     const supabase = await createClient();
-    const [row, rejected] = await Promise.all([
+    // All three look-ups are made together (the "skipped" check is only used if the person hasn't submitted).
+    const [row, rejected, skipped] = await Promise.all([
       supabase.from("employee_onboarding" as never).select("submitted_at").eq("user_id", me.id).maybeSingle(),
       supabase.from("employee_documents" as never).select("id", { count: "exact", head: true }).eq("user_id", me.id).eq("is_current", true).is("deleted_at", null).eq("status", "rejected"),
+      supabase.rpc("onboarding_exempt" as never),
     ]);
     if (row.error) {
       if (!MISSING.has(row.error.code ?? "")) logError("onboarding gate", row.error);
@@ -72,12 +82,14 @@ export async function getOnboardingGate(): Promise<OnboardingGate> {
     }
     const submitted = (row.data as unknown as { submitted_at: string | null } | null)?.submitted_at ?? null;
     let locked = submitted === null;
-    if (locked) {
-      // An admin can skip onboarding for a person (kept by email). Before step38 the function doesn't exist: nobody is skipped.
-      const skipped = await supabase.rpc("onboarding_exempt" as never);
-      if (!skipped.error && skipped.data === true) locked = false;
+    // An admin can skip onboarding for a person (kept by email). Before step38 the function doesn't exist: nobody is skipped.
+    if (locked && !skipped.error && skipped.data === true) locked = false;
+    const count = rejected.error ? 0 : (rejected.count ?? 0);
+    if (!locked) {
+      if (passed.size > 500) passed.clear();
+      passed.set(me.id, { at: Date.now(), rejected: count });
     }
-    return { locked, rejected: rejected.error ? 0 : (rejected.count ?? 0) };
+    return { locked, rejected: count };
   } catch (e) {
     logError("onboarding gate", e);
     return { locked: false, rejected: 0 };
@@ -164,10 +176,10 @@ export type AdminOnboarding = { ready: boolean; rows: OnboardingRow[] };
 export async function loadAdminOnboarding(): Promise<AdminOnboarding> {
   await requireAdmin();
   const supabase = await createClient();
-  const [people, rows, docs, exempt] = await Promise.all([
-    supabase.from("profiles").select("id, full_name, email, role, status").limit(5000),
+  // People and documents are shared with the documents page (read once for both); only the answers and the skipped list are new.
+  const [{ docsRes: docs, peopleRes: people }, rows, exempt] = await Promise.all([
+    readDocumentsBase(),
     supabase.from("employee_onboarding" as never).select(COLUMNS).limit(5000),
-    supabase.from("employee_documents" as never).select("id, group_id, user_id, category, name, original_filename, mime_type, size_bytes, status, status_reason, visibility, issue_date, expiry_date, notes, uploaded_by, version, is_current, created_at").eq("is_current", true).is("deleted_at", null).limit(5000),
     supabase.from("onboarding_exemptions" as never).select("email").limit(5000),
   ]);
   const skippedEmails = new Set(exempt.error ? [] : ((exempt.data ?? []) as unknown as { email: string }[]).map((x) => x.email));
@@ -178,7 +190,8 @@ export async function loadAdminOnboarding(): Promise<AdminOnboarding> {
   }
   if (docs.error) throw toError(docs.error, "Couldn't load onboarding. Please try again.");
 
-  const names = new Map(people.data.map((p) => [p.id, displayName(p)]));
+  const peopleRows = (people.data ?? []) as unknown as { id: string; full_name: string | null; email: string; role: string; status: string }[];
+  const names = new Map(peopleRows.map((p) => [p.id, displayName(p)]));
   const answers = new Map((rows.data as unknown as Db[]).map((r) => [r.user_id, r]));
   const docsBy = new Map<string, DocRow[]>();
   for (const d of (docs.data ?? []) as unknown as Parameters<typeof docRowFrom>[0][]) {
@@ -186,7 +199,7 @@ export async function loadAdminOnboarding(): Promise<AdminOnboarding> {
     docsBy.set(row.userId, [...(docsBy.get(row.userId) ?? []), row]);
   }
 
-  const out = people.data
+  const out = peopleRows
     .filter((p) => p.status !== "disabled" && mustOnboard(p.role))
     .map((p) => {
       const r = answers.get(p.id) ?? null;

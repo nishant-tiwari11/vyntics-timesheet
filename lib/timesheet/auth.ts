@@ -17,6 +17,13 @@ export async function requireAdmin(): Promise<CurrentUser> {
   return user;
 }
 
+/** An admin, or a manager (who only ever reaches their own direct reports: the database filters everything else out). */
+export async function requireApprover(): Promise<CurrentUser> {
+  const user = await requireUser();
+  if (user.role !== "admin" && user.role !== "manager") throw new TimesheetError("Only admins and managers can do that.");
+  return user;
+}
+
 export async function db() {
   return createClient();
 }

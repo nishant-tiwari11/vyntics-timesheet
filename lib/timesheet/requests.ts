@@ -1,5 +1,5 @@
 import "server-only";
-import { db, requireAdmin, requireUser } from "./auth";
+import { db, requireAdmin, requireApprover, requireUser } from "./auth";
 import { isDayPart, type DayPart } from "./leaveCore";
 import { TimesheetError, assertDate, assertId, toError } from "./errors";
 import type { Request, RequestWithPerson } from "./types";
@@ -106,7 +106,7 @@ export async function cancelRequest(id: string): Promise<Request> {
  * Pending first, then newest; at most `limit` rows.
  */
 export async function listAllRequests(filter: "pending" | "all" = "all", limit = 50): Promise<RequestWithPerson[]> {
-  await requireAdmin();
+  await requireApprover();
   const max = Math.min(Math.max(Math.trunc(limit) || 50, 1), 200);
   const supabase = await db();
   const select = "*, owner:profiles!requests_user_id_fkey(full_name, email)";

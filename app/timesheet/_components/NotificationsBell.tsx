@@ -1,15 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { AlertCircle, Bell, CheckCircle2, ChevronRight, Info, XCircle } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { relativeTime, toneOf, type Tone } from "@/lib/notifications";
-import type { Approvals, NotificationItem } from "@/app/api/notifications/route";
+import type { NotificationItem } from "@/lib/shell/server";
+import { useShellData } from "./NavCounts";
 import { markNotificationsReadAction } from "./notificationsActions";
 
+const NONE: NotificationItem[] = [];
 const APPROVALS_HREF = "/timesheet/admin/approvals";
-const REFRESH_EVERY_MS = 90_000;
 
 const TONE: Record<Tone, { icon: typeof Info; label: string; className: string }> = {
   good: { icon: CheckCircle2, label: "Good news", className: "text-foreground" },
@@ -24,65 +25,22 @@ const TONE: Record<Tone, { icon: typeof Info; label: string; className: string }
 // It loads after the page is on screen, so it never slows the page, and it checks again every minute and a half while the
 // tab is open. A notification is marked read when you open it; "Mark all as read" does them all.
 export function NotificationsBell() {
-  const [items, setItems] = useState<NotificationItem[]>([]);
-  const [unread, setUnread] = useState(0);
-  const [approvals, setApprovals] = useState<Approvals | null>(null);
+  // The list comes with the rest of the frame's data (one request for the menu counts, the bell and the pictures).
+  const { data, update } = useShellData();
+  const items = data?.notifications.items ?? NONE;
+  const unread = data?.notifications.unread ?? 0;
+  const approvals = data?.notifications.approvals ?? null;
   const [open, setOpen] = useState(false);
-  const lastLoad = useRef(0);
-
-  const load = useCallback(async (askForReminders: boolean) => {
-    try {
-      const res = await fetch(`/api/notifications${askForReminders ? "?refresh=1" : ""}`, { cache: "no-store" });
-      if (!res.ok) return;
-      const body = (await res.json()) as { items: NotificationItem[]; unread: number; approvals?: Approvals | null };
-      lastLoad.current = Date.now();
-      setItems(body.items);
-      setUnread(body.unread);
-      setApprovals(body.approvals ?? null);
-    } catch {
-      /* offline or a hiccup: the next check will try again */
-    }
-  }, []);
-
-  useEffect(() => {
-    // Reminders (missing or expiring documents) only need making now and then, so ask for that about once an hour. Every
-    // other check just reads the list, which saves the server several database calls.
-    let refresh = true;
-    try {
-      const last = Number(window.localStorage.getItem("ts-reminders-at") ?? 0);
-      refresh = !(Date.now() - last < 60 * 60 * 1000);
-      if (refresh) window.localStorage.setItem("ts-reminders-at", String(Date.now()));
-    } catch {
-      /* storage blocked: always ask */
-    }
-    const first = window.setTimeout(() => void load(refresh), 0);
-
-    const tick = () => {
-      if (document.visibilityState === "visible") void load(false);
-    };
-    const timer = window.setInterval(tick, REFRESH_EVERY_MS);
-    const onVisible = () => {
-      if (document.visibilityState === "visible" && Date.now() - lastLoad.current > 30_000) void load(false);
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      window.clearTimeout(first);
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [load]);
 
   function markRead(ids: string[]) {
     const fresh = items.filter((n) => ids.includes(n.id) && !n.read).length;
     if (fresh === 0) return;
-    setItems((all) => all.map((n) => (ids.includes(n.id) ? { ...n, read: true } : n)));
-    setUnread((u) => Math.max(0, u - fresh));
+    update((d) => ({ ...d, notifications: { ...d.notifications, items: d.notifications.items.map((n) => (ids.includes(n.id) ? { ...n, read: true } : n)), unread: Math.max(0, d.notifications.unread - fresh) } }));
     void markNotificationsReadAction(ids);
   }
 
   function markAllRead() {
-    setItems((all) => all.map((n) => ({ ...n, read: true })));
-    setUnread(0);
+    update((d) => ({ ...d, notifications: { ...d.notifications, items: d.notifications.items.map((n) => ({ ...n, read: true })), unread: 0 } }));
     void markNotificationsReadAction();
   }
 

@@ -5,7 +5,6 @@ import { supabaseEnv } from "./env";
 
 const LOGIN = "/timesheet/login";
 const HOME = "/timesheet"; // the index page sends each role to its own start page
-const ADMIN = "/timesheet/admin";
 const CALLBACK = "/timesheet/auth/callback";
 
 // Middleware client: refreshes the session cookie and guards /timesheet routes.
@@ -31,14 +30,15 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  // Don't put code between createServerClient and getUser().
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Don't put code between createServerClient and getClaims().
+  // getClaims() checks the sign-in token's signature on this server (the project signs with asymmetric keys, fetched once and
+  // kept), so there is no round trip to the Auth service on every page. It still refreshes an expired session. Whether the
+  // person is still allowed in (disabled, expired) is checked from their profile on every request, in getCurrentUser.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const user = claimsData?.claims?.sub ? { id: claimsData.claims.sub as string } : null;
 
   const path = request.nextUrl.pathname.replace(/\/$/, "");
   const onLogin = path === LOGIN;
-  const onAdmin = path === ADMIN || path.startsWith(`${ADMIN}/`);
 
   // Who may be signed in is decided by the database (company-domain Google account, or on the admin's list; see
   // supabase/step24_access.sql) and re-checked on every page by the portal layout, which signs out anyone whose access
@@ -48,16 +48,9 @@ export async function updateSession(request: NextRequest) {
     result = redirectKeepingCookies(request, LOGIN, response);
   } else if (user && onLogin) {
     result = redirectKeepingCookies(request, HOME, response);
-  } else if (user && onAdmin) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle();
-    if (profile?.role !== "admin") {
-      result = redirectKeepingCookies(request, HOME, response);
-    }
   }
+  // /timesheet/admin is not checked here: the admin layout and every admin page and action check the role themselves, so a second
+  // database look-up on every admin page would only add waiting.
 
   // The X-Robots-Tag and other security headers come from next.config.ts (single source).
   return result;

@@ -12,23 +12,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 import { joinName, nameFromEmail } from "@/lib/nameFromEmail";
-import { ROLES, ROLE_LABEL, parseBulkUsers, toRole, type Role, type SignInMethod } from "@/lib/access/config";
+import { ROLES, ROLE_LABEL, toRole, type Role, type SignInMethod } from "@/lib/access/config";
 import type { AccessRow } from "@/lib/access/server";
-import { addManyAction, addUserAction, removeUserAction, resetPasswordAction, setManagerAction, updateUserAction } from "./actions";
+import { addUserAction, removeUserAction, resetPasswordAction, setManagerAction, updateUserAction } from "./actions";
 
 const NONE = "__none__";
 const ALL = "__all__";
 
-function Filter({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: (readonly [string, string])[] }) {
+function Filter({ label, plural, value, onChange, options }: { label: string; plural: string; value: string; onChange: (v: string) => void; options: (readonly [string, string])[] }) {
   return (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger className="w-40" aria-label={`Filter by ${label.toLowerCase()}`}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value={ALL}>All {label.toLowerCase()}s</SelectItem>
+        <SelectItem value={ALL}>{plural}</SelectItem>
         {options.map(([v, l]) => (
           <SelectItem key={v} value={v}>
             {l}
@@ -200,108 +199,6 @@ function AddUserDialog() {
   );
 }
 
-// ---------------------------- Bulk add ----------------------------
-
-function BulkDialog() {
-  const [open, setOpen] = useState(false);
-  const [text, setText] = useState("");
-  const [role, setRole] = useState<Role>("employee");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-  const parsed = parseBulkUsers(text, role);
-
-  async function onFile(file: File | undefined) {
-    if (!file) return;
-    if (file.size > 200_000) return setError("That file is too big. A list of emails should be well under 200 KB.");
-    setText(await file.text());
-    setError(null);
-  }
-
-  function save() {
-    setError(null);
-    if (parsed.entries.length === 0) return setError(parsed.errors[0] ?? "Paste at least one email address.");
-    startTransition(async () => {
-      const res = await addManyAction({ people: parsed.entries, method: "google" });
-      if (!res.ok) {
-        setError(res.error);
-        return;
-      }
-      toast.success(res.message ?? "Added.");
-      setOpen(false);
-      setText("");
-    });
-  }
-
-  return (
-    <>
-      <Button type="button" variant="outline" onClick={() => setOpen(true)}>
-        Bulk add
-      </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add many people</DialogTitle>
-            <DialogDescription>One per line: email, or email,name, or email,name,role. They sign in with Google. A CSV file works too.</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4">
-            <div className="grid gap-1.5">
-              <Label htmlFor="bulk-text">Emails</Label>
-              <Textarea id="bulk-text" rows={7} value={text} onChange={(e) => setText(e.target.value)} placeholder={"partner@gmail.com\nclient@abc.com,Client Name,viewer"} disabled={pending} />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-1.5">
-                <Label htmlFor="bulk-file">Or choose a CSV file</Label>
-                <Input id="bulk-file" type="file" accept=".csv,.txt,text/csv,text/plain" onChange={(e) => onFile(e.target.files?.[0])} disabled={pending} />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="bulk-role">Role when a line has none</Label>
-                <Select value={role} onValueChange={(v) => setRole(v as Role)} disabled={pending}>
-                  <SelectTrigger id="bulk-role" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ROLES.map((r) => (
-                      <SelectItem key={r} value={r}>
-                        {ROLE_LABEL[r]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            {text.trim() && (
-              <p className="text-sm" role="status">
-                {parsed.entries.length} {parsed.entries.length === 1 ? "person" : "people"} ready to add
-                {parsed.errors.length > 0 ? `, ${parsed.errors.length} ${parsed.errors.length === 1 ? "line has" : "lines have"} a problem:` : "."}
-              </p>
-            )}
-            {parsed.errors.length > 0 && (
-              <ul className="list-disc space-y-1 pl-5 text-sm text-destructive">
-                {parsed.errors.slice(0, 5).map((e) => (
-                  <li key={e}>{e}</li>
-                ))}
-              </ul>
-            )}
-            {error && (
-              <p role="alert" className="text-sm text-destructive">
-                {error}
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={pending}>
-              Cancel
-            </Button>
-            <Button type="button" onClick={save} disabled={pending || parsed.entries.length === 0}>
-              {pending ? "Adding..." : `Add ${parsed.entries.length || ""}`.trim()}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-
 // ---------------------------- One row ----------------------------
 
 function Row({ row, managers }: { row: AccessRow; managers: Managers }) {
@@ -369,7 +266,6 @@ function Row({ row, managers }: { row: AccessRow; managers: Managers }) {
           </SelectContent>
         </Select>
       </TableCell>
-      <TableCell className="whitespace-nowrap">{row.department || <span className="text-muted-foreground">-</span>}</TableCell>
       <TableCell>
         <Badge variant="outline" className={row.status === "disabled" ? "border-dashed" : expired ? "border-destructive text-destructive" : "border-foreground"}>
           {row.status === "disabled" ? "○ Disabled" : expired ? "✕ Expired" : "✓ Active"}
@@ -504,15 +400,12 @@ export default function AccessManager({ rows, managers }: { rows: AccessRow[]; m
   const [q, setQ] = useState("");
   const [role, setRole] = useState<string>(ALL);
   const [status, setStatus] = useState<string>(ALL);
-  const [dept, setDept] = useState<string>(ALL);
   const needle = q.trim().toLowerCase();
   const today = new Date().toISOString().slice(0, 10);
-  const departments = [...new Set(rows.map((r) => r.department).filter(Boolean))].sort();
   const shown = rows.filter((r) => {
     const expired = r.expiresOn !== null && r.expiresOn < today;
-    if (needle && !`${r.email} ${r.name} ${r.department}`.toLowerCase().includes(needle)) return false;
+    if (needle && !`${r.email} ${r.name}`.toLowerCase().includes(needle)) return false;
     if (role !== ALL && r.role !== role) return false;
-    if (dept !== ALL && r.department !== dept) return false;
     if (status === "active") return r.status === "active" && !expired;
     if (status === "disabled") return r.status === "disabled";
     if (status === "expired") return expired;
@@ -523,12 +416,10 @@ export default function AccessManager({ rows, managers }: { rows: AccessRow[]; m
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, email or department" aria-label="Search people" className="max-w-xs" />
-        <Filter label="Role" value={role} onChange={setRole} options={ROLES.map((r) => [r, ROLE_LABEL[r]])} />
-        <Filter label="Status" value={status} onChange={setStatus} options={[["active", "Active"], ["disabled", "Disabled"], ["expired", "Expired"], ["invited", "Not signed in yet"]]} />
-        {departments.length > 0 && <Filter label="Department" value={dept} onChange={setDept} options={departments.map((d) => [d, d])} />}
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or email" aria-label="Search people" className="max-w-xs" />
+        <Filter label="Role" plural="All roles" value={role} onChange={setRole} options={ROLES.map((r) => [r, ROLE_LABEL[r]])} />
+        <Filter label="Status" plural="All statuses" value={status} onChange={setStatus} options={[["active", "Active"], ["disabled", "Disabled"], ["expired", "Expired"], ["invited", "Not signed in yet"]]} />
         <div className="ml-auto flex gap-2">
-          <BulkDialog />
           <AddUserDialog />
         </div>
       </div>
@@ -545,7 +436,6 @@ export default function AccessManager({ rows, managers }: { rows: AccessRow[]; m
               <TableRow>
                 <TableHead>Person</TableHead>
                 <TableHead>Role</TableHead>
-                <TableHead>Department</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Last login</TableHead>
                 <TableHead>Manager</TableHead>

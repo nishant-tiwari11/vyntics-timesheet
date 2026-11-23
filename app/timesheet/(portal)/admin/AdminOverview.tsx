@@ -8,7 +8,11 @@ import { formatTodayLong, formatYmd, greeting } from "@/lib/timesheet/dates";
 import { holidayTypeLabel } from "@/lib/timesheet/holidayTypes";
 import { UserAvatar } from "../../_components/UserAvatar";
 import RunStatusBadge from "../payroll/RunStatusBadge";
+import { ROLE_LABEL, toRole } from "@/lib/access/config";
+import { avatarUrl } from "@/lib/avatar";
+import type { LanyardMember } from "@/components/ui/team-lanyard-rail";
 import { AttentionList } from "./AttentionList";
+import { EmployeeRailLazy as EmployeeRail } from "./EmployeeRailLazy";
 
 const card = "rounded-xl border bg-card p-4";
 const link = "inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground";
@@ -116,7 +120,24 @@ function kpis(o: Awaited<ReturnType<typeof loadAdminOverview>>, c: CompanyOvervi
 // section that can't load shows a dash or a short note instead of taking the page down.
 export async function AdminOverview({ name }: { name: string }) {
   const [overview, company] = await Promise.all([loadAdminOverview(), loadCompanyOverview()]);
-  const { headcount, now, week, payroll, expenses, holidays } = company;
+  const { headcount, now, week, payroll, expenses, holidays, people } = company;
+  const badges: LanyardMember[] = (people ?? []).map((p) => {
+    const role = toRole(p.role) ?? "employee";
+    return {
+      id: p.id,
+      name: p.name,
+      role: ROLE_LABEL[role],
+      team: "Vyntics",
+      image: avatarUrl(p.id),
+      tone: role === "admin" ? 1 : role === "manager" ? 2 : role === "employee" ? 3 : 4,
+      bio: `Joined ${formatYmd(p.joinedOn, { day: "numeric", month: "short", year: "numeric" })}.`,
+      tags: [ROLE_LABEL[role]],
+      links: [
+        { label: "Email", href: `mailto:${p.email}` },
+        { label: "Profile", href: `/timesheet/admin/access/${p.id}` },
+      ],
+    };
+  });
   const run = payroll?.latest ?? null;
 
   return (
@@ -155,6 +176,12 @@ export async function AdminOverview({ name }: { name: string }) {
           </li>
         ))}
       </ul>
+
+      {badges.length > 0 && (
+        <div className="overflow-clip rounded-xl">
+          <EmployeeRail items={badges} total={badges.length} people={Object.fromEntries((people ?? []).map((p) => [p.id, { id: p.id, name: p.name, email: p.email, role: ROLE_LABEL[toRole(p.role) ?? "employee"] }]))} />
+        </div>
+      )}
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
         <div className="grid min-w-0 gap-5">

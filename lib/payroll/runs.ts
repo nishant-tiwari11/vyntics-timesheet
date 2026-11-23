@@ -295,11 +295,15 @@ export async function getRunDetail(runId: string): Promise<RunDetail> {
   assertId(runId, "payroll run");
   await requireAdmin();
   const supabase = await db();
-  const { data: run, error } = await supabase.from("payroll_runs").select("*").eq("id", runId).maybeSingle();
+  // The run, the settings and the pay components do not depend on each other, so they are read at the same time.
+  const [runRes, settings, allComponents] = await Promise.all([
+    supabase.from("payroll_runs").select("*").eq("id", runId).maybeSingle(),
+    getPayrollSettings(),
+    listComponents().catch(() => null),
+  ]);
+  const { data: run, error } = runRes;
   if (error) throw toError(error, "Couldn't load the payroll run. Please try again.");
   if (!run) throw new TimesheetError("That payroll run doesn't exist.");
-
-  const settings = await getPayrollSettings();
   const summary: RunSummary = {
     id: run.id,
     month: monthKeyOf(run.period_end),
@@ -343,11 +347,11 @@ export async function getRunDetail(runId: string): Promise<RunDetail> {
     return { run: summary, rows, runWarnings: [], locked: true, currency: slips[0] ? (slips[0].snapshot as unknown as StoredSnapshot).currency : settings.currency };
   }
 
-  const components = enabledComponents(await listComponents());
-  const { rows, runWarnings } = await computeRows(run, settings, components);
+  const components = enabledComponents(allComponents ?? (await listComponents()));
+  // The activity-log entry is written while the figures are worked out.
+  const [{ rows, runWarnings }] = await Promise.all([computeRows(run, settings, components), audit("viewed", "payroll_run", runId, `Opened the payroll run for ${summary.month}`)]);
   summary.employees = rows.length;
   summary.netTotal = rows.reduce((n, r) => n + r.payslip.net, 0);
-  await audit("viewed", "payroll_run", runId, `Opened the payroll run for ${summary.month}`);
   return { run: summary, rows, runWarnings, locked: false, currency: settings.currency };
 }
 

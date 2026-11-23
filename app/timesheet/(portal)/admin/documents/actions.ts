@@ -5,6 +5,8 @@ import { isUuid } from "@/lib/avatar";
 import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
 import { createClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/timesheet/log";
+import { loadDocumentAudit, type AuditRow } from "@/lib/documents/admin";
+import { loadOfferTemplate } from "@/lib/documents/offerTemplate";
 import { reopenOnboarding, revealAccount, setOnboardingSkip } from "@/lib/onboarding/server";
 import { TimesheetError } from "@/lib/timesheet/errors";
 
@@ -101,4 +103,23 @@ export async function setOnboardingSkipAction(email: string, skip: boolean): Pro
     if (!(e instanceof TimesheetError)) logError("onboarding-skip", e);
     return { ok: false, error: e instanceof TimesheetError ? e.message : "Something went wrong. Please try again." };
   }
+}
+
+/** The activity list, read when its tab is opened. */
+export async function loadActivityAction(): Promise<{ ok: true; rows: AuditRow[] } | { ok: false; error: string }> {
+  const denied = await admin();
+  if (denied) return { ok: false, error: denied };
+  try {
+    return { ok: true, rows: await loadDocumentAudit() };
+  } catch (e) {
+    if (!(e instanceof TimesheetError)) logError("document-activity", e);
+    return { ok: false, error: e instanceof TimesheetError ? e.message : "Something went wrong. Please try again." };
+  }
+}
+
+/** The offer letter template, read when its tab is opened. */
+export async function loadOfferTemplateAction(): Promise<{ ok: true; template: Awaited<ReturnType<typeof loadOfferTemplate>> } | { ok: false; error: string }> {
+  const denied = await admin();
+  if (denied) return { ok: false, error: denied };
+  return { ok: true, template: await loadOfferTemplate() };
 }

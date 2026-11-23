@@ -22,11 +22,11 @@ export default async function RunsPage() {
   let suggested = todayInOffice().slice(0, 7);
   let error: string | null = null;
   try {
-    const [list, settings] = await Promise.all([listRuns(), getPayrollSettings()]);
+    // The activity-log entry is written at the same time as the data is read, not after it.
+    const [list, settings] = await Promise.all([listRuns(), getPayrollSettings(), audit("viewed", "payroll_runs", undefined, "Opened the payroll runs list")]);
     runs = list;
     currency = settings.currency;
     suggested = monthContaining(todayInOffice(), settings.cycleStartDay);
-    await audit("viewed", "payroll_runs", undefined, "Opened the payroll runs list");
   } catch (e) {
     if (!(e instanceof TimesheetError)) logError("payroll-runs-page", e);
     error = e instanceof TimesheetError ? e.message : "Something went wrong. Please try again.";

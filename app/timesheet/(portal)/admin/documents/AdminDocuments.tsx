@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Check, Download, Eye, FileArchive, Loader2, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +18,7 @@ import { UserAvatar } from "../../../_components/UserAvatar";
 import { DocumentPreviewModal, type PreviewDoc } from "../../profile/documents/DocumentPreviewModal";
 import { StatusBadge } from "../../profile/documents/DocumentList";
 import { ReviewDialog, type ReviewTarget } from "../../profile/documents/ReviewDialog";
-import { setManagerSensitiveAction } from "./actions";
+import { loadActivityAction, loadOfferTemplateAction, setManagerSensitiveAction } from "./actions";
 import type { OnboardingRow } from "@/lib/onboarding/server";
 import { ActionRequired } from "./ActionRequired";
 import { OfferLetterTab, type OfferTemplateInfo } from "./OfferLetterTab";
@@ -41,8 +41,20 @@ const ACTION: Record<string, string> = {
 
 const profileLink = (id: string) => `/timesheet/admin/access/${id}`;
 
-export function AdminDocuments({ docs, employees, audit, truncated, today, offerTemplate, onboarding }: { docs: AdminDoc[]; employees: EmployeeDocs[]; audit: AuditRow[]; truncated: boolean; today: string; offerTemplate: OfferTemplateInfo; onboarding: OnboardingRow[] }) {
-  const [view, setView] = useState<View>("action");
+export function AdminDocuments({ docs, employees, truncated, today, onboarding, initialView = "action" }: { docs: AdminDoc[]; employees: EmployeeDocs[]; truncated: boolean; today: string; onboarding: OnboardingRow[]; initialView?: View }) {
+  const [view, setView] = useState<View>(initialView);
+  // The activity list and the offer template are only read when their tab is first opened.
+  const [audit, setAudit] = useState<AuditRow[] | null>(null);
+  const [offerTemplate, setOfferTemplate] = useState<OfferTemplateInfo | null>(null);
+  const [lazyError, setLazyError] = useState<string | null>(null);
+  useEffect(() => {
+    if (view === "activity" && audit === null) {
+      void loadActivityAction().then((res) => (res.ok ? setAudit(res.rows) : setLazyError(res.error)));
+    }
+    if (view === "offer" && offerTemplate === null) {
+      void loadOfferTemplateAction().then((res) => (res.ok ? setOfferTemplate(res.template as OfferTemplateInfo) : setLazyError(res.error)));
+    }
+  }, [view, audit, offerTemplate]);
   const [quick, setQuick] = useState<Quick>("all");
   const [q, setQ] = useState("");
   const [category, setCategory] = useState(ALL);
@@ -309,12 +321,19 @@ export function AdminDocuments({ docs, employees, audit, truncated, today, offer
 
       {view === "onboarding" && <OnboardingAdmin rows={onboarding} onPreview={setPreview} onReview={setReview} />}
 
-      {view === "offer" && <OfferLetterTab employees={employees.filter((e) => e.role !== "viewer")} today={today} template={offerTemplate} />}
+      {view === "offer" &&
+        (offerTemplate ? (
+          <OfferLetterTab employees={employees.filter((e) => e.role !== "viewer")} today={today} template={offerTemplate} />
+        ) : (
+          <p role="status" className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">{lazyError ?? "Loading the template…"}</p>
+        ))}
 
       {view === "activity" && (
         <section className="grid gap-3" aria-label="Document activity">
           <p className="text-sm text-muted-foreground">The latest 100 things done with documents: who, what and when.</p>
-          {audit.length === 0 ? (
+          {audit === null ? (
+            <p role="status" className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">{lazyError ?? "Loading the activity…"}</p>
+          ) : audit.length === 0 ? (
             <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">Nothing has happened yet.</p>
           ) : (
             <ul className="divide-y rounded-xl border bg-card">

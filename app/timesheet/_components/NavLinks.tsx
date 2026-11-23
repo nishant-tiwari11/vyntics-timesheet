@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { Fragment, Suspense } from "react";
+import Link, { useLinkStatus } from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Fragment, Suspense, useRef } from "react";
 import { useNavCounts } from "./NavCounts";
 
 export const ICONS = {
@@ -137,7 +137,9 @@ const LINKS: NavLink[] = [
   { href: "/timesheet/expenses", label: "Expenses", icon: "expenses" },
   { href: "/timesheet/salary", label: "My Salary", icon: "salary" },
 ];
-const TEAM_LINK: NavLink = { href: "/timesheet/team", label: "Team", icon: "team" };
+const TEAM_LINK: NavLink = { href: "/timesheet/team", label: "Team", icon: "team", exact: true };
+// A manager decides leave, work from home and comp-off for the people who report to them.
+const TEAM_APPROVALS_LINK: NavLink = { href: "/timesheet/team/approvals", label: "Team approvals", icon: "approvals" };
 
 // An admin is the owner / HR / manager, not an employee: no own timesheet, leave, expenses or salary here. They see the
 // company: people, everyone's work logs, requests to approve, expense claims and payroll.
@@ -172,6 +174,7 @@ export function titleFor(pathname: string): string {
   if (pathname.startsWith("/timesheet/payroll/queries")) return "Payslip queries";
   if (pathname.startsWith("/timesheet/payroll/settings")) return "Payroll settings";
   if (pathname.startsWith("/timesheet/expenses")) return "Expenses";
+  if (pathname.startsWith("/timesheet/team/approvals")) return "Team approvals";
   if (pathname.startsWith("/timesheet/team")) return "Team";
   if (pathname.startsWith("/timesheet/payroll")) return "Payroll";
   if (pathname.startsWith("/timesheet/calendar")) return "Calendar";
@@ -192,7 +195,7 @@ export function PageTitle() {
 }
 
 export function menuFor(role: string): NavLink[] {
-  return role === "admin" ? ADMIN_MENU : role === "manager" ? [...LINKS, TEAM_LINK] : LINKS;
+  return role === "admin" ? ADMIN_MENU : role === "manager" ? [...LINKS, TEAM_LINK, TEAM_APPROVALS_LINK] : LINKS;
 }
 
 /** The menu items this role can see, in order. The command palette uses the same list. */
@@ -230,13 +233,27 @@ export default function NavLinks({ isAdmin, isManager = false, onNavigate }: { i
   );
 }
 
+// A small ring beside the label while the page behind this link is loading, so the click is acknowledged at once.
+function LinkPending() {
+  const { pending } = useLinkStatus();
+  return pending ? <span aria-hidden="true" className="ml-auto size-3.5 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent opacity-60" /> : null;
+}
+
 function NavWithTab(props: { isAdmin: boolean; isManager: boolean; onNavigate?: () => void }) {
   return <NavList {...props} tab={useSearchParams().get("tab")} />;
 }
 
 function NavList({ isAdmin, isManager, tab, onNavigate }: { isAdmin: boolean; isManager: boolean; tab: string | null; onNavigate?: () => void }) {
   const pathname = usePathname();
+  const router = useRouter();
   const counts = useNavCounts();
+  // Pointing at a link starts loading its page in full (once per link), so by the time it is clicked it is often already here.
+  const warmed = useRef(new Set<string>());
+  const warm = (href: string) => {
+    if (warmed.current.has(href)) return;
+    warmed.current.add(href);
+    router.prefetch(href);
+  };
   const links = menuFor(isAdmin ? "admin" : isManager ? "manager" : "employee");
   const open = currentHref(links, pathname, tab);
 
@@ -248,11 +265,12 @@ function NavList({ isAdmin, isManager, tab, onNavigate }: { isAdmin: boolean; is
         return (
           <Fragment key={l.href}>
           {heading}
-          <Link key={l.href} href={l.href} onClick={onNavigate} className="ts-nav-link" aria-current={open === l.href ? "page" : undefined} title={l.label}>
+          <Link key={l.href} href={l.href} onClick={onNavigate} onMouseEnter={() => warm(l.href)} onFocus={() => warm(l.href)} className="ts-nav-link" aria-current={open === l.href ? "page" : undefined} title={l.label}>
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="ts-nav-icon">
               {ICONS[l.icon]}
             </svg>
             <span className="ts-nav-label">{l.label}</span>
+            <LinkPending />
             {n > 0 && (
               <span className="ts-nav-badge">
                 <span aria-hidden="true">{n > 99 ? "99+" : n}</span>

@@ -1,9 +1,8 @@
 import "server-only";
-import { getPayrollSettings } from "@/lib/payroll/server";
-import { db, requireAdmin } from "./auth";
+import { db, requireAdmin, requireApprover } from "./auth";
 import { computeBalance, type CompOffBalance } from "./compOffCore";
 import { loadLedger } from "./compOff";
-import { todayInOffice } from "./dates";
+import { monthRange, todayInOffice } from "./dates";
 import { TimesheetError, assertId, toError } from "./errors";
 import { offDatesBetween } from "./holidays";
 import { isDayPart, isLeaveKind, leaveDays, paidLeaveStatus, sumDays, type DayPart, type LeaveDay, type LeaveKind, type PaidMonth } from "./leaveCore";
@@ -13,7 +12,8 @@ import { listApprovedLeaveBetween } from "./admin";
 import { listAllRequests } from "./requests";
 
 // The admin's Approvals page: leave and work-from-home requests with what an approval would do (paid leave left, comp-off
-// balance), and the decision itself. Admin only: every function starts with requireAdmin, and the database checks again.
+// balance), and the decision itself. Admins decide for everyone; a manager only for their direct reports (the database enforces
+// that). Balances for all employees (loadBalances) are admin only.
 
 const DEFAULT_QUOTA = 2;
 
@@ -45,8 +45,12 @@ export type LeaveSettings = { quota: number };
 
 async function paidQuota(): Promise<number> {
   try {
-    const s = await getPayrollSettings();
-    return Number.isFinite(s.paidLeavePerMonth) && s.paidLeavePerMonth >= 0 ? s.paidLeavePerMonth : DEFAULT_QUOTA;
+    // A database function, so managers (who can't read the payroll settings) get the allowance too.
+    const supabase = await db();
+    const { data, error } = await supabase.rpc("paid_leave_quota" as never);
+    if (error) throw error;
+    const n = Number(data);
+    return Number.isFinite(n) && n >= 0 ? n : DEFAULT_QUOTA;
   } catch (e) {
     logError("approvals: paid leave allowance", e);
     return DEFAULT_QUOTA;
@@ -78,10 +82,11 @@ async function paidUsage(userIds: string[] | "all", from: string, to: string, of
 }
 
 const monthStart = (ym: string) => `${ym}-01`;
-const monthEnd = (ym: string) => `${ym}-31`;
+// The real last day of the month ("2026-11-31" is not a date and the database refuses it).
+const monthEnd = (ym: string) => monthRange(`${ym}-01`).end;
 
 export async function loadPendingRequests(): Promise<{ rows: PendingRequest[]; quota: number }> {
-  const admin = await requireAdmin();
+  const admin = await requireApprover();
   const requests = (await listAllRequests("pending", 100)).filter((r) => r.user_id !== admin.id);
   const quota = await paidQuota();
   if (requests.length === 0) return { rows: [], quota };
@@ -142,7 +147,7 @@ export type DecisionInput = { id: string; decision: "approved" | "rejected"; kin
 export async function decideRequestWithKind(input: DecisionInput): Promise<void> {
   assertId(input.id, "request");
   if (input.decision !== "approved" && input.decision !== "rejected") throw new TimesheetError("Please choose approve or reject.");
-  const admin = await requireAdmin();
+  const admin = await requireApprover();
   const supabase = await db();
 
   const { data: current, error: readError } = await supabase.from("requests").select("user_id, type, status").eq("id", input.id).maybeSingle();
@@ -236,4 +241,26 @@ export async function loadBalances(): Promise<{ rows: BalanceRow[]; quota: numbe
     })
     .sort((a, b) => a.name.localeCompare(b.name));
   return { rows, quota, month };
+}
+
+// ---------------------------- One person's balances (for a manager's team page) ----------------------------
+
+export type MemberBalances = { quota: number; paidUsed: number; paidLeft: number; compOff: CompOffBalance };
+
+/** Paid leave this month and comp-off for one person. Works for an admin, or a manager looking at their own team member. */
+export async function memberBalances(userId: string): Promise<MemberBalances> {
+  assertId(userId, "person");
+  await requireApprover();
+  const today = todayInOffice();
+  const month = today.slice(0, 7);
+  const quota = await paidQuota();
+  const off = new Set(await offDatesBetween(monthStart(month), monthEnd(month)).catch(() => [] as string[]));
+  const [usage, ledger] = await Promise.all([paidUsage([userId], monthStart(month), monthEnd(month), off), loadLedger([userId])]);
+  const used = usage.get(userId)?.get(month) ?? 0;
+  return {
+    quota,
+    paidUsed: used,
+    paidLeft: Math.max(0, Math.round((quota - used) * 100) / 100),
+    compOff: computeBalance(ledger.creditsBy.get(userId) ?? [], ledger.usesBy.get(userId) ?? [], today),
+  };
 }

@@ -34,7 +34,7 @@ function Heading({ title, children }: { title: string; children?: React.ReactNod
   );
 }
 
-export async function CompOffTab({ filterParam }: { filterParam?: string }) {
+export async function CompOffTab({ filterParam, base = BASE, canEditRules = true }: { filterParam?: string; base?: string; canEditRules?: boolean }) {
   const filter = filterParam === "all" ? "all" : "pending";
   const [requests, settings] = await Promise.all([load(() => listAll(filter)), load(getSettings)]);
 
@@ -44,11 +44,11 @@ export async function CompOffTab({ filterParam }: { filterParam?: string }) {
       <section aria-label="Comp-off requests">
         <Heading title="Comp-off credit requests">
           <nav aria-label="Filter requests" className="flex flex-wrap items-center gap-1.5">
-            {settings.ok && <EditRulesButton settings={settings.data as CompOffSettings} />}
-            <Link href={BASE} aria-current={filter === "pending" ? "page" : undefined} className={pill(filter === "pending")}>
+            {canEditRules && settings.ok && <EditRulesButton settings={settings.data as CompOffSettings} />}
+            <Link href={base} aria-current={filter === "pending" ? "page" : undefined} className={pill(filter === "pending")}>
               Waiting
             </Link>
-            <Link href={`${BASE}&filter=all`} aria-current={filter === "all" ? "page" : undefined} className={pill(filter === "all")}>
+            <Link href={`${base}&filter=all`} aria-current={filter === "all" ? "page" : undefined} className={pill(filter === "all")}>
               All
             </Link>
           </nav>
