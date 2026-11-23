@@ -122,3 +122,13 @@ export function computeBalance(credits: CompOffCredit[], useDates: string[], tod
 
 /** "1 day", "0.5 day", "2.5 days" */
 export const daysText = (n: number) => `${n} ${n === 1 || n === 0.5 ? "day" : "days"}`;
+
+/** What to say when a comp-off request needs more days than you have: what is wrong, and what to do about it. */
+export function compOffShortMessage(have: number, need: number): string {
+  if (have <= 0) {
+    return "You don't have any comp-off available right now. Apply for normal leave instead, or earn comp-off by working on a weekly off day or a holiday.";
+  }
+  const more = Math.round((need - have) * 10) / 10;
+  const half = have < 1 ? " Comp-off is spent one full day at a time, so a half day can't cover a day off by itself." : "";
+  return `You have ${daysText(have)} of comp-off, and this request needs ${daysText(need)}.${half} Apply for normal leave instead, or earn ${daysText(more)} more first.`;
+}

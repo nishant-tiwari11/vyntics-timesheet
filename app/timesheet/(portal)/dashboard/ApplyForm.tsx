@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { daysText } from "@/lib/timesheet/compOffCore";
+import { compOffShortMessage, daysText } from "@/lib/timesheet/compOffCore";
 import { workingDays } from "@/lib/timesheet/dates";
+import { Button } from "@/components/ui/button";
 import { FormField, Input, Textarea } from "../../_components/Fields";
 import { createRequestAction } from "./actions";
 
@@ -60,7 +61,7 @@ export default function ApplyForm({
     if (type === "comp" && !found.from && !found.to) {
       const have = compOff?.available ?? 0;
       if (days === 0) found.to = "Those dates are all weekends or holidays, so there is nothing to take comp-off for.";
-      else if (days > have) found.to = `You have ${daysText(have)} of comp-off available, and this request needs ${daysText(days)}.`;
+      else if (days > have) found.to = compOffShortMessage(have, days);
     }
     setErrors(found);
     if (found.from || found.to) return;
@@ -127,6 +128,20 @@ export default function ApplyForm({
             disabled={pending}
           />
         </FormField>
+        {type === "comp" && !!errors.to && days > (compOff?.available ?? 0) && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-fit max-md:min-h-11"
+            onClick={() => {
+              setType("leave");
+              setErrors({});
+            }}
+          >
+            Apply for normal leave instead
+          </Button>
+        )}
         <p className="ts-apply-days" aria-live="polite">
           {!from || !to || to < from ? (
             "Choose valid dates"

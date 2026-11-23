@@ -4,7 +4,7 @@ import {
   DEFAULT_SETTINGS,
   computeBalance,
   creditForHours,
-  daysText,
+  compOffShortMessage,
   daysSpent,
   type CompOffBalance,
   type CompOffCredit,
@@ -158,7 +158,7 @@ export async function assertCanSpend(userId: string, from: string, to: string): 
           ? ` Comp-off can only be used up to its expiry date (${lastCredit}).`
           : "";
     throw new TimesheetError(
-      `You have ${daysText(before.available)} of comp-off available, and this request needs ${daysText(days.length)}.${detail}`
+      `${compOffShortMessage(before.available, days.length)}${detail}`
     );
   }
 }
