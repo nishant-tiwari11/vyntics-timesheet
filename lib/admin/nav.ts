@@ -18,7 +18,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
   { id: "users", label: "Users & Roles", href: `${ADMIN}/access`, path: `${ADMIN}/access`, tabs: ["employees"] },
   { id: "projects", label: "Projects", href: `${ADMIN}/projects`, path: `${ADMIN}/projects` },
   { id: "holidays", label: "Holidays & Leave Policy", href: `${ADMIN}?tab=holidays`, tabs: ["holidays"] },
-  { id: "approvals", label: "Approvals", href: `${ADMIN}?tab=requests`, tabs: ["requests", "logs", "compoff"] },
+  { id: "approvals", label: "Approvals", href: `${ADMIN}/approvals`, path: `${ADMIN}/approvals` },
   { id: "documents", label: "Documents", href: `${ADMIN}/documents`, path: `${ADMIN}/documents` },
   { id: "reports", label: "Reports", href: `${ADMIN}/reports`, path: `${ADMIN}/reports` },
   { id: "audit", label: "Audit Log", href: `${ADMIN}/audit`, path: `${ADMIN}/audit` },

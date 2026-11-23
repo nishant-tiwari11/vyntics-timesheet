@@ -134,3 +134,26 @@
 .dark .ts-portal {
   color-scheme: dark;
 }
+
+/* Colours of the lanyard badges on the admin overview (one per team colour). */
+:root {
+  --chart-1: #0f766e;
+  --chart-2: #4f46e5;
+  --chart-3: #d97706;
+  --chart-4: #be123c;
+  --chart-5: #15803d;
+}
+.dark {
+  --chart-1: #2dd4bf;
+  --chart-2: #818cf8;
+  --chart-3: #fbbf24;
+  --chart-4: #fb7185;
+  --chart-5: #4ade80;
+}
+@theme inline {
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+}

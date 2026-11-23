@@ -157,8 +157,15 @@
 
 .ts-nav {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 4px;
+  min-height: 0; /* lets the menu scroll on its own, with the brand above and the user below staying put */
+  margin-right: -6px;
+  padding-right: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 
 .ts-nav-link {
@@ -515,4 +522,93 @@
   .ts-main {
     padding: 16px 16px 48px;
   }
+}
+
+/* Admin: the menu floats at the top, centred over the page, instead of the sidebar. It is only as wide as its items; the
+   page underneath keeps the full width and scrolls beneath it. */
+.ts-topnav {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  z-index: 45;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  transform: translateX(-50%);
+  pointer-events: none; /* only the pieces below catch the mouse, so the page behind stays clickable */
+  animation: ts-topnav-in 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+.ts-topnav > * {
+  pointer-events: auto;
+}
+@keyframes ts-topnav-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -14px) scale(0.96);
+  }
+}
+.ts-shell[data-topnav="true"] > .ts-side {
+  display: none;
+}
+.ts-shell[data-topnav="true"] .ts-topnav {
+  display: flex;
+}
+/* The title would sit under the floating menu, which already shows where you are. */
+.ts-shell[data-topnav="true"] .ts-topbar-title {
+  visibility: hidden;
+}
+.ts-topnav-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 54px;
+  min-width: 54px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--ts-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  backdrop-filter: blur(14px) saturate(1.3);
+  box-shadow: 0 12px 32px -14px rgba(0, 40, 90, 0.5), 0 2px 6px rgba(0, 40, 90, 0.1), inset 0 1px 1px rgba(255, 255, 255, 0.8);
+  transition: transform 0.2s cubic-bezier(0.3, 1.6, 0.5, 1), background 0.2s;
+}
+.ts-topnav-chip:hover {
+  background: rgba(255, 255, 255, 0.8);
+  transform: translateY(-1px) scale(1.03);
+}
+.ts-topnav-chip:focus-visible {
+  outline: 2px solid var(--ts-teal);
+  outline-offset: 2px;
+}
+@media (max-width: 900px) {
+  .ts-shell[data-topnav="true"] .ts-topnav {
+    display: none;
+  }
+  .ts-shell[data-topnav="true"] .ts-topbar-title {
+    visibility: visible;
+  }
+}
+@media (max-width: 1150px) {
+  .ts-topnav-show,
+  .ts-topnav-brand {
+    display: none;
+  }
+}
+
+/* Headings that group the admin menu (People, Work, Money, Company). */
+.ts-nav-group {
+  margin: 14px 12px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ts-muted);
+}
+.ts-side[data-collapsed="true"] .ts-nav-group {
+  display: none;
 }

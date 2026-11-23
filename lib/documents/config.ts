@@ -12,24 +12,41 @@ export type Category = {
   label: string;
   /** Shown under the name, e.g. what counts as an ID proof. */
   hint?: string;
-  /** Every employee should have one: counted in "5 of 8 uploaded" and in the profile completion. */
+  /** HR issues these (offer letter, joining letter): counted as "action required" until HR has uploaded one. */
   required: boolean;
   /** ID proof, bank and salary papers: hidden from managers unless an admin allows it. */
   sensitive: boolean;
+  /** hr = issued by HR to the employee; onboarding = the employee submits it when joining; legacy = no longer offered, old files keep their label. */
+  group: "hr" | "onboarding" | "legacy";
+  /** What file types are accepted. Onboarding papers are PDFs; the passport photo is an image. */
+  accept: "any" | "pdf" | "image";
 };
 
 export const CATEGORIES: readonly Category[] = [
-  { id: "offer_letter", label: "Offer Letter", required: true, sensitive: false },
-  { id: "appointment_letter", label: "Appointment / Joining Letter", required: true, sensitive: false },
-  { id: "contract_nda", label: "Employment Contract / NDA", required: true, sensitive: false },
-  { id: "id_proof", label: "ID Proof", hint: "Aadhaar, PAN, Passport or Driving License", required: true, sensitive: true },
-  { id: "address_proof", label: "Address Proof", required: true, sensitive: false },
-  { id: "education", label: "Education Certificates", required: true, sensitive: false },
-  { id: "previous_employment", label: "Previous Employment", hint: "Experience or relieving letter, payslips", required: true, sensitive: false },
-  { id: "bank_details", label: "Bank Details", hint: "Cancelled cheque or passbook", required: true, sensitive: true },
-  { id: "salary_slips", label: "Salary Slips / Form 16", required: false, sensitive: true },
-  { id: "other", label: "Other", required: false, sensitive: false },
+  // Issued by HR (an admin uploads or generates them; the employee only downloads).
+  { id: "offer_letter", label: "Offer Letter", required: true, sensitive: false, group: "hr", accept: "any" },
+  { id: "appointment_letter", label: "Joining Letter", required: true, sensitive: false, group: "hr", accept: "any" },
+  // Submitted by the employee during onboarding.
+  { id: "degree", label: "Degree Certificate", hint: "PDF", required: false, sensitive: false, group: "onboarding", accept: "pdf" },
+  { id: "marksheets", label: "Semester Marksheets", hint: "PDF, all semesters", required: false, sensitive: false, group: "onboarding", accept: "pdf" },
+  { id: "aadhaar", label: "Aadhaar Card", hint: "PDF", required: false, sensitive: true, group: "onboarding", accept: "pdf" },
+  { id: "passport_photo", label: "Passport-size Photo", hint: "JPG or PNG", required: false, sensitive: false, group: "onboarding", accept: "image" },
+  { id: "prev_offer_letter", label: "Previous Company Offer Letter", hint: "PDF", required: false, sensitive: false, group: "onboarding", accept: "pdf" },
+  { id: "prev_payslip", label: "Latest Payslip", hint: "PDF, from the previous company", required: false, sensitive: true, group: "onboarding", accept: "pdf" },
+  { id: "other", label: "Other", required: false, sensitive: false, group: "hr", accept: "any" },
+  // No longer asked for. Existing files keep their label and stay visible to HR.
+  { id: "contract_nda", label: "Employment Contract / NDA", required: false, sensitive: false, group: "legacy", accept: "any" },
+  { id: "id_proof", label: "ID Proof", hint: "Aadhaar, PAN, Passport or Driving License", required: false, sensitive: true, group: "legacy", accept: "any" },
+  { id: "address_proof", label: "Address Proof", required: false, sensitive: false, group: "legacy", accept: "any" },
+  { id: "education", label: "Education Certificates", required: false, sensitive: false, group: "legacy", accept: "any" },
+  { id: "previous_employment", label: "Previous Employment", required: false, sensitive: false, group: "legacy", accept: "any" },
+  { id: "bank_details", label: "Bank Details", hint: "Cancelled cheque or passbook", required: false, sensitive: true, group: "legacy", accept: "any" },
+  { id: "salary_slips", label: "Salary Slips / Form 16", required: false, sensitive: true, group: "legacy", accept: "any" },
 ];
+
+export const GROUP_LABEL: Record<Category["group"], string> = { hr: "Issued by HR", onboarding: "Submitted by the employee", legacy: "Older categories" };
+/** What can be chosen when adding a document today (everything except the old categories). */
+export const OFFERED_CATEGORIES = CATEGORIES.filter((c) => c.group !== "legacy");
 
 export const categoryOf = (id: string) => CATEGORIES.find((c) => c.id === id);
 export const categoryLabel = (id: string) => categoryOf(id)?.label ?? "Other";
@@ -53,6 +70,13 @@ export const ACCEPT_ATTR = ".pdf,.doc,.docx,.jpg,.jpeg,.png";
 export const extensionOf = (filename: string) => (filename.includes(".") ? filename.split(".").pop()!.toLowerCase() : "");
 /** The kind a file NAME claims to be (the server also checks the real contents). */
 export const kindFromName = (filename: string): DocKind | null => EXT_KIND[extensionOf(filename)] ?? null;
+/** Does this kind of file suit the category (PDF only, image only, or anything)? */
+export function kindSuits(categoryId: string, kind: DocKind): boolean {
+  const accept = categoryOf(categoryId)?.accept ?? "any";
+  return accept === "any" || (accept === "pdf" ? kind === "pdf" : kind === "jpeg" || kind === "png");
+}
+export const acceptAttrFor = (categoryId: string) => ({ any: ACCEPT_ATTR, pdf: ".pdf", image: ".jpg,.jpeg,.png" })[categoryOf(categoryId)?.accept ?? "any"];
+
 /** Can the browser show this inside the page (PDF and images)? */
 export const canPreview = (mime: string) => mime === KIND_MIME.pdf || mime === KIND_MIME.jpeg || mime === KIND_MIME.png;
 

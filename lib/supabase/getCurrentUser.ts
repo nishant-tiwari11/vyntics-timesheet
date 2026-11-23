@@ -17,6 +17,14 @@ export type AccessBlock = "disabled" | "expired" | "session";
 
 type Loaded = { user: CurrentUser; block: AccessBlock | null } | null;
 
+type ProfileRow = { full_name: string | null; email: string; role: string; status?: string; access_expires_on?: string | null };
+
+// The profile is the same for every request someone makes in the next few seconds, so each server keeps it for a short while
+// instead of asking the database on every click. Short on purpose: disabling someone or changing their role still takes effect
+// within a few seconds, and the page they act on re-checks it anyway.
+const PROFILE_TTL_MS = 10_000;
+const profiles = new Map<string, { at: number; row: ProfileRow | null }>();
+
 // One look at the signed-in person per request: who they are (from public.profiles), and whether their access is
 // still valid (not disabled, not past its expiry date, sign-in not older than SESSION_MAX_HOURS).
 const load = cache(async (): Promise<Loaded> => {
@@ -25,20 +33,32 @@ const load = cache(async (): Promise<Loaded> => {
   const primed = primeSettings();
   primed.catch(() => {}); // a failure is raised where it is awaited below, not as an unhandled one
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  // Verified locally from the token (no call to the Auth service); see lib/supabase/middleware.ts.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const claims = claimsData?.claims;
+  if (!claims?.sub) return null;
+  const meta = (claims.user_metadata ?? {}) as { name?: unknown };
+  // When this sign-in happened: the newest sign-in method in the token (a refreshed session keeps the original time).
+  const amr = Array.isArray(claims.amr) ? (claims.amr as { timestamp?: number }[]) : [];
+  const signedInAt = amr.reduce((n, a) => Math.max(n, typeof a?.timestamp === "number" ? a.timestamp * 1000 : 0), 0);
+  const user = { id: claims.sub as string, email: typeof claims.email === "string" ? claims.email : "", user_metadata: meta, last_sign_in_at: signedInAt ? new Date(signedInAt).toISOString() : null };
 
   // The access columns come from supabase/step24_access.sql. Until that has been run the first query fails, and we fall
   // back to the older columns so nobody is locked out in the meantime.
-  let profile: { full_name: string | null; email: string; role: string; status?: string; access_expires_on?: string | null } | null = null;
-  const withAccess = await supabase.from("profiles").select("full_name, email, role, status, access_expires_on").eq("id", user.id).maybeSingle();
-  if (!withAccess.error) {
-    profile = withAccess.data;
+  let profile: ProfileRow | null = null;
+  const saved = profiles.get(user.id);
+  if (saved && Date.now() - saved.at < PROFILE_TTL_MS) {
+    profile = saved.row;
   } else {
-    const legacy = await supabase.from("profiles").select("full_name, email, role").eq("id", user.id).maybeSingle();
-    profile = legacy.data;
+    const withAccess = await supabase.from("profiles").select("full_name, email, role, status, access_expires_on").eq("id", user.id).maybeSingle();
+    if (!withAccess.error) {
+      profile = withAccess.data;
+    } else {
+      const legacy = await supabase.from("profiles").select("full_name, email, role").eq("id", user.id).maybeSingle();
+      profile = legacy.data;
+    }
+    if (profiles.size > 500) profiles.clear();
+    profiles.set(user.id, { at: Date.now(), row: profile });
   }
 
   const email = profile?.email ?? user.email ?? "";

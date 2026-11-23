@@ -906,6 +906,8 @@ export type Database = {
           reason: string | null;
           status: Database["public"]["Enums"]["request_status"];
           comp_off: boolean;
+          day_part: string;
+          leave_kind: string | null;
           reviewed_by: string | null;
           reviewed_at: string | null;
           admin_note: string | null;
@@ -920,6 +922,8 @@ export type Database = {
           reason?: string | null;
           status?: Database["public"]["Enums"]["request_status"];
           comp_off?: boolean;
+          day_part?: string;
+          leave_kind?: string | null;
           reviewed_by?: string | null;
           reviewed_at?: string | null;
           admin_note?: string | null;
@@ -934,6 +938,8 @@ export type Database = {
           reason?: string | null;
           status?: Database["public"]["Enums"]["request_status"];
           comp_off?: boolean;
+          day_part?: string;
+          leave_kind?: string | null;
           reviewed_by?: string | null;
           reviewed_at?: string | null;
           admin_note?: string | null;

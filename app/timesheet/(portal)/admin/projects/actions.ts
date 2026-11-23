@@ -5,6 +5,7 @@ import { isUuid } from "@/lib/avatar";
 import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
 import { createClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/timesheet/log";
+import { forgetProjects } from "@/lib/timesheet/projectList";
 
 export type ProjectResult = { ok: true; message: string } | { ok: false; error: string };
 
@@ -20,14 +21,22 @@ async function call(fn: string, args: Record<string, unknown>, done: string): Pr
     const missing = ["42883", "PGRST202"].includes(error.code ?? "");
     return { ok: false, error: error.code === "P0001" ? error.message : missing ? "Projects aren't set up yet. Run supabase/step31_projects.sql in Supabase." : "Something went wrong. Please try again." };
   }
+  forgetProjects(); // this server reads the list again at once
   for (const path of ["/timesheet/admin/projects", "/timesheet/admin/audit", "/timesheet/worklog", "/timesheet/dashboard"]) revalidatePath(path);
   return { ok: true, message: done };
 }
 
-export async function addProjectAction(name: string): Promise<ProjectResult> {
+export async function addProjectAction(name: string, category: string): Promise<ProjectResult> {
   const n = typeof name === "string" ? name.trim() : "";
   if (!n) return { ok: false, error: "Enter the project's name." };
-  return call("project_add", { p_name: n }, `Added ${n}.`);
+  const cat = category === "client" || category === "internal" ? category : "other";
+  return call("project_add", { p_name: n, p_category: cat }, `Added ${n}.`);
+}
+
+export async function setProjectCategoryAction(id: string, category: string): Promise<ProjectResult> {
+  if (!isUuid(id)) return { ok: false, error: "That project could not be found." };
+  if (category !== "client" && category !== "internal" && category !== "other") return { ok: false, error: "Choose client work, internal or other." };
+  return call("project_set_category", { p_id: id, p_category: category }, "Moved.");
 }
 
 export async function renameProjectAction(id: string, name: string): Promise<ProjectResult> {

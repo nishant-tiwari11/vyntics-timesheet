@@ -95,7 +95,7 @@ export async function getMyPayslip(month: string): Promise<PayslipDetail | null>
     .eq("user_id", me.id)
     .is("superseded_at", null)
     .gte("period_end", `${month}-01`)
-    .lte("period_end", monthRange(`${month}-01`).end) // the real last day: "2026-11-31" doesn't exist and the database refuses it
+    .lte("period_end", monthRange(`${month}-01`).end) // the real last day: "2026-11-31" is not a date and the database refuses it
     .maybeSingle();
   if (error) throw toError(error, "Couldn't load your payslip. Please try again.");
   if (!data) return null;

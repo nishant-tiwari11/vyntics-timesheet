@@ -23,9 +23,7 @@ describe("admin navigation", () => {
   it("knows which item is open from the address", () => {
     expect(activeAdminNav("/timesheet/admin", null)).toBe("overview");
     expect(activeAdminNav("/timesheet/admin/", null)).toBe("overview");
-    expect(activeAdminNav("/timesheet/admin", "requests")).toBe("approvals");
-    expect(activeAdminNav("/timesheet/admin", "logs")).toBe("approvals");
-    expect(activeAdminNav("/timesheet/admin", "compoff")).toBe("approvals");
+    expect(activeAdminNav("/timesheet/admin/approvals", null)).toBe("approvals");
     expect(activeAdminNav("/timesheet/admin", "holidays")).toBe("holidays");
     expect(activeAdminNav("/timesheet/admin", "employees")).toBe("users");
     expect(activeAdminNav("/timesheet/admin/access", null)).toBe("users");

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AVATAR_PICK_MAX_BYTES, AVATAR_PICK_TYPES } from "@/lib/avatar";
 import { UserAvatar } from "../../_components/UserAvatar";
+import { refreshShell } from "../../_components/NavCounts";
 import { removeAvatarAction, uploadAvatarAction } from "./actions";
 
 const VIEW = 280; // the square the person drags the photo inside, in pixels
@@ -123,6 +124,7 @@ export function AvatarUploader({
           if (!res.ok) return setError(res.error);
           setVersion(res.version);
           toast.success("Photo updated.");
+          refreshShell(); // the rest of the page learns about the new picture
           close();
           router.refresh();
         });
@@ -138,6 +140,7 @@ export function AvatarUploader({
       if (!res.ok) return setError(res.error);
       setVersion(res.version);
       toast.success("Photo removed.");
+      refreshShell();
       close();
       router.refresh();
     });

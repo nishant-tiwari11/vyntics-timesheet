@@ -16,7 +16,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { formatYmd } from "@/lib/timesheet/dates";
 import { adminDeleteLogAction } from "../admin/logActions";
 import { deleteLogAction } from "../dashboard/actions";
-import { LazyDecideLogButtons, LazyWorkLogForm } from "../dashboard/LazyForms";
+import { LazyWorkLogForm } from "../dashboard/LazyForms";
 import { Modal } from "../dashboard/LogDialog";
 import { clock12, fmtDuration, type Entry } from "./model";
 
@@ -76,8 +76,6 @@ export function RowActions({
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-1.5">
-      {admin && !own && entry.status === "pending" && <LazyDecideLogButtons id={entry.id} who={entry.person} />}
-
       {canFix && (
         <Button type="button" variant="outline" size="sm" className="max-md:min-h-11" onClick={() => setDialog("fix")}>
           <RotateCcw aria-hidden="true" /> Fix and resubmit

@@ -59,7 +59,7 @@ export default async function WorkLogPage({
               <h2 id="entries-title" className="ts-h2">
                 Entries
               </h2>
-              <p className="ts-muted">{admin ? "Everyone's time logs. Edit, delete, approve or export them here." : "Everything you have logged, day by day. Edit or delete an entry while its week is open."}</p>
+              <p className="ts-muted">{admin ? "Everyone's time logs, yours included. There is no approval step: look through them, correct or remove an entry if needed, or export." : "Everything you have logged, day by day. Edit or delete an entry while its week is open."}</p>
             </div>
             {admin && <ImportButton employees={employees} projects={projects} />}
           </div>

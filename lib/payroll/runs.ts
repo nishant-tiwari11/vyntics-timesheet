@@ -143,22 +143,21 @@ async function computeRows(
   const supabase = await db();
   const { period_start: start, period_end: end } = run;
 
-  const [people, details, structures, hours, requests, compEarned, compOpen, pendingLogs, pendingReq, adjustments, inputs, holidays, runExpenses] = await Promise.all([
+  const [people, details, structures, hours, requests, compEarned, compOpen, pendingReq, adjustments, inputs, holidays, runExpenses] = await Promise.all([
     supabase.from("profiles").select("id, full_name, email, created_at").order("full_name", { ascending: true }),
     supabase.from("employee_details").select("user_id, joined_on, left_on, department"),
     supabase.from("salary_structures").select("user_id, effective_from, basic_paise, hra_paise, allowances_paise, deductions_paise").lte("effective_from", end).order("effective_from", { ascending: false }).limit(20000),
-    supabase.from("work_logs").select("user_id, log_date, hours").eq("status", "approved").gte("log_date", start).lte("log_date", end).limit(50000),
-    supabase.from("requests").select("user_id, type, comp_off, from_date, to_date").eq("status", "approved").lte("from_date", end).gte("to_date", start).limit(20000),
+    supabase.from("work_logs").select("user_id, log_date, hours").neq("status", "rejected").gte("log_date", start).lte("log_date", end).limit(50000),
+    supabase.from("requests").select("user_id, type, comp_off, from_date, to_date, leave_kind, day_part").eq("status", "approved").lte("from_date", end).gte("to_date", start).limit(20000),
     supabase.from("comp_off_requests").select("user_id, work_date").eq("status", "approved").gte("work_date", start).lte("work_date", end).limit(20000),
     supabase.from("comp_off_requests").select("user_id, work_date").or("status.eq.pending,needs_reapproval.eq.true").gte("work_date", start).lte("work_date", end).limit(20000),
-    supabase.from("work_logs").select("user_id").eq("status", "pending").gte("log_date", start).lte("log_date", end).limit(50000),
     supabase.from("requests").select("user_id").eq("status", "pending").lte("from_date", end).gte("to_date", start).limit(20000),
     supabase.from("payroll_adjustments").select("id, user_id, kind, label, amount_paise").eq("run_id", run.id).order("created_at", { ascending: true }),
     supabase.from("payroll_run_inputs").select("user_id, manual_lop_days").eq("run_id", run.id),
     listHolidaysBetween(start, end).catch(() => []),
     listRunExpenses(run.id),
   ]);
-  for (const r of [people, details, structures, hours, requests, compEarned, compOpen, pendingLogs, pendingReq, adjustments, inputs]) {
+  for (const r of [people, details, structures, hours, requests, compEarned, compOpen, pendingReq, adjustments, inputs]) {
     if (r.error) throw toError(r.error, "Couldn't gather the payroll data. Please try again.");
   }
 
@@ -172,12 +171,16 @@ async function computeRows(
   }
   const leaveBy = new Set<string>();
   const compLeaveBy = new Set<string>();
+  const decidedBy = new Map<string, { kind: "paid" | "comp_off" | "unpaid"; fraction: number }>();
   const wfhBy = new Set<string>();
   for (const r of requests.data!) {
     for (const d of dateRange(r.from_date, r.to_date, start, end)) {
       const key = `${r.user_id}|${d}`;
       if (r.type === "wfh") wfhBy.add(key);
-      else if (r.comp_off) compLeaveBy.add(key);
+      else if (r.leave_kind === "paid" || r.leave_kind === "comp_off" || r.leave_kind === "unpaid") {
+        // The admin decided what this leave is; a half day is half of a day.
+        decidedBy.set(key, { kind: r.leave_kind, fraction: r.from_date === r.to_date && r.day_part !== "full" ? 0.5 : 1 });
+      } else if (r.comp_off) compLeaveBy.add(key);
       else leaveBy.add(key);
     }
   }
@@ -189,7 +192,6 @@ async function computeRows(
     for (const r of rows) m.set(r.user_id, (m.get(r.user_id) ?? 0) + 1);
     return m;
   };
-  const pLogs = pendingCount(pendingLogs.data!);
   const pReq = pendingCount(pendingReq.data!);
   const pComp = pendingCount(compOpen.data!);
 
@@ -239,6 +241,7 @@ async function computeRows(
         holiday: holidaySet.has(date),
         leave: leaveBy.has(key),
         compOffLeave: compLeaveBy.has(key),
+        leaveDecision: decidedBy.get(key) ?? null,
         wfh: wfhBy.has(key),
         hoursHundredths: hoursBy.get(key) ?? 0,
         compOffEarned: earnedBy.has(key),
@@ -260,7 +263,6 @@ async function computeRows(
     });
 
     const pending: string[] = [];
-    if (pLogs.get(p.id)) pending.push(`${pLogs.get(p.id)} time ${pLogs.get(p.id) === 1 ? "log" : "logs"}`);
     if (pReq.get(p.id)) pending.push(`${pReq.get(p.id)} leave or WFH ${pReq.get(p.id) === 1 ? "request" : "requests"}`);
     if (pComp.get(p.id)) pending.push(`${pComp.get(p.id)} comp-off ${pComp.get(p.id) === 1 ? "request" : "requests"}`);
 
@@ -293,11 +295,15 @@ export async function getRunDetail(runId: string): Promise<RunDetail> {
   assertId(runId, "payroll run");
   await requireAdmin();
   const supabase = await db();
-  const { data: run, error } = await supabase.from("payroll_runs").select("*").eq("id", runId).maybeSingle();
+  // The run, the settings and the pay components do not depend on each other, so they are read at the same time.
+  const [runRes, settings, allComponents] = await Promise.all([
+    supabase.from("payroll_runs").select("*").eq("id", runId).maybeSingle(),
+    getPayrollSettings(),
+    listComponents().catch(() => null),
+  ]);
+  const { data: run, error } = runRes;
   if (error) throw toError(error, "Couldn't load the payroll run. Please try again.");
   if (!run) throw new TimesheetError("That payroll run doesn't exist.");
-
-  const settings = await getPayrollSettings();
   const summary: RunSummary = {
     id: run.id,
     month: monthKeyOf(run.period_end),
@@ -341,11 +347,11 @@ export async function getRunDetail(runId: string): Promise<RunDetail> {
     return { run: summary, rows, runWarnings: [], locked: true, currency: slips[0] ? (slips[0].snapshot as unknown as StoredSnapshot).currency : settings.currency };
   }
 
-  const components = enabledComponents(await listComponents());
-  const { rows, runWarnings } = await computeRows(run, settings, components);
+  const components = enabledComponents(allComponents ?? (await listComponents()));
+  // The activity-log entry is written while the figures are worked out.
+  const [{ rows, runWarnings }] = await Promise.all([computeRows(run, settings, components), audit("viewed", "payroll_run", runId, `Opened the payroll run for ${summary.month}`)]);
   summary.employees = rows.length;
   summary.netTotal = rows.reduce((n, r) => n + r.payslip.net, 0);
-  await audit("viewed", "payroll_run", runId, `Opened the payroll run for ${summary.month}`);
   return { run: summary, rows, runWarnings, locked: false, currency: settings.currency };
 }
 

@@ -75,7 +75,7 @@ export function DecideCompOff({ id, who, day, reapproval = false }: { id: string
 
 // ---------------------------- Rules ----------------------------
 
-export function CompOffSettingsForm({ settings }: { settings: CompOffSettings }) {
+export function CompOffSettingsForm({ settings, onSaved }: { settings: CompOffSettings; onSaved?: () => void }) {
   const [half, setHalf] = useState(String(settings.halfDayHours));
   const [full, setFull] = useState(String(settings.fullDayHours));
   const [expiry, setExpiry] = useState(String(settings.expiryDays));
@@ -97,6 +97,7 @@ export function CompOffSettingsForm({ settings }: { settings: CompOffSettings })
         return;
       }
       toast.success("Comp-off rules saved.");
+      onSaved?.();
     });
   }
 
@@ -145,8 +146,8 @@ const cell = (v: string | number) => {
 export function ExportReport({ rows }: { rows: CompOffReportRow[] }) {
   function download() {
     const lines = [
-      ["Employee", "Email", "Earned (days)", "Used (days)", "Expired (days)", "Available (days)", "Expiring in 14 days (days)"],
-      ...rows.map((r) => [r.name, r.email, r.earned, r.used, r.expired, r.available, r.expiringSoon]),
+      ["Employee", "Email", "Earned (days)", "Used (days)", "Expired (days)", "Owed (days)", "Balance (days)", "Expiring in 14 days (days)"],
+      ...rows.map((r) => [r.name, r.email, r.earned, r.used, r.expired, r.shortfall, r.balance, r.expiringSoon]),
     ].map((l) => l.map(cell).join(","));
     const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -161,5 +162,27 @@ export function ExportReport({ rows }: { rows: CompOffReportRow[] }) {
     <Button type="button" variant="outline" size="sm" onClick={download} disabled={rows.length === 0}>
       <Download aria-hidden="true" /> Export CSV
     </Button>
+  );
+}
+
+// ---------------------------- Edit rules (in a pop-up) ----------------------------
+
+export function EditRulesButton({ settings }: { settings: CompOffSettings }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
+        Edit rules
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Comp-off rules</DialogTitle>
+            <DialogDescription>How much work earns comp-off, when it expires and how much one person can earn.</DialogDescription>
+          </DialogHeader>
+          <CompOffSettingsForm settings={settings} onSaved={() => setOpen(false)} />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

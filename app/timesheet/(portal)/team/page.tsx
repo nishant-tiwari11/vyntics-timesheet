@@ -26,9 +26,16 @@ export default async function TeamPage() {
   return (
     <div className="grid gap-5">
       <div className="grid gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Team</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight">Team</h1>
+          {me?.role === "manager" && (
+            <Link href="/timesheet/team/approvals" className="inline-flex min-h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90">
+              Team approvals
+            </Link>
+          )}
+        </div>
         <p className="text-sm text-muted-foreground">
-          {data?.scope === "everyone" ? "Everyone with an account. Hours are for the last 7 days." : "The people who report to you. Hours are for the last 7 days. This page is read-only."}
+          {data?.scope === "everyone" ? "Everyone with an account. Hours are for the last 7 days." : "The people who report to you. Open a person to see their work logs, leave and comp-off. Hours are for the last 7 days."}
         </p>
       </div>
 
@@ -66,8 +73,8 @@ export default async function TeamPage() {
                 <TableHead>Person</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead className="text-right">Hours, last 7 days</TableHead>
-                <TableHead className="text-right">Logs waiting</TableHead>
-                <TableHead className="text-right">Leave/WFH waiting</TableHead>
+                <TableHead className="text-right">Leave / WFH waiting</TableHead>
+                <TableHead className="text-right">Comp-off waiting</TableHead>
                 <TableHead className="text-right">Expenses waiting</TableHead>
               </TableRow>
             </TableHeader>
@@ -75,13 +82,15 @@ export default async function TeamPage() {
               {data.members.map((m) => (
                 <TableRow key={m.id}>
                   <TableCell>
-                    <div className="font-medium">{m.name}</div>
+                    <Link href={`/timesheet/team/${m.id}`} className="font-medium hover:underline">
+                      {m.name}
+                    </Link>
                     <div className="text-xs break-all text-muted-foreground">{m.email}</div>
                   </TableCell>
                   <TableCell>{m.roleLabel}</TableCell>
                   <TableCell className="text-right tabular-nums">{m.hoursThisWeek}</TableCell>
-                  <TableCell className="text-right tabular-nums">{m.pendingLogs}</TableCell>
                   <TableCell className="text-right tabular-nums">{m.openRequests}</TableCell>
+                  <TableCell className="text-right tabular-nums">{m.pendingCompOff}</TableCell>
                   <TableCell className="text-right tabular-nums">{m.pendingExpenses}</TableCell>
                 </TableRow>
               ))}

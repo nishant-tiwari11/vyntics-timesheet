@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function PayrollIndex() {
-  redirect("/timesheet/payroll/structures");
+  redirect("/timesheet/payroll/runs");
 }

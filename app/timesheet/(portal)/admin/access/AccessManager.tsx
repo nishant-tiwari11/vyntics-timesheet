@@ -6,17 +6,37 @@ import { UserAvatar } from "../../../_components/UserAvatar";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
-import { ROLES, ROLE_LABEL, parseBulkUsers, toRole, type Role, type SignInMethod } from "@/lib/access/config";
+import { joinName, nameFromEmail } from "@/lib/nameFromEmail";
+import { ROLES, ROLE_LABEL, toRole, type Role, type SignInMethod } from "@/lib/access/config";
 import type { AccessRow } from "@/lib/access/server";
-import { addManyAction, addUserAction, removeUserAction, resetPasswordAction, setManagerAction, updateUserAction } from "./actions";
+import { addUserAction, removeUserAction, resetPasswordAction, setManagerAction, updateUserAction } from "./actions";
 
 const NONE = "__none__";
+const ALL = "__all__";
+
+function Filter({ label, plural, value, onChange, options }: { label: string; plural: string; value: string; onChange: (v: string) => void; options: (readonly [string, string])[] }) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="w-40" aria-label={`Filter by ${label.toLowerCase()}`}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={ALL}>{plural}</SelectItem>
+        {options.map(([v, l]) => (
+          <SelectItem key={v} value={v}>
+            {l}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "Never");
 
@@ -29,22 +49,26 @@ function makePassword(): string {
 
 type Managers = { email: string; name: string }[];
 
-// ---------------------------- + Add user ----------------------------
+// ---------------------------- + Add employee ----------------------------
 
 function AddUserDialog() {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
+  const [first, setFirst] = useState("");
+  const [last, setLast] = useState("");
   const [role, setRole] = useState<Role>("employee");
   const [method, setMethod] = useState<SignInMethod>("google");
   const [password, setPassword] = useState("");
   const [expiresOn, setExpiresOn] = useState("");
+  const [skipOnboarding, setSkipOnboarding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function reset() {
+    setSkipOnboarding(false);
     setEmail("");
-    setName("");
+    setFirst("");
+    setLast("");
     setRole("employee");
     setMethod("google");
     setPassword("");
@@ -54,8 +78,12 @@ function AddUserDialog() {
 
   function save() {
     setError(null);
+    // A work email (ved.sharma@vyntics.com) gives the name by itself; anyone else needs a first name typed here.
+    const fromEmail = nameFromEmail(email);
+    if (!fromEmail && !first.trim()) return setError("Enter the first name. Names are only taken from work email addresses.");
+    const name = first.trim() || last.trim() ? joinName(first, last) : (fromEmail?.full ?? "");
     startTransition(async () => {
-      const res = await addUserAction({ email, name, role, method, password: method === "password" ? password : undefined, expiresOn: expiresOn || null });
+      const res = await addUserAction({ email, name, role, method, password: method === "password" ? password : undefined, expiresOn: expiresOn || null, skipOnboarding: skipOnboarding && role !== "admin" });
       if (!res.ok) {
         setError(res.error);
         return;
@@ -69,12 +97,12 @@ function AddUserDialog() {
   return (
     <>
       <Button type="button" onClick={() => setOpen(true)}>
-        + Add user
+        + Add employee
       </Button>
       <Dialog open={open} onOpenChange={(o) => (setOpen(o), !o && reset())}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add a user</DialogTitle>
+            <DialogTitle>Add an employee</DialogTitle>
             <DialogDescription>For people who don&apos;t have a company-domain Google account, or who need a different role or an end date.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
@@ -82,9 +110,18 @@ function AddUserDialog() {
               <Label htmlFor="add-email">Email</Label>
               <Input id="add-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={200} disabled={pending} />
             </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="add-name">Name</Label>
-              <Input id="add-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} disabled={pending} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-1.5">
+                <Label htmlFor="add-first">First name</Label>
+                <Input id="add-first" value={first} onChange={(e) => setFirst(e.target.value)} maxLength={50} disabled={pending} placeholder={nameFromEmail(email)?.first ?? ""} />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="add-last">Last name</Label>
+                <Input id="add-last" value={last} onChange={(e) => setLast(e.target.value)} maxLength={50} disabled={pending} placeholder={nameFromEmail(email)?.last ?? ""} />
+              </div>
+              <p className="-mt-2 text-xs text-muted-foreground sm:col-span-2">
+                For a work address like ved.sharma@vyntics.com the name is taken from the email. For anyone else, type it here: the employee can&apos;t change it.
+              </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-1.5">
@@ -133,6 +170,15 @@ function AddUserDialog() {
               <Label htmlFor="add-expiry">Access ends on (optional)</Label>
               <Input id="add-expiry" type="date" value={expiresOn} onChange={(e) => setExpiresOn(e.target.value)} disabled={pending} />
             </div>
+            {role !== "admin" && (
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm">
+                <Checkbox checked={skipOnboarding} onCheckedChange={(c) => setSkipOnboarding(c === true)} className="mt-0.5" disabled={pending} aria-label="Skip onboarding" />
+                <span>
+                  <span className="font-medium">Skip onboarding</span>
+                  <span className="block text-xs text-muted-foreground">They sign in and use the portal straight away, without submitting documents or bank details. Admins never need onboarding.</span>
+                </span>
+              </label>
+            )}
             {error && (
               <p role="alert" className="text-sm text-destructive">
                 {error}
@@ -144,109 +190,7 @@ function AddUserDialog() {
               Cancel
             </Button>
             <Button type="button" onClick={save} disabled={pending}>
-              {pending ? "Adding..." : "Add user"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-
-// ---------------------------- Bulk add ----------------------------
-
-function BulkDialog() {
-  const [open, setOpen] = useState(false);
-  const [text, setText] = useState("");
-  const [role, setRole] = useState<Role>("employee");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-  const parsed = parseBulkUsers(text, role);
-
-  async function onFile(file: File | undefined) {
-    if (!file) return;
-    if (file.size > 200_000) return setError("That file is too big. A list of emails should be well under 200 KB.");
-    setText(await file.text());
-    setError(null);
-  }
-
-  function save() {
-    setError(null);
-    if (parsed.entries.length === 0) return setError(parsed.errors[0] ?? "Paste at least one email address.");
-    startTransition(async () => {
-      const res = await addManyAction({ people: parsed.entries, method: "google" });
-      if (!res.ok) {
-        setError(res.error);
-        return;
-      }
-      toast.success(res.message ?? "Added.");
-      setOpen(false);
-      setText("");
-    });
-  }
-
-  return (
-    <>
-      <Button type="button" variant="outline" onClick={() => setOpen(true)}>
-        Bulk add
-      </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add many people</DialogTitle>
-            <DialogDescription>One per line: email, or email,name, or email,name,role. They sign in with Google. A CSV file works too.</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4">
-            <div className="grid gap-1.5">
-              <Label htmlFor="bulk-text">Emails</Label>
-              <Textarea id="bulk-text" rows={7} value={text} onChange={(e) => setText(e.target.value)} placeholder={"partner@gmail.com\nclient@abc.com,Client Name,viewer"} disabled={pending} />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-1.5">
-                <Label htmlFor="bulk-file">Or choose a CSV file</Label>
-                <Input id="bulk-file" type="file" accept=".csv,.txt,text/csv,text/plain" onChange={(e) => onFile(e.target.files?.[0])} disabled={pending} />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="bulk-role">Role when a line has none</Label>
-                <Select value={role} onValueChange={(v) => setRole(v as Role)} disabled={pending}>
-                  <SelectTrigger id="bulk-role" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ROLES.map((r) => (
-                      <SelectItem key={r} value={r}>
-                        {ROLE_LABEL[r]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            {text.trim() && (
-              <p className="text-sm" role="status">
-                {parsed.entries.length} {parsed.entries.length === 1 ? "person" : "people"} ready to add
-                {parsed.errors.length > 0 ? `, ${parsed.errors.length} ${parsed.errors.length === 1 ? "line has" : "lines have"} a problem:` : "."}
-              </p>
-            )}
-            {parsed.errors.length > 0 && (
-              <ul className="list-disc space-y-1 pl-5 text-sm text-destructive">
-                {parsed.errors.slice(0, 5).map((e) => (
-                  <li key={e}>{e}</li>
-                ))}
-              </ul>
-            )}
-            {error && (
-              <p role="alert" className="text-sm text-destructive">
-                {error}
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={pending}>
-              Cancel
-            </Button>
-            <Button type="button" onClick={save} disabled={pending || parsed.entries.length === 0}>
-              {pending ? "Adding..." : `Add ${parsed.entries.length || ""}`.trim()}
+              {pending ? "Adding..." : "Add employee"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -292,7 +236,7 @@ function Row({ row, managers }: { row: AccessRow; managers: Managers }) {
           <div className="min-w-0">
             <div className="font-medium break-all">
               {row.userId ? (
-                <Link href={`/timesheet/profile?user=${row.userId}`} className="hover:underline">
+                <Link href={`/timesheet/admin/access/${row.userId}`} className="hover:underline">
                   {row.name || row.email}
                 </Link>
               ) : (
@@ -323,18 +267,16 @@ function Row({ row, managers }: { row: AccessRow; managers: Managers }) {
         </Select>
       </TableCell>
       <TableCell>
-        <Badge variant="outline" className={row.type === "manual" ? "border-foreground" : ""}>
-          {row.type === "manual" ? "Manual" : "Domain"}
-        </Badge>
-        {row.loginMethod && <div className="mt-1 text-xs text-muted-foreground">{row.loginMethod === "password" ? "Password" : "Google"}</div>}
-      </TableCell>
-      <TableCell>
         <Badge variant="outline" className={row.status === "disabled" ? "border-dashed" : expired ? "border-destructive text-destructive" : "border-foreground"}>
           {row.status === "disabled" ? "○ Disabled" : expired ? "✕ Expired" : "✓ Active"}
         </Badge>
+        <div className="mt-1 text-xs text-muted-foreground">
+          {row.type === "manual" ? "Added manually" : "Company domain"}
+          {row.loginMethod ? ` · ${row.loginMethod === "password" ? "password" : "Google"}` : ""}
+          {row.expiresOn ? ` · ends ${row.expiresOn}` : ""}
+        </div>
       </TableCell>
       <TableCell className="whitespace-nowrap">{row.signedIn ? when(row.lastLogin) : "Not yet"}</TableCell>
-      <TableCell className="whitespace-nowrap">{row.expiresOn ?? "-"}</TableCell>
       <TableCell>
         {row.signedIn ? (
           <Select
@@ -456,15 +398,28 @@ function Row({ row, managers }: { row: AccessRow; managers: Managers }) {
 
 export default function AccessManager({ rows, managers }: { rows: AccessRow[]; managers: Managers }) {
   const [q, setQ] = useState("");
+  const [role, setRole] = useState<string>(ALL);
+  const [status, setStatus] = useState<string>(ALL);
   const needle = q.trim().toLowerCase();
-  const shown = needle ? rows.filter((r) => `${r.email} ${r.name}`.toLowerCase().includes(needle)) : rows;
+  const today = new Date().toISOString().slice(0, 10);
+  const shown = rows.filter((r) => {
+    const expired = r.expiresOn !== null && r.expiresOn < today;
+    if (needle && !`${r.email} ${r.name}`.toLowerCase().includes(needle)) return false;
+    if (role !== ALL && r.role !== role) return false;
+    if (status === "active") return r.status === "active" && !expired;
+    if (status === "disabled") return r.status === "disabled";
+    if (status === "expired") return expired;
+    if (status === "invited") return !r.signedIn;
+    return true;
+  });
 
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name or email" aria-label="Search people" className="max-w-xs" />
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or email" aria-label="Search people" className="max-w-xs" />
+        <Filter label="Role" plural="All roles" value={role} onChange={setRole} options={ROLES.map((r) => [r, ROLE_LABEL[r]])} />
+        <Filter label="Status" plural="All statuses" value={status} onChange={setStatus} options={[["active", "Active"], ["disabled", "Disabled"], ["expired", "Expired"], ["invited", "Not signed in yet"]]} />
         <div className="ml-auto flex gap-2">
-          <BulkDialog />
           <AddUserDialog />
         </div>
       </div>
@@ -476,15 +431,13 @@ export default function AccessManager({ rows, managers }: { rows: AccessRow[]; m
       ) : (
         <div className="overflow-x-auto rounded-lg border">
           <Table>
-            <caption className="sr-only">People who can sign in</caption>
+            <caption className="sr-only">Employees</caption>
             <TableHeader>
               <TableRow>
                 <TableHead>Person</TableHead>
                 <TableHead>Role</TableHead>
-                <TableHead>Type</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Last login</TableHead>
-                <TableHead>Expires</TableHead>
                 <TableHead>Manager</TableHead>
                 <TableHead>
                   <span className="sr-only">Actions</span>

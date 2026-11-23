@@ -103,7 +103,7 @@ export function AttentionList({ items, total }: { items: AttentionItem[]; total:
       {total > shown.length && shown.length > 0 && (
         <p className="border-t px-4 py-2.5 text-sm text-muted-foreground">
           Showing the {shown.length} that have waited longest.{" "}
-          <Link href="/timesheet/admin?tab=requests" className="underline underline-offset-2">
+          <Link href="/timesheet/admin/approvals" className="underline underline-offset-2">
             Open Approvals
           </Link>{" "}
           to see the rest.

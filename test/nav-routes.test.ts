@@ -16,7 +16,7 @@ const pageFile = (href: string) => path.join(root, "app/timesheet/(portal)", hre
 
 describe("sidebar links", () => {
   it("found the links", () => {
-    expect(hrefs).toEqual(expect.arrayContaining(["/timesheet/dashboard", "/timesheet/worklog", "/timesheet/leave", "/timesheet/calendar", "/timesheet/admin", "/timesheet/payroll"]));
+    expect(hrefs).toEqual(expect.arrayContaining(["/timesheet/dashboard", "/timesheet/worklog", "/timesheet/leave", "/timesheet/calendar", "/timesheet/admin", "/timesheet/payroll/runs"]));
   });
 
   it.each(hrefs)("%s has its own page file", (href) => {
@@ -31,6 +31,8 @@ describe("sidebar links", () => {
       const stays = target.startsWith(href);
       const guard =
         target === "/timesheet/login" ||
+        // The old /admin?tab=logs link now opens the Work logs page.
+        (href === "/timesheet/admin" && target === "/timesheet/worklog") ||
         (target === "/timesheet/dashboard" && /role/.test(source)) ||
         // An admin has no employee version of the page (no own salary, claims or leave): they are sent to the admin one.
         (/\.role === "admin"/.test(source) && /^\/timesheet\/(admin|payroll)/.test(target));

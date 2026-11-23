@@ -1,6 +1,6 @@
 import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
-import { checkMeta, expiryState, fmtSize, kindFromName, nameFromFile, profileCompletion, requiredChecklist, REQUIRED_CATEGORIES } from "@/lib/documents/config";
+import { kindSuits, checkMeta, expiryState, fmtSize, kindFromName, nameFromFile, profileCompletion, requiredChecklist, REQUIRED_CATEGORIES } from "@/lib/documents/config";
 import { detectKind } from "@/lib/documents/sniff";
 
 const bytes = (...v: number[]) => new Uint8Array([...v, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
@@ -62,20 +62,19 @@ describe("checkMeta", () => {
 });
 
 describe("required documents and completion", () => {
-  it("has eight required categories", () => {
-    expect(REQUIRED_CATEGORIES).toHaveLength(8);
+  it("has two required categories: the letters HR issues", () => {
+    expect(REQUIRED_CATEGORIES.map((c) => c.id)).toEqual(["offer_letter", "appointment_letter"]);
   });
   it("counts pending and verified, not rejected", () => {
     const c = requiredChecklist([
       { category: "offer_letter", status: "verified" },
-      { category: "id_proof", status: "pending" },
-      { category: "id_proof", status: "rejected" },
-      { category: "bank_details", status: "rejected" },
+      { category: "appointment_letter", status: "pending" },
+      { category: "appointment_letter", status: "rejected" },
       { category: "other", status: "verified" },
     ]);
-    expect(c).toMatchObject({ done: 2, total: 8 });
-    expect(c.items.find((i) => i.category.id === "id_proof")!.state).toBe("pending");
-    expect(c.items.find((i) => i.category.id === "bank_details")!.state).toBe("rejected");
+    expect(c).toMatchObject({ done: 2, total: 2 });
+    expect(c.items.find((i) => i.category.id === "appointment_letter")!.state).toBe("pending");
+    expect(requiredChecklist([{ category: "offer_letter", status: "rejected" }]).items[0].state).toBe("rejected");
   });
   it("works out the profile completion", () => {
     expect(profileCompletion({ hasPhoto: true, hasName: true, docsDone: 5, docsTotal: 8 })).toEqual({ percent: 70, done: 7, total: 10 });
@@ -86,5 +85,15 @@ describe("required documents and completion", () => {
     expect(expiryState("2026-12-10", "2026-11-18")).toBe("soon");
     expect(expiryState("2027-06-01", "2026-11-18")).toBeNull();
     expect(expiryState(null, "2026-11-18")).toBeNull();
+  });
+});
+
+describe("which files suit which category", () => {
+  it("keeps onboarding papers to PDF and the photo to images", () => {
+    expect(kindSuits("aadhaar", "pdf")).toBe(true);
+    expect(kindSuits("aadhaar", "png")).toBe(false);
+    expect(kindSuits("passport_photo", "jpeg")).toBe(true);
+    expect(kindSuits("passport_photo", "pdf")).toBe(false);
+    expect(kindSuits("offer_letter", "docx")).toBe(true);
   });
 });
