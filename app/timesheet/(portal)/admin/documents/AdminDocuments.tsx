@@ -18,6 +18,7 @@ import { UserAvatar } from "../../../_components/UserAvatar";
 import { DocumentPreviewModal, type PreviewDoc } from "../../profile/documents/DocumentPreviewModal";
 import { StatusBadge } from "../../profile/documents/DocumentList";
 import { ReviewDialog, type ReviewTarget } from "../../profile/documents/ReviewDialog";
+import { OfferLettersTab } from "./OfferLettersTab";
 import { loadActivityAction, setManagerSensitiveAction } from "./actions";
 import type { OnboardingRow } from "@/lib/onboarding/server";
 import { ActionRequired } from "./ActionRequired";
@@ -119,7 +120,7 @@ export function AdminDocuments({ docs, employees, truncated, today, onboarding, 
     { id: "action", label: "Action required", count: lettersToIssue + toVerify },
     { id: "onboarding", label: "Onboarding", count: unfinished },
     { id: "documents", label: "All documents", count: docs.length },
-    { id: "offer", label: "Offer letter" },
+    { id: "offer", label: "Offer letters" },
     { id: "activity", label: "Activity" },
     { id: "managers", label: "Manager access" },
   ];
@@ -316,15 +317,7 @@ export function AdminDocuments({ docs, employees, truncated, today, onboarding, 
 
       {view === "onboarding" && <OnboardingAdmin rows={onboarding} onPreview={setPreview} onReview={setReview} />}
 
-      {view === "offer" && (
-        <section className="grid justify-items-start gap-3 rounded-xl border bg-card p-5" aria-label="Offer letters">
-          <h2 className="text-base font-semibold">Offer letters have their own section</h2>
-          <p className="text-sm text-muted-foreground">Create, preview, send and track offer and appointment letters for internships and full-time roles, with the employee accepting in the portal.</p>
-          <Link href="/timesheet/admin/offers" className="inline-flex min-h-9 items-center rounded-md bg-foreground px-4 text-sm font-medium text-background max-md:min-h-11">
-            Open Offer letters
-          </Link>
-        </section>
-      )}
+      {view === "offer" && <OfferLettersTab people={employees.filter((e) => e.role !== "viewer").map((e) => ({ id: e.id, name: e.name }))} />}
 
       {view === "activity" && (
         <section className="grid gap-3" aria-label="Document activity">

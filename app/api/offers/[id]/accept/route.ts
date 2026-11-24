@@ -31,7 +31,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     } else {
       throw new TimesheetError("Choose how you are accepting.");
     }
-    for (const p of ["/timesheet/profile", "/timesheet/admin/offers", "/timesheet/admin/audit", "/timesheet/admin/documents"]) revalidatePath(p);
+    for (const p of ["/timesheet/profile", "/timesheet/admin/audit", "/timesheet/admin/documents"]) revalidatePath(p);
     return json({ ok: true });
   } catch (e) {
     if (e instanceof TimesheetError) return json({ ok: false, error: e.message }, 400);

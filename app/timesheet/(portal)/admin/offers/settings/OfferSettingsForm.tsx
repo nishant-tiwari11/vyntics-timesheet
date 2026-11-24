@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { Loader2, RotateCcw, Save, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -82,8 +81,7 @@ function Picture({ kind, label, hint, has, onChanged }: { kind: Kind; label: str
   );
 }
 
-export function OfferSettingsForm({ saved, ready, pictures }: { saved: { company: CompanyInfo; clauses: Record<ClauseKey, string> }; ready: boolean; pictures: Record<Kind, boolean> }) {
-  const router = useRouter();
+export function OfferSettingsForm({ saved, ready, pictures, onChanged }: { saved: { company: CompanyInfo; clauses: Record<ClauseKey, string> }; ready: boolean; pictures: Record<Kind, boolean>; /** Something was saved: read the settings again. */ onChanged: () => void }) {
   const [company, setCompany] = useState<CompanyInfo>(saved.company);
   const [clauses, setClauses] = useState<Record<ClauseKey, string>>(saved.clauses);
   const [pending, startTransition] = useTransition();
@@ -95,7 +93,7 @@ export function OfferSettingsForm({ saved, ready, pictures }: { saved: { company
       const res = await saveOfferSettingsAction(company, clauses);
       if (!res.ok) return void toast.error(res.error);
       toast.success("Saved. New letters use these settings; letters already sent keep their PDF.");
-      router.refresh();
+      onChanged();
     });
   }
 
@@ -135,7 +133,7 @@ export function OfferSettingsForm({ saved, ready, pictures }: { saved: { company
         <h2 className="text-base font-semibold">Pictures</h2>
         <div className="grid gap-3 sm:grid-cols-3">
           {PICTURES.map((p) => (
-            <Picture key={p.kind} {...p} has={pictures[p.kind]} onChanged={() => router.refresh()} />
+            <Picture key={p.kind} {...p} has={pictures[p.kind]} onChanged={onChanged} />
           ))}
         </div>
       </section>

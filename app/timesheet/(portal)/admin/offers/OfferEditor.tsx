@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { Download, Loader2, Plus, Save, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -24,6 +22,8 @@ const select = "h-9 w-full rounded-[var(--radius)] border border-input bg-backgr
 export type EditorLetter = { id: string | null; userId: string; status: "draft" | "sent" | "accepted"; version: number; isCurrent: boolean };
 
 export function OfferEditor({
+  onOpen,
+  onClose,
   letter,
   initial,
   company,
@@ -39,8 +39,11 @@ export function OfferEditor({
   logoUrl?: string;
   signatureUrl?: string;
   sealUrl?: string;
+  /** Open this letter (after it was created or changed): the tab loads it again. */
+  onOpen: (id: string) => void;
+  /** Back to the list. */
+  onClose: () => void;
 }) {
-  const router = useRouter();
   const [data, setData] = useState<LetterData>(initial);
   const [saved, setSaved] = useState(JSON.stringify(initial));
   const [pending, startTransition] = useTransition();
@@ -71,8 +74,7 @@ export function OfferEditor({
       else toast.success("Draft saved.");
       setSaved(JSON.stringify(data));
       if (then) return then(id);
-      if (id !== letter.id) router.replace(`/timesheet/admin/offers/${id}`);
-      else router.refresh();
+      onOpen(id);
     });
   }
 
@@ -83,12 +85,11 @@ export function OfferEditor({
         const res = await sendOfferAction(id);
         if (!res.ok) {
           toast.error(res.error);
-          if (id !== letter.id) router.replace(`/timesheet/admin/offers/${id}`);
+          onOpen(id);
           return;
         }
         toast.success("Sent. The letter is on the employee's profile under Documents.");
-        router.replace(`/timesheet/admin/offers/${id}`);
-        router.refresh();
+        onOpen(id);
       });
     });
   }
@@ -100,7 +101,7 @@ export function OfferEditor({
       const res = await deleteOfferAction(letter.id!);
       if (!res.ok) return void toast.error(res.error);
       toast.success("Draft deleted.");
-      router.replace("/timesheet/admin/offers");
+      onClose();
     });
   }
 
@@ -361,8 +362,8 @@ export function OfferEditor({
               </a>
             </Button>
           )}
-          <Button asChild variant="ghost" className="max-md:min-h-11">
-            <Link href="/timesheet/admin/offers">Back to the list</Link>
+          <Button type="button" variant="ghost" className="max-md:min-h-11" onClick={onClose}>
+            Back to the list
           </Button>
         </div>
         {dirty && !locked && <p className="text-xs text-muted-foreground">You have unsaved changes.</p>}
