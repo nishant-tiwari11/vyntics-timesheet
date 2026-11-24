@@ -161,7 +161,7 @@ async function computeRows(
     if (r.error) throw toError(r.error, "Couldn't gather the payroll data. Please try again.");
   }
 
-  const holidaySet = new Set(holidays.filter((h) => isDayOff(h.type)).map((h) => h.date));
+  const holidaySet = new Set(holidays.filter(isDayOff).map((h) => h.date));
   const detailBy = new Map(details.data!.map((d) => [d.user_id, d]));
 
   const hoursBy = new Map<string, number>(); // "user|date" -> hundredths of an hour

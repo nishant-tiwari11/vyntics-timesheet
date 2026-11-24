@@ -96,7 +96,7 @@ export async function updateSettings(input: CompOffSettings): Promise<void> {
 /** Every day in the range that is a holiday or festival (not a working day). */
 async function offSet(from: string, to: string): Promise<Set<string>> {
   const list = await listHolidaysBetween(from, to).catch(() => []);
-  return new Set(list.filter((h) => isDayOff(h.type)).map((h) => h.date));
+  return new Set(list.filter(isDayOff).map((h) => h.date));
 }
 
 /**
@@ -336,7 +336,7 @@ export type DayInfo = {
 export async function dayInfo(date: string): Promise<DayInfo> {
   const d = assertDate(date, "date");
   const me = await requireUser();
-  const holidays = (await listHolidaysBetween(d, d).catch(() => [])).filter((h) => isDayOff(h.type));
+  const holidays = (await listHolidaysBetween(d, d).catch(() => [])).filter(isDayOff);
   const label = holidays.length > 0 ? `Holiday: ${holidays[0].name}` : isWeekend(d) ? "Week off" : "";
 
   const supabase = await db();

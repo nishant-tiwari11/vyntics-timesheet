@@ -8,7 +8,8 @@ import { STATUS_LABEL } from "@/lib/expenses/types";
 import { payBreakdown } from "@/lib/payroll/breakdown";
 import { formatMoney } from "@/lib/payroll/money";
 import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
-import { formatRange, formatYmd } from "@/lib/timesheet/dates";
+import { formatRange, formatTime, formatYmd } from "@/lib/timesheet/dates";
+import { LOCATION_LABEL, durationText, toHours } from "@/lib/timesheet/dutyTypes";
 import { TimesheetError } from "@/lib/timesheet/errors";
 import { logError } from "@/lib/timesheet/log";
 import { UserAvatar } from "../../../../_components/UserAvatar";
@@ -89,7 +90,9 @@ export default async function EmployeePage({ params }: { params: Promise<{ id: s
     );
   }
 
-  const { person, expenses, payslips, salary, leave, logs, monthHours } = v;
+  const { person, expenses, payslips, salary, leave, logs, monthHours, duty } = v;
+  const dutyTotal = duty ? duty.reduce((n, d) => n + d.dutySeconds, 0) : 0;
+  const reportedTotal = duty ? Math.round(duty.reduce((n, d) => n + d.reportedHours, 0) * 100) / 100 : 0;
   const name = person.name || person.email;
   const expired = person.expiresOn !== null && person.expiresOn < v.today;
   const claimTotal = (statuses: string[]) => (expenses ?? []).filter((c) => statuses.includes(c.status)).reduce((n, c) => n + (c.status === "pending" ? c.claimed : (c.approved ?? 0)), 0);
@@ -168,6 +171,59 @@ export default async function EmployeePage({ params }: { params: Promise<{ id: s
                   </Table>
                 </div>
               )}
+            </div>
+          )}
+        </Card>
+
+
+        <Card title="Duty and timesheet" href={`/timesheet/worklog?user=${person.userId}`} action="Work logs">
+          {!duty ? (
+            <Unavailable what="the duty log" />
+          ) : duty.length === 0 ? (
+            <Empty>No duty or timesheet hours in the last two weeks.</Empty>
+          ) : (
+            <div className="grid gap-3">
+              <dl className="grid grid-cols-3 gap-3 text-sm">
+                <Stat label="On duty (14 days)" value={`${toHours(dutyTotal)} h`} />
+                <Stat label="Timesheet reported" value={`${reportedTotal} h`} />
+                <Stat label="Difference" value={`${Math.round((toHours(dutyTotal) - reportedTotal) * 100) / 100} h`} />
+              </dl>
+              <div className="overflow-x-auto rounded-lg border">
+                <Table>
+                  <caption className="sr-only">Duty and reported hours by day</caption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Day</TableHead>
+                      <TableHead>On duty</TableHead>
+                      <TableHead className="text-right">Duty hours</TableHead>
+                      <TableHead className="text-right">Timesheet</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {duty.map((d) => (
+                      <TableRow key={d.date}>
+                        <TableCell className="whitespace-nowrap">{formatYmd(d.date, { weekday: "short", day: "numeric", month: "short" })}</TableCell>
+                        <TableCell className="min-w-44 text-xs">
+                          {d.sessions.length === 0 ? (
+                            <span className="text-muted-foreground">Not on duty</span>
+                          ) : (
+                            d.sessions.map((s) => (
+                              <span key={s.start} className="block">
+                                {formatTime(s.start)} to {s.end ? formatTime(s.end) : "now"} · {LOCATION_LABEL[s.location].toLowerCase()}
+                                {s.auto ? " · closed automatically" : ""}
+                              </span>
+                            ))
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{d.sessions.length ? durationText(d.dutySeconds) : "-"}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {d.reportedHours > 0 ? `${d.reportedHours} h` : d.sessions.length ? <span className="text-orange-700">Not reported</span> : "-"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           )}
         </Card>

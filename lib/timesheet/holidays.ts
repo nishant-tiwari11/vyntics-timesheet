@@ -1,7 +1,7 @@
 import "server-only";
 import { db, requireAdmin, requireUser } from "./auth";
 import { TimesheetError, assertDate, assertId, toError } from "./errors";
-import { HOLIDAY_TYPES, isDayOff, type Holiday, type HolidayInput, type HolidayType } from "./holidayTypes";
+import { HOLIDAY_TYPES, isDayOff, needsDecision, type Holiday, type HolidayInput, type HolidayType } from "./holidayTypes";
 import { isYmd } from "./dates";
 
 type Row = {
@@ -12,6 +12,8 @@ type Row = {
   description: string | null;
   year: number;
   reviewed: boolean;
+  office_off: boolean;
+  office_off_decided: boolean;
 };
 
 const toHoliday = (r: Row): Holiday => ({
@@ -22,6 +24,8 @@ const toHoliday = (r: Row): Holiday => ({
   description: r.description ?? "",
   year: r.year,
   reviewed: r.reviewed,
+  officeOff: r.office_off,
+  decided: r.office_off_decided,
 });
 
 const isType = (v: unknown): v is HolidayType => HOLIDAY_TYPES.some((t) => t.id === v);
@@ -70,10 +74,29 @@ export async function upcomingHolidays(from: string, limit = 5): Promise<Holiday
   return data.map(toHoliday);
 }
 
-/** Dates in a range that are not working days (public holidays and festivals). */
+/** Dates in a range the office is closed for (holidays an admin marked as an office off day). Weekends are not included. */
 export async function offDatesBetween(from: string, to: string): Promise<string[]> {
   const list = await listHolidaysBetween(from, to);
-  return list.filter((h) => isDayOff(h.type)).map((h) => h.date);
+  return list.filter(isDayOff).map((h) => h.date);
+}
+
+/** Public holidays and festivals from `from` on (up to `days` ahead) that no admin has decided on yet. Admin only. */
+export async function holidaysToDecide(from: string, days = 14): Promise<Holiday[]> {
+  assertDate(from, "date");
+  await requireAdmin();
+  const to = new Date(`${from}T00:00:00Z`);
+  to.setUTCDate(to.getUTCDate() + days);
+  const list = await listHolidaysBetween(from, to.toISOString().slice(0, 10));
+  return list.filter(needsDecision);
+}
+
+/** Admin: the office is closed on this holiday (or stays open). */
+export async function setOfficeOff(id: string, off: boolean): Promise<void> {
+  assertId(id, "holiday");
+  await requireAdmin();
+  const supabase = await db();
+  const { error } = await supabase.rpc("holiday_set_office_off" as never, { p_id: id, p_off: off === true } as never);
+  if (error) throw toError(error, "Couldn't save that. Please try again.");
 }
 
 // ---------------------------- Changing (admins only; row level security checks again) ----------------------------
@@ -86,7 +109,9 @@ function clean(input: HolidayInput) {
   if (!isType(input.type)) throw new TimesheetError("Choose Public holiday, Festival or Optional.");
   const description = String(input.description ?? "").trim();
   if (description.length > 500) throw new TimesheetError("Keep the description to 500 characters or fewer.");
-  return { name, holiday_date: date, type: input.type, description: description || null };
+  // An admin typing a holiday in decides at the same time whether the office is closed. Optional holidays are never days off.
+  const officeOff = input.type !== "optional" && input.officeOff !== false;
+  return { name, holiday_date: date, type: input.type, description: description || null, office_off: officeOff, office_off_decided: true };
 }
 
 const DUPLICATE = "There is already a holiday on that date. Edit it instead.";

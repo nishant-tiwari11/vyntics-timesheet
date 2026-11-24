@@ -672,6 +672,8 @@ export type Database = {
           description: string | null;
           year: number;
           reviewed: boolean;
+          office_off: boolean;
+          office_off_decided: boolean;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -683,6 +685,8 @@ export type Database = {
           type: string;
           description?: string | null;
           reviewed?: boolean;
+          office_off?: boolean;
+          office_off_decided?: boolean;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -694,6 +698,8 @@ export type Database = {
           type?: string;
           description?: string | null;
           reviewed?: boolean;
+          office_off?: boolean;
+          office_off_decided?: boolean;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;

@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ROLE_LABEL, type Role } from "@/lib/access/config";
+import { DutyControl } from "./DutyControl";
 import { LazyAdminTopNav } from "./LazyAdminTopNav";
 import { CommandPalette } from "./CommandPalette";
 import { MobileNav } from "./MobileNav";
@@ -49,6 +50,7 @@ export default async function Shell({
           <header className="ts-topbar">
             <MobileNav user={user} />
             <PageTitle />
+            {(role === "employee" || role === "manager") && <DutyControl />}
             <CommandPalette role={role} />
             {role === "admin" ? <span className="ts-search" aria-hidden="true" /> : (
             <form action="/timesheet/dashboard#logs" method="get" role="search" className="ts-search">

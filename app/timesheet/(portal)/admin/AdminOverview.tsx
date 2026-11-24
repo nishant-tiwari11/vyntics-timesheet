@@ -12,6 +12,7 @@ import { ROLE_LABEL, toRole } from "@/lib/access/config";
 import { avatarUrl } from "@/lib/avatar";
 import type { LanyardMember } from "@/components/ui/team-lanyard-rail";
 import { AttentionList } from "./AttentionList";
+import { HolidayDecisions } from "./HolidayDecisions";
 import { EmployeeRailLazy as EmployeeRail } from "./EmployeeRailLazy";
 
 const card = "rounded-xl border bg-card p-4";
@@ -108,9 +109,9 @@ function kpis(o: Awaited<ReturnType<typeof loadAdminOverview>>, c: CompanyOvervi
   const n = (v: number | null | undefined) => (v == null ? dash : String(v));
   return [
     { label: "Employees", value: n(c.headcount?.total), note: c.headcount?.newJoiners.length ? `${c.headcount.newJoiners.length} joined this month` : "active accounts", href: "/timesheet/admin/access", icon: Users },
-    { label: "Working today", value: n(c.now?.present), note: c.now?.dayOff ? `today is a ${c.now.dayOff}` : "have logged time", href: "/timesheet/worklog", icon: Clock },
+    { label: "Working today", value: n(c.now?.present), note: c.now ? (c.now.onDuty > 0 ? `${c.now.onDuty} on duty now` : c.now.dayOff ? `today is a ${c.now.dayOff}` : "on duty or logged time") : "on duty or logged time", href: "/timesheet/worklog", icon: Clock },
     { label: "On leave", value: n(c.now?.onLeave.length), note: "approved leave today", href: "/timesheet/calendar", icon: Palmtree },
-    { label: "Work from home", value: n(c.now?.wfh.length), note: "approved today", href: "/timesheet/calendar", icon: Home },
+    { label: "Work from home", value: n(c.now?.wfh.length), note: "approved or on duty from home", href: "/timesheet/calendar", icon: Home },
     { label: "Waiting for you", value: String(o.waitingTotal), note: "approvals and reviews", href: "/timesheet/admin/approvals", icon: CalendarClock, alert: o.waitingTotal > 0 },
     { label: "Expense claims", value: n(c.expenses?.pending), note: c.expenses ? `${formatMoney(c.expenses.pendingAmount)} to approve` : "to approve", href: "/timesheet/payroll/expenses", icon: Receipt, alert: (c.expenses?.pending ?? 0) > 0 },
   ];
@@ -158,6 +159,8 @@ export async function AdminOverview({ name }: { name: string }) {
           </Link>
         </div>
       </div>
+
+      <HolidayDecisions holidays={company.holidaysToDecide ?? []} today={company.today} />
 
       <ul className="grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:grid-cols-6" aria-label="Summary">
         {kpis(overview, company).map(({ label, value, note, href, icon: Icon, alert }) => (
@@ -291,7 +294,7 @@ export async function AdminOverview({ name }: { name: string }) {
                   <li key={h.id} className="flex items-start justify-between gap-3">
                     <span className="min-w-0">
                       <span className="block truncate font-medium">{h.name}</span>
-                      <span className="text-xs text-muted-foreground">{holidayTypeLabel(h.type)}</span>
+                      <span className="text-xs text-muted-foreground">{holidayTypeLabel(h.type)}{h.type !== "optional" ? (h.decided ? (h.officeOff ? " · Office off" : " · Office open") : " · Not decided") : ""}</span>
                     </span>
                     <span className="shrink-0 text-muted-foreground">{formatYmd(h.date, { weekday: "short", day: "numeric", month: "short" })}</span>
                   </li>

@@ -142,7 +142,7 @@ export async function loadEvents(from: string, to: string): Promise<{ items: Eve
         description: [holidayTypeLabel(h.type), h.description].filter(Boolean).join(". "),
         location: "",
         link: "",
-        color: isDayOff(h.type) ? "gray" : "outline",
+        color: isDayOff(h) ? "gray" : "outline",
         start: h.date,
         end: h.date,
         startTime: "",

@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { HOLIDAY_TYPES, type Holiday, type HolidayType } from "@/lib/timesheet/holidayTypes";
 import type { ImportResult } from "@/lib/timesheet/holidays";
@@ -17,6 +18,7 @@ import {
   deleteHolidayAction,
   importHolidaysAction,
   markYearReviewedAction,
+  setOfficeOffAction,
   updateHolidayAction,
 } from "./holidayActions";
 
@@ -29,6 +31,7 @@ function HolidayForm({ holiday, defaultYear, onClose }: { holiday?: Holiday; def
   const [date, setDate] = useState(holiday?.date ?? `${defaultYear}-01-01`);
   const [type, setType] = useState<HolidayType>(holiday?.type ?? "public");
   const [description, setDescription] = useState(holiday?.description ?? "");
+  const [officeOff, setOfficeOffState] = useState(holiday ? holiday.officeOff : true);
   const [errors, setErrors] = useState<Errors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -43,7 +46,7 @@ function HolidayForm({ holiday, defaultYear, onClose }: { holiday?: Holiday; def
     if (found.name || found.date) return;
 
     startTransition(async () => {
-      const input = { name, date, type, description };
+      const input = { name, date, type, description, officeOff: type === "optional" ? false : officeOff };
       const res = holiday ? await updateHolidayAction(holiday.id, input) : await createHolidayAction(input);
       if (!res.ok) {
         setFormError(res.error);
@@ -120,6 +123,16 @@ function HolidayForm({ holiday, defaultYear, onClose }: { holiday?: Holiday; def
         </div>
       </div>
       <p className="-mt-2 text-sm text-muted-foreground">{HOLIDAY_TYPES.find((t) => t.id === type)?.hint}.</p>
+
+      {type !== "optional" && (
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm">
+          <Checkbox checked={officeOff} onCheckedChange={(c) => setOfficeOffState(c === true)} className="mt-0.5" disabled={pending} aria-label="The office is closed" />
+          <span>
+            <span className="font-medium">The office is closed (an office off day)</span>
+            <span className="block text-xs text-muted-foreground">No hours are expected, it isn&apos;t counted as leave, and it is paid. Leave it unticked and the day stays a working day.</span>
+          </span>
+        </label>
+      )}
 
       <div className="grid gap-1.5">
         <Label htmlFor="hol-desc">Description (optional)</Label>
@@ -335,5 +348,29 @@ export function ImportHolidays() {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+// ---------------------------- Office off or open ----------------------------
+
+/** Two buttons: close the office on this holiday, or keep it a working day. */
+export function OfficeOffButtons({ holiday, compact = false }: { holiday: Holiday; compact?: boolean }) {
+  const [pending, startTransition] = useTransition();
+  const set = (off: boolean) =>
+    startTransition(async () => {
+      const res = await setOfficeOffAction(holiday.id, off);
+      if (!res.ok) return void toast.error(res.error);
+      toast.success(res.message ?? "Saved.");
+    });
+  const size = compact ? "sm" : "sm";
+  return (
+    <span className="inline-flex flex-wrap gap-1.5">
+      <Button type="button" size={size} variant={holiday.decided && holiday.officeOff ? "default" : "outline"} disabled={pending} onClick={() => set(true)} aria-pressed={holiday.decided && holiday.officeOff}>
+        Office off
+      </Button>
+      <Button type="button" size={size} variant={holiday.decided && !holiday.officeOff ? "default" : "outline"} disabled={pending} onClick={() => set(false)} aria-pressed={holiday.decided && !holiday.officeOff}>
+        Office open
+      </Button>
+    </span>
   );
 }
