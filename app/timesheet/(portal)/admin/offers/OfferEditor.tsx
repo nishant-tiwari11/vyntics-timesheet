@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { buildLetter } from "@/lib/offers/build";
-import { checkLetter, cleanAmount } from "@/lib/offers/check";
+import { checkLetter } from "@/lib/offers/check";
 import { addMonths, dayAfter, dayBefore, defaultPhases, monthName, previewLetterData } from "@/lib/offers/defaults";
 import type { ClauseKey } from "@/lib/offers/clauses";
 import { ENGAGEMENT_TYPES, WORK_LOCATIONS, isInternship, type CompanyInfo, type EngagementType, type LetterData, type Phase } from "@/lib/offers/types";
@@ -413,43 +413,6 @@ export function OfferEditor({
       </div>
 
       <div className="min-w-0">
-        {!view.ok && (
-          <section aria-label="Missing details" className="mb-2 grid gap-3 rounded-md border border-dashed p-3 text-sm">
-            <p className="text-muted-foreground">
-              Preview with blanks in [brackets]. Fill these in here, or in the form, to save or send:
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {!data.candidateName.trim() && (
-                <div className={field}>
-                  <Label htmlFor="m-name">Employee name</Label>
-                  <Input id="m-name" value={data.candidateName} onChange={text("candidateName")} maxLength={100} disabled={locked} />
-                </div>
-              )}
-              {!data.designation.trim() && (
-                <div className={field}>
-                  <Label htmlFor="m-role">Role / designation</Label>
-                  <Input id="m-role" value={data.designation} onChange={text("designation")} maxLength={100} disabled={locked} />
-                </div>
-              )}
-              {intern &&
-                data.phases.map((p, i) =>
-                  p.isPaid && !cleanAmount(p.monthlyAmount) ? (
-                    <div key={i} className={field}>
-                      <Label htmlFor={`m-amt-${i}`}>Monthly stipend{data.phases.length > 1 ? ` (${p.name})` : ""}, INR</Label>
-                      <Input id={`m-amt-${i}`} inputMode="numeric" value={p.monthlyAmount} onChange={(e) => setPhase(i, { monthlyAmount: e.target.value })} placeholder="12000" disabled={locked} />
-                    </div>
-                  ) : null,
-                )}
-              {!intern && !cleanAmount(data.ctc) && (
-                <div className={field}>
-                  <Label htmlFor="m-ctc">Annual CTC, INR</Label>
-                  <Input id="m-ctc" inputMode="numeric" value={data.ctc} onChange={text("ctc")} placeholder="600000" disabled={locked} />
-                </div>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">{view.error}</p>
-          </section>
-        )}
         <div className="max-h-[85vh] overflow-auto rounded-md bg-neutral-100 p-3">
           <LetterPreview letter={view.doc} logoUrl={logoUrl} signatureUrl={signatureUrl} sealUrl={sealUrl} edit={edit} />
         </div>
