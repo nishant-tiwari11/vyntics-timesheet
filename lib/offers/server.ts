@@ -200,10 +200,21 @@ export async function deleteOffer(id: string): Promise<void> {
  * have this letter (an admin, or the person it was sent to).
  */
 export async function readAsset(kind: "logo" | "signature" | "seal"): Promise<Uint8Array | null> {
+  const key = `templates/${kind}.png`;
+  const fetchWith = async (client: { storage: ReturnType<typeof createServiceClient>["storage"] }) => {
+    const { data, error } = await client.storage.from(DOC_BUCKET).download(key);
+    return error || !data ? null : new Uint8Array(await data.arrayBuffer());
+  };
+  // The server's own key first (it works for an employee's letter too). Where that key isn't set, such as a local copy, an admin's
+  // own sign-in can read the pictures.
   try {
-    const { data, error } = await createServiceClient().storage.from(DOC_BUCKET).download(`templates/${kind}.png`);
-    if (error || !data) return null;
-    return new Uint8Array(await data.arrayBuffer());
+    const found = await fetchWith(createServiceClient());
+    if (found) return found;
+  } catch {
+    /* no server key here: try the signed-in person's access */
+  }
+  try {
+    return await fetchWith(await createClient());
   } catch {
     return null;
   }
