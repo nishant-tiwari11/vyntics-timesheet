@@ -17,7 +17,7 @@ export default function NetPayChart({ slips, currency }: { slips: PayslipListIte
     <figure className="grid gap-3">
       <div role="img" aria-label={hidden ? "Net pay by month. Amounts are hidden." : `Net pay for the last ${data.length} months`} className="flex h-40 items-end gap-2 border-b px-1">
         {data.map((d) => (
-          <div key={d.id} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1" title={hidden ? undefined : `${label(d.month)}: ${formatMoney(d.net, currency)}`}>
+          <div key={d.id} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end" title={hidden ? undefined : `${label(d.month)}: ${formatMoney(d.net, currency)}`}>
             <div className="w-full max-w-10 rounded-t bg-foreground transition-[height] duration-150" style={{ height: `${Math.max((d.net / max) * 100, 2)}%` }} />
           </div>
         ))}

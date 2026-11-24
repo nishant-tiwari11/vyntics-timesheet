@@ -424,12 +424,6 @@ export default async function SalaryPage({ searchParams }: { searchParams: Promi
                 </section>
               )}
 
-              {/* Net pay over time (loaded on its own) */}
-              <section aria-label="Net pay over time" className="grid gap-3 no-print">
-                <h2 className="text-base font-semibold">Net pay over time</h2>
-                <LazyNetPayChart slips={slips} currency={currency} />
-              </section>
-
               {/* Every month */}
               <section aria-label="All payslips" className="grid gap-3 no-print">
                 <h2 className="text-base font-semibold">All payslips</h2>
@@ -466,7 +460,7 @@ export default async function SalaryPage({ searchParams }: { searchParams: Promi
                           </TableCell>
                           <TableCell>
                             <div className="flex justify-end gap-1.5">
-                              <Link href={`/timesheet/salary?month=${s.month}`} className={link} aria-label={`View the ${monthName(s.month)} payslip`}>
+                              <Link href={`/timesheet/salary?month=${s.month}`} className="inline-flex min-h-9 items-center rounded-md bg-foreground px-4 text-sm font-medium text-background transition-opacity hover:opacity-85" aria-label={`View the ${monthName(s.month)} payslip`}>
                                 View
                               </Link>
                               <a href={`/timesheet/salary/pdf?month=${s.month}`} className={link} aria-label={`Download the ${monthName(s.month)} payslip as a PDF`}>
@@ -480,6 +474,14 @@ export default async function SalaryPage({ searchParams }: { searchParams: Promi
                   </Table>
                 </div>
               </section>
+
+              {/* Net pay over time (loaded on its own). One month has nothing to compare. */}
+              {slips.length > 1 && (
+                <section aria-label="Net pay over time" className="grid gap-3 no-print">
+                  <h2 className="text-base font-semibold">Net pay over time</h2>
+                  <LazyNetPayChart slips={slips} currency={currency} />
+                </section>
+              )}
             </>
           )}
         </>
