@@ -8,7 +8,7 @@ import { TimesheetError } from "@/lib/timesheet/errors";
 import { logError } from "@/lib/timesheet/log";
 import { cn } from "@/lib/utils";
 import { SectionError } from "../dashboard/sections";
-import { AddHolidayButton, HolidayActions, ImportHolidays, MarkReviewedButton } from "./HolidayControls";
+import { AddHolidayButton, HolidayActions, ImportHolidays, MarkReviewedButton, OfficeOffButtons } from "./HolidayControls";
 
 const BASE = "/timesheet/admin?tab=holidays";
 
@@ -94,6 +94,7 @@ export async function HolidaysTab({ yearParam, typeParam }: { yearParam?: string
                 <TableHead>Date</TableHead>
                 <TableHead>Holiday</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead>Office</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">
                   <span className="sr-only">Actions</span>
@@ -110,6 +111,18 @@ export async function HolidaysTab({ yearParam, typeParam }: { yearParam?: string
                   </TableCell>
                   <TableCell>
                     <Badge variant={h.type === "optional" ? "outline" : "secondary"}>{holidayTypeLabel(h.type)}</Badge>
+                  </TableCell>
+                  <TableCell className="min-w-44">
+                    {h.type === "optional" ? (
+                      <span className="text-xs text-muted-foreground">Always a working day</span>
+                    ) : (
+                      <div className="grid gap-1.5">
+                        <Badge variant={h.decided ? (h.officeOff ? "default" : "outline") : "outline"} className={`w-fit ${h.decided ? "" : "border-dashed"}`}>
+                          {h.decided ? (h.officeOff ? "Office off" : "Office open") : "○ Not decided"}
+                        </Badge>
+                        <OfficeOffButtons holiday={h} />
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className={h.reviewed ? "" : "border-dashed"}>

@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { ROLE_LABEL, type Role } from "@/lib/access/config";
+import { DutyControl } from "./DutyControl";
 import { LazyAdminTopNav } from "./LazyAdminTopNav";
 import { CommandPalette } from "./CommandPalette";
 import { MobileNav } from "./MobileNav";
@@ -47,6 +48,7 @@ export default async function Shell({
           <header className="ts-topbar">
             <MobileNav user={user} />
             <PageTitle />
+            {(role === "employee" || role === "manager") && <DutyControl />}
             <CommandPalette role={role} />
             {/* Keeps the top bar's spacing: the notification bell and your picture stay on the right. */}
             <span className="ts-search" aria-hidden="true" />

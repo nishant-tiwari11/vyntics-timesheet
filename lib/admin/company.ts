@@ -4,7 +4,7 @@ import { listRuns, type RunSummary } from "@/lib/payroll/runs";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/timesheet/auth";
 import { addDays, isWeekend, mondayOf, todayInOffice } from "@/lib/timesheet/dates";
-import { offDatesBetween, upcomingHolidays } from "@/lib/timesheet/holidays";
+import { holidaysToDecide, offDatesBetween, upcomingHolidays } from "@/lib/timesheet/holidays";
 import type { Holiday } from "@/lib/timesheet/holidayTypes";
 import { logError } from "@/lib/timesheet/log";
 import { listLogsInRange } from "@/lib/timesheet/logs";
@@ -25,11 +25,13 @@ export type CompanyOverview = {
     departments: CountRow[];
     newJoiners: { id: string; name: string; joinedOn: string }[];
   } | null;
-  now: { dayOff: "weekly off" | "holiday" | null; present: number; notLogged: number | null; onLeave: Person[]; wfh: Person[] } | null;
+  now: { dayOff: "weekly off" | "holiday" | null; present: number; /** On duty right now. */ onDuty: number; /** Went on duty at all today. */ dutyToday: number; notLogged: number | null; onLeave: Person[]; wfh: Person[] } | null;
   week: { days: { date: string; hours: number }[]; total: number; projects: CountRow[] } | null;
   payroll: { latest: RunSummary | null; open: number } | null;
   expenses: { pending: number; pendingAmount: number; approvedAmount: number; reimbursedAmount: number } | null;
   holidays: Holiday[] | null;
+  /** Public holidays and festivals in the next two weeks that nobody has decided on: is the office closed? */
+  holidaysToDecide: Holiday[] | null;
   /** Everyone who is active, for the badge rail on the overview. */
   people: { id: string; name: string; email: string; role: string; joinedOn: string }[] | null;
 };
@@ -52,7 +54,7 @@ export async function loadCompanyOverview(): Promise<CompanyOverview> {
   const monday = mondayOf(today);
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
 
-  const [people, details, requests, logs, runs, claims, holidays, off] = await Promise.all([
+  const [people, details, requests, logs, runs, claims, holidays, off, toDecide, dutyRows] = await Promise.all([
     safely("people", async () => {
       const { data, error } = await supabase.from("profiles").select("id, full_name, email, role, status, created_at").limit(5000);
       if (error) throw error;
@@ -79,6 +81,13 @@ export async function loadCompanyOverview(): Promise<CompanyOverview> {
     safely("expenses", () => listAllClaims({ filter: "all" })),
     safely("holidays", () => upcomingHolidays(today, 4)),
     safely("off day", () => offDatesBetween(today, today)),
+    safely("holidays to decide", () => holidaysToDecide(today, 14)),
+    // Who went on duty today (before step41 there is no table: the picture then comes from the timesheet alone).
+    safely("duty today", async () => {
+      const { data, error } = await supabase.from("duty_logs" as never).select("user_id, location, ended_at").eq("duty_date", today).limit(2000);
+      if (error) throw error;
+      return (data ?? []) as unknown as { user_id: string; location: string; ended_at: string | null }[];
+    }),
   ]);
 
   const active = (people ?? []).filter((p) => p.status !== "disabled" && p.role !== "viewer");
@@ -110,12 +119,22 @@ export async function loadCompanyOverview(): Promise<CompanyOverview> {
     }
     const leave = requests.filter((r) => r.type !== "wfh");
     const dayOff = isWeekend(today) ? "weekly off" : off && off.length > 0 ? "holiday" : null;
+    // Working today = went on duty today, or has reported hours. Work from home = approved WFH, or went on duty from home.
+    const duty = dutyRows ?? [];
+    const dutyIds = new Set(duty.map((d) => d.user_id));
+    const homeIds = new Set(duty.filter((d) => d.location === "wfh").map((d) => d.user_id));
+    const nameOf = new Map(people.map((p) => [p.id, displayName(p)]));
+    const wfhPeople = new Map<string, Person>();
+    for (const r of requests.filter((r) => r.type === "wfh")) wfhPeople.set(r.user_id, { id: r.user_id, name: displayName(r.owner) });
+    for (const id of homeIds) if (!wfhPeople.has(id)) wfhPeople.set(id, { id, name: nameOf.get(id) ?? "Someone" });
     now = {
       dayOff,
-      present: active.filter((p) => (hoursToday.get(p.id) ?? 0) > 0).length,
+      present: active.filter((p) => dutyIds.has(p.id) || (hoursToday.get(p.id) ?? 0) > 0).length,
+      onDuty: new Set(duty.filter((d) => d.ended_at === null).map((d) => d.user_id)).size,
+      dutyToday: dutyIds.size,
       notLogged: notLoggedToday({ people, hoursById: hoursToday, onLeave: new Set(leave.map((r) => r.user_id)), dayOff: dayOff !== null }),
       onLeave: leave.map((r) => ({ id: r.user_id, name: displayName(r.owner) })),
-      wfh: requests.filter((r) => r.type === "wfh").map((r) => ({ id: r.user_id, name: displayName(r.owner) })),
+      wfh: [...wfhPeople.values()],
     };
   }
 
@@ -146,6 +165,7 @@ export async function loadCompanyOverview(): Promise<CompanyOverview> {
         }
       : null,
     holidays,
+    holidaysToDecide: toDecide,
     people: people
       ? active
           .map((p) => ({ id: p.id, name: displayName(p), email: p.email, role: p.role, joinedOn: detailBy.get(p.id)?.joined_on ?? p.created_at.slice(0, 10) }))

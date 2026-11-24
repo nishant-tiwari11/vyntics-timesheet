@@ -3,6 +3,8 @@ import { loadAccess, type AccessRow } from "@/lib/access/server";
 import { listAllClaims } from "@/lib/expenses/server";
 import type { ClaimRow } from "@/lib/expenses/types";
 import { listPayrollHistory, type HistoryRow } from "@/lib/payroll/history";
+import { loadDutyDays } from "@/lib/timesheet/duty";
+import type { DutyDay } from "@/lib/timesheet/dutyTypes";
 import { listStructureHistory } from "@/lib/payroll/server";
 import type { StructureRow } from "@/lib/payroll/types";
 import { createClient } from "@/lib/supabase/server";
@@ -28,6 +30,8 @@ export type EmployeeView = {
   expenses: ClaimRow[] | null;
   salary: StructureRow | null | undefined; // undefined = could not load
   payslips: HistoryRow[] | null;
+  /** The last two weeks of duty next to the hours reported on the timesheet (null if it couldn't be read). */
+  duty: DutyDay[] | null;
 };
 
 async function safely<T>(what: string, task: () => Promise<T>): Promise<T | null> {
@@ -54,7 +58,7 @@ export async function loadEmployee(id: string): Promise<EmployeeView> {
   const yearStart = `${today.slice(0, 4)}-01-01`;
   const yearEnd = `${today.slice(0, 4)}-12-31`;
 
-  const [details, logs, monthLogs, requests, claims, structures, payslips] = await Promise.all([
+  const [details, logs, monthLogs, requests, claims, structures, payslips, duty] = await Promise.all([
     safely("details", async () => {
       const { data, error } = await supabase.from("employee_details").select("joined_on, left_on").eq("user_id", id).maybeSingle();
       if (error) throw error;
@@ -89,6 +93,7 @@ export async function loadEmployee(id: string): Promise<EmployeeView> {
     safely("expenses", async () => (await listAllClaims({ filter: "all" })).filter((c) => c.userId === id)),
     safely("salary", () => listStructureHistory(id)),
     safely("payslips", async () => (await listPayrollHistory(id, 12)).rows),
+    safely("duty", () => loadDutyDays(id, 14)),
   ]);
 
   const sum = (status: string[]) => (monthLogs ?? []).filter((l) => status.includes(l.status)).reduce((n, l) => n + (l.hours ?? 0), 0);
@@ -113,5 +118,6 @@ export async function loadEmployee(id: string): Promise<EmployeeView> {
     expenses: claims,
     salary: structures === null ? undefined : (structures.find((s) => s.effectiveFrom <= today) ?? null),
     payslips,
+    duty,
   };
 }

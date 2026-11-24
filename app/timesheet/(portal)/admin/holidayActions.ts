@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createHoliday, deleteHoliday, importHolidays, markYearReviewed, updateHoliday, type ImportResult } from "@/lib/timesheet/holidays";
+import { createHoliday, deleteHoliday, importHolidays, markYearReviewed, setOfficeOff, updateHoliday, type ImportResult } from "@/lib/timesheet/holidays";
 import type { HolidayInput } from "@/lib/timesheet/holidayTypes";
 import { TimesheetError } from "@/lib/timesheet/errors";
 import { logError } from "@/lib/timesheet/log";
@@ -68,6 +68,17 @@ export async function markYearReviewedAction(year: number): Promise<HolidayResul
     const n = await markYearReviewed(year);
     refresh();
     return { ok: true, message: `${n} ${n === 1 ? "holiday" : "holidays"} marked as reviewed.` };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/** The office is closed (or stays open) on this holiday. */
+export async function setOfficeOffAction(id: string, off: boolean): Promise<HolidayResult> {
+  try {
+    await setOfficeOff(id, off);
+    refresh();
+    return { ok: true, message: off ? "Marked as an office off day." : "The office stays open." };
   } catch (e) {
     return fail(e);
   }
