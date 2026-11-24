@@ -13,6 +13,10 @@ import { logError } from "@/lib/timesheet/log";
 import { displayName } from "@/lib/timesheet/people";
 import { UserAvatar } from "../../_components/UserAvatar";
 import { AvatarUploader } from "./AvatarUploader";
+import { buildLetter } from "@/lib/offers/build";
+import { checkLetter } from "@/lib/offers/check";
+import { ENGAGEMENT_LABEL, getMyOffer, loadOfferSettings } from "@/lib/offers/server";
+import { MyOffer, type MyOfferView } from "./MyOffer";
 import { ChatReminderToggle } from "./ChatReminderToggle";
 import { loadMyOnboarding } from "@/lib/onboarding/server";
 import { DocumentsWorkspace } from "./documents/DocumentsWorkspace";
@@ -56,6 +60,32 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
       return { ready: false };
     }),
   ]);
+  // Your offer letter, once HR has sent it. Before step 41 has been run there simply isn't one.
+  let myOffer: MyOfferView | null = null;
+  if (ownDocs) {
+    try {
+      const [found, settings] = await Promise.all([getMyOffer(), loadOfferSettings()]);
+      const data = found ? checkLetter(found.data) : null;
+      if (found && data?.ok && (found.row.status === "sent" || found.row.status === "accepted")) {
+        const doc = buildLetter(data.data, settings.company, settings.clauses);
+        if (found.row.method === "typed" && found.row.acceptedName && found.row.acceptedOn) for (const b of doc.blocks) if (b.t === "acceptance") b.typed = { name: found.row.acceptedName, date: found.row.acceptedOn };
+        myOffer = {
+          id: found.row.id,
+          status: found.row.status,
+          version: found.row.version,
+          typeLabel: ENGAGEMENT_LABEL[found.row.type],
+          sentOn: found.row.sentAt ? formatInstantDate(found.row.sentAt) : null,
+          acceptedOn: found.row.acceptedOn ? formatInstantDate(found.row.acceptedOn) : null,
+          acceptedName: found.row.acceptedName,
+          method: found.row.method,
+          isCurrent: found.row.isCurrent,
+          doc,
+        };
+      }
+    } catch (e) {
+      logError("profile offer letter", e);
+    }
+  }
   const name = displayName(profile);
   const hasPhoto = (photo.data ?? []).some((f) => f.name === avatarPath(profile.id));
   const isAdmin = me.role === "admin";
@@ -109,6 +139,8 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         ))}
       </nav>
       )}
+
+      {tab === "overview" && myOffer && <MyOffer offer={myOffer} today={todayInOffice()} logoUrl="/api/offers/logo" />}
 
       {tab === "overview" ? (
         <section aria-labelledby="details-title" className="rounded-xl border bg-card p-5">

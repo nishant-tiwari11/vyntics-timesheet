@@ -147,6 +147,7 @@ const ADMIN_MENU: NavLink[] = [
   { href: "/timesheet/admin", label: "Overview", icon: "dashboard", exact: true },
   { href: "/timesheet/admin/access", label: "Employees", icon: "team", group: "People" },
   { href: "/timesheet/admin/documents", label: "Documents", icon: "documents", group: "People" },
+  { href: "/timesheet/admin/offers", label: "Offer letters", icon: "documents", group: "People" },
   { href: "/timesheet/admin/approvals", label: "Approvals", icon: "approvals", group: "People" },
   { href: "/timesheet/worklog", label: "Work logs", icon: "worklog", group: "Work" },
   { href: "/timesheet/admin/projects", label: "Projects", icon: "projects", group: "Work" },
@@ -180,6 +181,7 @@ export function titleFor(pathname: string): string {
   if (pathname.startsWith("/timesheet/calendar")) return "Calendar";
   if (pathname.startsWith("/timesheet/admin/access")) return "Employees";
   if (pathname.startsWith("/timesheet/admin/documents")) return "Documents";
+  if (pathname.startsWith("/timesheet/admin/offers")) return "Offer letters";
   if (pathname.startsWith("/timesheet/admin/projects")) return "Projects";
   if (pathname.startsWith("/timesheet/admin/audit")) return "Audit log";
   if (pathname.startsWith("/timesheet/admin/reports")) return "Reports";

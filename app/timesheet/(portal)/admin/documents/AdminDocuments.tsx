@@ -18,10 +18,9 @@ import { UserAvatar } from "../../../_components/UserAvatar";
 import { DocumentPreviewModal, type PreviewDoc } from "../../profile/documents/DocumentPreviewModal";
 import { StatusBadge } from "../../profile/documents/DocumentList";
 import { ReviewDialog, type ReviewTarget } from "../../profile/documents/ReviewDialog";
-import { loadActivityAction, loadOfferTemplateAction, setManagerSensitiveAction } from "./actions";
+import { loadActivityAction, setManagerSensitiveAction } from "./actions";
 import type { OnboardingRow } from "@/lib/onboarding/server";
 import { ActionRequired } from "./ActionRequired";
-import { OfferLetterTab, type OfferTemplateInfo } from "./OfferLetterTab";
 import { OnboardingAdmin } from "./OnboardingAdmin";
 
 const ALL = "__all__";
@@ -45,16 +44,12 @@ export function AdminDocuments({ docs, employees, truncated, today, onboarding, 
   const [view, setView] = useState<View>(initialView);
   // The activity list and the offer template are only read when their tab is first opened.
   const [audit, setAudit] = useState<AuditRow[] | null>(null);
-  const [offerTemplate, setOfferTemplate] = useState<OfferTemplateInfo | null>(null);
   const [lazyError, setLazyError] = useState<string | null>(null);
   useEffect(() => {
     if (view === "activity" && audit === null) {
       void loadActivityAction().then((res) => (res.ok ? setAudit(res.rows) : setLazyError(res.error)));
     }
-    if (view === "offer" && offerTemplate === null) {
-      void loadOfferTemplateAction().then((res) => (res.ok ? setOfferTemplate(res.template as OfferTemplateInfo) : setLazyError(res.error)));
-    }
-  }, [view, audit, offerTemplate]);
+  }, [view, audit]);
   const [quick, setQuick] = useState<Quick>("all");
   const [q, setQ] = useState("");
   const [category, setCategory] = useState(ALL);
@@ -321,12 +316,15 @@ export function AdminDocuments({ docs, employees, truncated, today, onboarding, 
 
       {view === "onboarding" && <OnboardingAdmin rows={onboarding} onPreview={setPreview} onReview={setReview} />}
 
-      {view === "offer" &&
-        (offerTemplate ? (
-          <OfferLetterTab employees={employees.filter((e) => e.role !== "viewer")} today={today} template={offerTemplate} />
-        ) : (
-          <p role="status" className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">{lazyError ?? "Loading the template…"}</p>
-        ))}
+      {view === "offer" && (
+        <section className="grid justify-items-start gap-3 rounded-xl border bg-card p-5" aria-label="Offer letters">
+          <h2 className="text-base font-semibold">Offer letters have their own section</h2>
+          <p className="text-sm text-muted-foreground">Create, preview, send and track offer and appointment letters for internships and full-time roles, with the employee accepting in the portal.</p>
+          <Link href="/timesheet/admin/offers" className="inline-flex min-h-9 items-center rounded-md bg-foreground px-4 text-sm font-medium text-background max-md:min-h-11">
+            Open Offer letters
+          </Link>
+        </section>
+      )}
 
       {view === "activity" && (
         <section className="grid gap-3" aria-label="Document activity">
