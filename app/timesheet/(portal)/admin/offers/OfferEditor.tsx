@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { buildLetter } from "@/lib/offers/build";
 import { checkLetter } from "@/lib/offers/check";
-import { addMonths, dayAfter, dayBefore, defaultPhases, monthName } from "@/lib/offers/defaults";
+import { addMonths, dayAfter, dayBefore, defaultPhases, monthName, previewLetterData } from "@/lib/offers/defaults";
 import type { ClauseKey } from "@/lib/offers/clauses";
 import { ENGAGEMENT_TYPES, WORK_LOCATIONS, isInternship, type CompanyInfo, type EngagementType, type LetterData, type Phase } from "@/lib/offers/types";
 import { deleteOfferAction, saveOfferAction, sendOfferAction } from "./actions";
@@ -67,8 +67,10 @@ export function OfferEditor({
   // The live preview: the same builder the PDF uses.
   const view = useMemo(() => {
     const r = checkLetter(data);
-    return r.ok ? { ok: true as const, doc: buildLetter(r.data, company, clauses) } : { ok: false as const, error: r.error };
-  }, [data, company, clauses]);
+    if (r.ok) return { ok: true as const, doc: buildLetter(r.data, company, clauses) };
+    // Not finished yet: still draw the letter, with placeholders for what is missing, and say what to fix.
+    return { ok: false as const, error: r.error, doc: buildLetter(previewLetterData(data, initial.letterDate), company, clauses) };
+  }, [data, company, clauses, initial.letterDate]);
 
   function save(then?: (id: string) => void) {
     startTransition(async () => {
@@ -392,15 +394,14 @@ export function OfferEditor({
       </div>
 
       <div className="min-w-0">
-        {view.ok ? (
-          <div className="max-h-[85vh] overflow-auto rounded-md bg-neutral-100 p-3">
-            <LetterPreview letter={view.doc} logoUrl={logoUrl} signatureUrl={signatureUrl} sealUrl={sealUrl} />
-          </div>
-        ) : (
-          <p role="note" className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-            The live preview of the letter appears here as soon as the details are complete.
+        {!view.ok && (
+          <p role="note" className="mb-2 rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
+            Preview with blanks in [brackets]. To save or send: {view.error}
           </p>
         )}
+        <div className="max-h-[85vh] overflow-auto rounded-md bg-neutral-100 p-3">
+          <LetterPreview letter={view.doc} logoUrl={logoUrl} signatureUrl={signatureUrl} sealUrl={sealUrl} />
+        </div>
       </div>
 
       <Dialog open={confirm !== null} onOpenChange={(o) => !o && setConfirm(null)}>

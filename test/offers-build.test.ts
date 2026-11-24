@@ -213,3 +213,23 @@ describe("the letter for each engagement type", () => {
     expect(allText(d)).toContain("{{ctc}}"); // the role stays as typed, not filled with a pay amount
   });
 });
+
+describe("the preview of an unfinished form", () => {
+  it("draws a blank letter of every type with placeholders instead of failing", async () => {
+    const { previewLetterData } = await import("@/lib/offers/defaults");
+    for (const engagementType of ["unpaid_internship", "paid_internship", "phased_internship", "full_time"] as const) {
+      const blank = { ...emptyLetter("2026-10-23"), engagementType, candidateName: "", designation: "", phases: [], ctc: "" };
+      const d = buildLetter(previewLetterData(blank, "2026-10-23"), company);
+      expect(d.party[0]).toBe("[Name],");
+      expect(d.blocks.length).toBeGreaterThan(8);
+    }
+  });
+
+  it("shows a paid phase with no amount as [amount], never as a real number", async () => {
+    const { previewLetterData } = await import("@/lib/offers/defaults");
+    const d = buildLetter(previewLetterData({ ...phased, phases: [phased.phases[0], { ...phased.phases[1], monthlyAmount: "" }] } as never, "2026-10-23"), company);
+    expect(allText(d)).toContain("INR [amount] per month");
+    // a real amount is unchanged
+    expect(allText(doc(phased))).toContain("INR 12,000 per month");
+  });
+});

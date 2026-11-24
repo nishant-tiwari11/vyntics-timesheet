@@ -8,7 +8,8 @@ import { isInternship, type CompanyInfo, type LetterBlock, type LetterData, type
 const longDate = (ymd: string) =>
   ymd ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${ymd}T00:00:00Z`)) : "";
 
-export const inr = (n: number | string) => `INR ${Number(n).toLocaleString("en-IN")}`;
+/** Money as "INR 12,000". An amount of 0 only happens in the preview of a form that is not finished, and reads "INR [amount]". */
+export const inr = (n: number | string) => (Number(n) === 0 ? "INR [amount]" : `INR ${Number(n).toLocaleString("en-IN")}`);
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const list = (items: string[]) => (items.length <= 1 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`);
 const range = (p: Pick<Phase, "startDate" | "endDate">) => `${longDate(p.startDate)} to ${longDate(p.endDate)}`;

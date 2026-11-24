@@ -1,3 +1,5 @@
+import { isYmd } from "@/lib/timesheet/dates";
+import { cleanAmount } from "./check";
 import { emptyLetter, type EngagementType, type LetterData, type Phase } from "./types";
 
 // Starting values for a new letter. Plain code with no server-only imports.
@@ -30,4 +32,32 @@ export function defaultPhases(type: EngagementType, joining: string): Phase[] {
 export function newLetter(today: string, person: { name: string; email: string; manager: string }): LetterData {
   const joining = new Date(Date.parse(`${today}T00:00:00Z`) + 14 * 86_400_000).toISOString().slice(0, 10);
   return { ...emptyLetter(today), joiningDate: joining, candidateName: person.name, candidateEmail: person.email, reportingManager: person.manager, phases: defaultPhases("phased_internship", joining) };
+}
+
+/**
+ * The form as it is right now, made complete enough to draw: a missing name, role, date or amount becomes a bracketed placeholder
+ * (an amount of 0 is drawn as "INR [amount]"). Only the on-screen preview uses this; saving and the PDF use the strict check.
+ */
+export function previewLetterData(d: LetterData, today: string): LetterData {
+  const date = (v: string) => (isYmd(v) ? v : today);
+  const joiningDate = date(d.joiningDate);
+  const phases = (d.phases.length > 0 ? d.phases : defaultPhases(d.engagementType, joiningDate)).map((p) => ({
+    ...p,
+    startDate: date(p.startDate),
+    endDate: isYmd(p.endDate) && p.endDate >= date(p.startDate) ? p.endDate : date(p.startDate),
+    monthlyAmount: p.isPaid ? cleanAmount(p.monthlyAmount) || "0" : "",
+  }));
+  return {
+    ...d,
+    candidateName: d.candidateName.trim() || "[Name]",
+    designation: d.designation.trim() || "[Role]",
+    letterDate: date(d.letterDate),
+    joiningDate,
+    phases: d.engagementType === "full_time" ? [] : d.engagementType === "phased_internship" ? phases : phases.slice(0, 1),
+    ctc: d.engagementType === "full_time" ? cleanAmount(d.ctc) || "0" : "",
+    salaryBreakup: d.salaryBreakup.filter((l) => l.label.trim() && cleanAmount(l.monthly)).map((l) => ({ label: l.label.trim(), monthly: cleanAmount(l.monthly) })),
+    probationMonths: /^\d{1,2}$/.test(d.probationMonths) ? d.probationMonths : "0",
+    noticeDays: /^\d{1,3}$/.test(d.noticeDays) ? d.noticeDays : "0",
+    nonCircumventionMonths: /^\d{1,2}$/.test(d.nonCircumventionMonths) ? d.nonCircumventionMonths : "0",
+  };
 }
