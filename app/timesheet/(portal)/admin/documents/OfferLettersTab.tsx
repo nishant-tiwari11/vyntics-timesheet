@@ -149,7 +149,7 @@ export function OfferLettersTab({ people }: { people: { id: string; name: string
               )}
             </p>
           )}
-          {!row && <p className="text-sm text-muted-foreground">Choose the type, fill in the details and check the preview. Nothing is sent until you click Send, and a letter for someone without an account can only be downloaded.</p>}
+          {!row && <p className="text-sm text-muted-foreground">Choose the type, fill in the details and check the preview. Nothing is sent until you click Send, and a letter for a new employee without an account can only be downloaded.</p>}
         </div>
 
         <OfferEditor
@@ -225,7 +225,7 @@ export function OfferLettersTab({ people }: { people: { id: string; name: string
               </label>
               <select id="new-offer-person" value={pick} onChange={(e) => setPick(e.target.value)} className={`${selectClass} w-64 max-w-full`}>
                 <option value="">Choose who it is for</option>
-                <option value={NOBODY}>Someone not in the portal (type their details)</option>
+                <option value={NOBODY}>New employee (type their details)</option>
                 {people.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
@@ -234,7 +234,7 @@ export function OfferLettersTab({ people }: { people: { id: string; name: string
               </select>
             </div>
             <Button type="submit" disabled={!pick} className="max-md:min-h-11">
-              <FilePlus2 aria-hidden="true" /> Generate offer letter
+              <FilePlus2 aria-hidden="true" /> Create new
             </Button>
           </form>
 
@@ -301,7 +301,7 @@ export function OfferLettersTab({ people }: { people: { id: string; name: string
           {data.rows.length === 0 ? (
             <div className="ts-card ts-empty">
               <strong>{filtered ? "No letters match" : "No offer letters yet"}</strong>
-              <p>{filtered ? "Try a different filter." : "Choose who it is for above and click Generate offer letter."}</p>
+              <p>{filtered ? "Try a different filter." : "Choose who it is for above and click Create new."}</p>
             </div>
           ) : (
             <div className="overflow-x-auto rounded-lg border">

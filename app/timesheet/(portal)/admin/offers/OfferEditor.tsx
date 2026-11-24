@@ -340,7 +340,7 @@ export function OfferEditor({
           <div className="grid gap-1.5 rounded-lg border p-4">
             <Label htmlFor="o-link">Linked employee</Label>
             <select id="o-link" className={select} value={linked} onChange={(e) => setLinked(e.target.value)}>
-              <option value="">Not linked: a letter for someone with no account in the portal</option>
+              <option value="">Not linked: a new employee with no account in the portal yet</option>
               {people.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
