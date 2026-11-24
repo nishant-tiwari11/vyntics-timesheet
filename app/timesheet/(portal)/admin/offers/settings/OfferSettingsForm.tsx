@@ -12,6 +12,14 @@ import type { CompanyInfo } from "@/lib/offers/types";
 import { saveOfferSettingsAction } from "../actions";
 
 type Kind = "logo" | "signature" | "seal";
+
+// The wording, grouped by the kind of letter it belongs to.
+const GROUPS: { id: string; title: string; about: string; keys: ClauseKey[] }[] = [
+  { id: "internship", title: "Internship (unpaid and paid)", about: "One period: the opening, the Engagement Period, the stipend or unpaid clause, attendance and the PPO row.", keys: ["intro_internship", "engagement_period", "stipend_unpaid", "stipend_paid", "attendance", "ppo_row"] },
+  { id: "phased", title: "Phased internship", about: "Two or more phases, each evaluated: the opening, phases, evaluation, PPO paragraph, stipend and the annexure outcome.", keys: ["intro_phased", "phases_intro", "phases_evaluation", "phases_ppo", "stipend_phased", "outcome"] },
+  { id: "full_time", title: "Full-time employment", about: "The opening, employment period, salary, probation, working hours and leave.", keys: ["intro_full_time", "employment_period", "salary", "probation", "working_hours", "leave"] },
+  { id: "all", title: "All letters", about: "Shared by every type: responsibilities, confidentiality, IP, ethics, non-circumvention, outside work, ending, return of property and the acceptance line.", keys: ["responsibilities", "confidentiality", "intellectual_property", "ethics", "non_circumvention", "outside_work", "ending", "return_property", "acceptance_intro"] },
+];
 const PICTURES: { kind: Kind; label: string; hint: string }[] = [
   { kind: "logo", label: "Logo", hint: "Top left of every page. Square works best." },
   { kind: "signature", label: "Signature", hint: "A PNG with a transparent background looks best." },
@@ -145,23 +153,43 @@ export function OfferSettingsForm({ saved, ready, pictures, onChanged }: { saved
             You can use <code>{"{{company}}"}</code>, <code>{"{{firstName}}"}</code>, <code>{"{{designation}}"}</code>, <code>{"{{joiningDate}}"}</code>, <code>{"{{noticeDays}}"}</code>, <code>{"{{ctc}}"}</code>, <code>{"{{workLocation}}"}</code> and the others already in the standard text. A blank line starts a new paragraph.
           </p>
         </div>
-        {CLAUSE_FIELDS.map((c) => {
-          const changed = clauses[c.key] !== DEFAULT_CLAUSES[c.key];
+        {GROUPS.map((g) => {
+          const fields = CLAUSE_FIELDS.filter((c) => g.keys.includes(c.key));
+          const customised = fields.filter((c) => clauses[c.key] !== DEFAULT_CLAUSES[c.key]).length;
           return (
-            <div key={c.key} className="grid gap-1.5 rounded-lg border p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <Label htmlFor={`cl-${c.key}`} className="font-semibold">
-                  {c.label}
-                </Label>
-                <span className="text-xs text-muted-foreground">Used in: {c.used}</span>
+            <details key={g.id} className="group rounded-lg border" open={g.id === "internship"}>
+              <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 p-4 marker:hidden">
+                <span className="grid gap-0.5">
+                  <span className="text-sm font-semibold">{g.title}</span>
+                  <span className="text-xs font-normal text-muted-foreground">{g.about}</span>
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {fields.length} {fields.length === 1 ? "piece" : "pieces"}
+                  {customised > 0 ? ` · ${customised} changed` : ""}
+                </span>
+              </summary>
+              <div className="grid gap-3 border-t p-4">
+                {fields.map((c) => {
+                  const changed = clauses[c.key] !== DEFAULT_CLAUSES[c.key];
+                  return (
+                    <div key={c.key} className="grid gap-1.5 rounded-lg border p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <Label htmlFor={`cl-${c.key}`} className="font-semibold">
+                          {c.label}
+                        </Label>
+                        <span className="text-xs text-muted-foreground">Used in: {c.used}</span>
+                      </div>
+                      <Textarea id={`cl-${c.key}`} rows={4} maxLength={CLAUSE_MAX} value={clauses[c.key]} onChange={(e) => setClauses((x) => ({ ...x, [c.key]: e.target.value }))} />
+                      {changed && (
+                        <Button type="button" variant="ghost" size="sm" className="w-fit max-md:min-h-11" onClick={() => setClauses((x) => ({ ...x, [c.key]: DEFAULT_CLAUSES[c.key] }))}>
+                          <RotateCcw aria-hidden="true" /> Use the standard wording
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              <Textarea id={`cl-${c.key}`} rows={4} maxLength={CLAUSE_MAX} value={clauses[c.key]} onChange={(e) => setClauses((x) => ({ ...x, [c.key]: e.target.value }))} />
-              {changed && (
-                <Button type="button" variant="ghost" size="sm" className="w-fit max-md:min-h-11" onClick={() => setClauses((x) => ({ ...x, [c.key]: DEFAULT_CLAUSES[c.key] }))}>
-                  <RotateCcw aria-hidden="true" /> Use the standard wording
-                </Button>
-              )}
-            </div>
+            </details>
           );
         })}
       </section>
