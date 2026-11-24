@@ -46,7 +46,7 @@ export default async function NewOfferPage({ searchParams }: { searchParams: Pro
         initial={newLetter(todayInOffice(), { name, email: person.email, manager: manager ? manager.full_name?.trim() || manager.email.split("@")[0] : "" })}
         company={settings.company}
         clauses={settings.clauses}
-        logoUrl="/api/offers/logo"
+        logoUrl="/api/offers/asset?kind=logo" signatureUrl="/api/offers/asset?kind=signature" sealUrl="/api/offers/asset?kind=seal"
       />
     </div>
   );

@@ -26,7 +26,7 @@ export type MyOfferView = {
 
 // Your offer letter: read it, download the PDF, and accept it by typing your name and the date, or by uploading a signed copy.
 // After you accept it is locked; any change HR makes afterwards is a new version you'd be asked to accept again.
-export function MyOffer({ offer, today, logoUrl }: { offer: MyOfferView; today: string; logoUrl?: string }) {
+export function MyOffer({ offer, today, logoUrl, signatureUrl, sealUrl }: { offer: MyOfferView; today: string; logoUrl?: string; signatureUrl?: string; sealUrl?: string }) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [date, setDate] = useState(today);
@@ -96,7 +96,7 @@ export function MyOffer({ offer, today, logoUrl }: { offer: MyOfferView; today: 
 
       {open && (
         <div className="max-h-[80vh] overflow-auto rounded-md bg-neutral-100 p-2">
-          <LetterPreview letter={offer.doc} logoUrl={logoUrl} />
+          <LetterPreview letter={offer.doc} logoUrl={logoUrl} signatureUrl={signatureUrl} sealUrl={sealUrl} />
         </div>
       )}
 

@@ -140,7 +140,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
       </nav>
       )}
 
-      {tab === "overview" && myOffer && <MyOffer offer={myOffer} today={todayInOffice()} logoUrl="/api/offers/logo" />}
+      {tab === "overview" && myOffer && <MyOffer offer={myOffer} today={todayInOffice()} logoUrl="/api/offers/asset?kind=logo" signatureUrl="/api/offers/asset?kind=signature" sealUrl="/api/offers/asset?kind=seal" />}
 
       {tab === "overview" ? (
         <section aria-labelledby="details-title" className="rounded-xl border bg-card p-5">

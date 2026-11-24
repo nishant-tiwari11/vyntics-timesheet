@@ -29,12 +29,16 @@ export function OfferEditor({
   company,
   clauses,
   logoUrl,
+  signatureUrl,
+  sealUrl,
 }: {
   letter: EditorLetter;
   initial: LetterData;
   company: CompanyInfo;
   clauses: Record<ClauseKey, string>;
   logoUrl?: string;
+  signatureUrl?: string;
+  sealUrl?: string;
 }) {
   const router = useRouter();
   const [data, setData] = useState<LetterData>(initial);
@@ -367,7 +371,7 @@ export function OfferEditor({
       <div className="min-w-0">
         {view.ok ? (
           <div className="max-h-[85vh] overflow-auto rounded-md bg-neutral-100 p-3">
-            <LetterPreview letter={view.doc} logoUrl={logoUrl} />
+            <LetterPreview letter={view.doc} logoUrl={logoUrl} signatureUrl={signatureUrl} sealUrl={sealUrl} />
           </div>
         ) : (
           <p role="note" className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">

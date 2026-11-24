@@ -1,7 +1,12 @@
+"use client";
+
 import type { LetterBlock, LetterDoc } from "@/lib/offers/types";
 
 // The letter drawn on screen from the same structure the PDF is drawn from, so what you read here is what the PDF says.
-// Black text on white with the purple section headings of the printed letter. Server- and client-safe (no hooks).
+// Black text on white with the purple section headings of the printed letter. A picture that is not uploaded just stays hidden.
+const hide = (e: React.SyntheticEvent<HTMLImageElement>) => {
+  e.currentTarget.style.display = "none";
+};
 
 const PURPLE = "#6b58a8";
 const LAVENDER = "#f3f0fa";
@@ -37,13 +42,15 @@ function Table({ b }: { b: Extract<LetterBlock, { t: "table" }> }) {
   );
 }
 
-export function LetterPreview({ letter, logoUrl }: { letter: LetterDoc; logoUrl?: string }) {
+export type LetterPictures = { logo?: string; signature?: string; seal?: string };
+
+export function LetterPreview({ letter, logoUrl, signatureUrl, sealUrl }: { letter: LetterDoc; logoUrl?: string; signatureUrl?: string; sealUrl?: string }) {
   return (
     <article aria-label="Offer letter preview" className="mx-auto w-full max-w-[794px] bg-white p-6 text-[13px] leading-relaxed text-[#1f2937] shadow-sm ring-1 ring-black/10 sm:p-10">
       <header className="flex items-center justify-between gap-3 border-b-2 pb-3" style={{ borderColor: PURPLE }}>
         {logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrl} alt="" className="size-14 object-contain" />
+          <img src={logoUrl} alt="" className="size-14 object-contain" onError={hide} />
         ) : (
           <span className="size-14" aria-hidden="true" />
         )}
@@ -108,7 +115,17 @@ export function LetterPreview({ letter, logoUrl }: { letter: LetterDoc; logoUrl?
               <div className="grid gap-1 p-3" style={{ background: LAVENDER }}>
                 <p className="font-bold">Name: {b.signatoryName}</p>
                 {b.signatoryTitle && <p className="font-bold">Designation: {b.signatoryTitle}</p>}
-                <p className="font-bold">Signature:</p>
+                <div className="flex items-center gap-3">
+                  <p className="font-bold">Signature:</p>
+                  {signatureUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={signatureUrl} alt="" className="h-10 max-w-[9rem] object-contain" onError={hide} />
+                  )}
+                  {sealUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={sealUrl} alt="" className="ml-auto size-14 object-contain" onError={hide} />
+                  )}
+                </div>
                 <p className="font-bold">Date: {b.letterDate}</p>
               </div>
               <div className="grid gap-1 p-3" style={{ background: LAVENDER }}>

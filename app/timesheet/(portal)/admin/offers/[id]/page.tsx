@@ -60,7 +60,7 @@ export default async function OfferPage({ params }: { params: Promise<{ id: stri
         initial={initial}
         company={settings.company}
         clauses={settings.clauses}
-        logoUrl="/api/offers/logo"
+        logoUrl="/api/offers/asset?kind=logo" signatureUrl="/api/offers/asset?kind=signature" sealUrl="/api/offers/asset?kind=seal"
       />
 
       {found.versions.length > 1 && (

@@ -197,7 +197,7 @@ export async function deleteOffer(id: string): Promise<void> {
  * the company's signature, so the server reads it itself. This is only reached after the caller has been checked as someone who may
  * have this letter (an admin, or the person it was sent to).
  */
-async function readAsset(kind: "logo" | "signature" | "seal"): Promise<Uint8Array | null> {
+export async function readAsset(kind: "logo" | "signature" | "seal"): Promise<Uint8Array | null> {
   try {
     const { data, error } = await createServiceClient().storage.from(DOC_BUCKET).download(`templates/${kind}.png`);
     if (error || !data) return null;
