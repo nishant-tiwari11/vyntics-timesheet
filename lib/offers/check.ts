@@ -1,4 +1,5 @@
 import { isYmd } from "@/lib/timesheet/dates";
+import { CLAUSE_MAX, DEFAULT_CLAUSES, type ClauseKey } from "./clauses";
 import { WORK_LOCATIONS, isEngagementType, type LetterData, type Phase, type SalaryLine, type WorkLocation } from "./types";
 
 // Checks everything an admin typed for an offer letter, and cleans it. The browser checks too, but only this check counts.
@@ -104,6 +105,18 @@ export function checkLetter(input: unknown): Result {
     }
   }
 
+  // Wording changed for this letter only: known pieces, text only, never empty.
+  const clauseOverrides: Partial<Record<ClauseKey, string>> = {};
+  const raw = i.clauseOverrides && typeof i.clauseOverrides === "object" ? (i.clauseOverrides as Record<string, unknown>) : {};
+  for (const key of Object.keys(DEFAULT_CLAUSES) as ClauseKey[]) {
+    const v = raw[key];
+    if (typeof v === "string") {
+      const t = v.replace(/₹/g, "INR ").replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, "").replace(/\r\n?/g, "\n").trim();
+      if (t.length > CLAUSE_MAX) return fail(`A clause is longer than ${CLAUSE_MAX} characters.`);
+      if (t) clauseOverrides[key] = t;
+    }
+  }
+
   return {
     ok: true,
     data: {
@@ -125,6 +138,7 @@ export function checkLetter(input: unknown): Result {
       ppoConsideration: engagementType !== "full_time" && i.ppoConsideration === true,
       nonCircumventionMonths,
       includeOutsideWorkClause: i.includeOutsideWorkClause !== false,
+      clauseOverrides,
     },
   };
 }

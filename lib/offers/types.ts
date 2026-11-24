@@ -29,6 +29,8 @@ export type Phase = {
 /** One line of a full-time salary breakup (monthly amount in whole rupees; the yearly amount is worked out). */
 export type SalaryLine = { label: string; monthly: string };
 
+import type { ClauseKey } from "./clauses";
+
 export type LetterData = {
   engagementType: EngagementType;
   /** YYYY-MM-DD */
@@ -55,6 +57,8 @@ export type LetterData = {
   /** 0 leaves the clause out. */
   nonCircumventionMonths: string;
   includeOutsideWorkClause: boolean;
+  /** Wording changed for THIS letter only (edited in the preview). Anything not listed uses the company wording from the settings. */
+  clauseOverrides: Partial<Record<ClauseKey, string>>;
 };
 
 /** Company details, set once by an admin. */
@@ -97,15 +101,16 @@ export function emptyLetter(today: string): LetterData {
     ppoConsideration: true,
     nonCircumventionMonths: "24",
     includeOutsideWorkClause: true,
+    clauseOverrides: {},
   };
 }
 
 /** The structured letter that the preview and the PDF both draw. */
 export type LetterBlock =
   | { t: "heading"; text: string }
-  | { t: "para"; text: string }
-  | { t: "clause"; n: number; title: string; paras: string[] }
-  | { t: "table"; header?: string[]; rows: string[][]; widths: number[]; align?: ("left" | "right")[]; boldLastRow?: boolean }
+  | { t: "para"; text: string; key?: ClauseKey }
+  | { t: "clause"; n: number; title: string; paras: string[]; /** The wording each paragraph comes from, so the preview can edit it. */ keys?: ClauseKey[] }
+  | { t: "table"; header?: string[]; rows: string[][]; widths: number[]; align?: ("left" | "right")[]; boldLastRow?: boolean; /** For each row, the phase (0-based) it shows, so the preview can edit it. */ rowPhase?: (number | null)[] }
   | { t: "acceptance"; company: string; signatoryName: string; signatoryTitle: string; letterDate: string; candidateName: string; typed?: { name: string; date: string } }
   | { t: "annexureTitle"; text: string }
   | { t: "note"; text: string };

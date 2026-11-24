@@ -233,3 +233,39 @@ describe("the preview of an unfinished form", () => {
     expect(allText(doc(phased))).toContain("INR 12,000 per month");
   });
 });
+
+describe("editing a letter's own wording and phases (the editable preview)", () => {
+  it("uses wording changed for this letter only, and leaves the company wording alone", () => {
+    const own = make({ ...phased, clauseOverrides: { responsibilities: "Do great work, {{firstName}}." } });
+    const text = allText(buildLetter(own, company));
+    expect(text).toContain("Do great work, Nishant.");
+    expect(text).not.toContain("You will perform tasks assigned by Vyntics");
+    // another letter, and the company wording, are untouched
+    expect(allText(doc(phased))).toContain("You will perform tasks assigned by Vyntics");
+    expect(DEFAULT_CLAUSES.responsibilities).toContain("You will perform tasks");
+  });
+
+  it("falls back to the company wording when the edited text is empty, and ignores unknown pieces", () => {
+    const r = checkLetter({ ...phased, clauseOverrides: { responsibilities: "   ", ethics: "Be kind.", nonsense: "x" } });
+    if (!r.ok) throw new Error(r.error);
+    expect(r.data.clauseOverrides).toEqual({ ethics: "Be kind." });
+    expect(allText(buildLetter({ ...r.data, clauseOverrides: { responsibilities: "  " } }, company))).toContain("You will perform tasks");
+  });
+
+  it("an edited piece cannot add details of its own from what is typed into a field", () => {
+    const d = buildLetter(make({ ...phased, candidateName: "Evil {{company}}", clauseOverrides: { responsibilities: "Hello {{firstName}}" } }), company);
+    expect(allText(d)).toContain("Hello Evil");
+  });
+
+  it("tells the preview which wording each paragraph comes from and which phase each row shows", () => {
+    const d = doc(phased);
+    const clause = d.blocks.find((b) => b.t === "clause" && b.title.startsWith("Internship Phases")) as Extract<LetterBlock, { t: "clause" }>;
+    expect(clause.keys).toEqual(["phases_intro", "phases_evaluation", "phases_ppo"]);
+    const keyTerms = tables(d)[0];
+    expect(keyTerms.rowPhase).toBeDefined();
+    const phaseRows = keyTerms.rows.map((r, i) => [r[0], keyTerms.rowPhase![i]]).filter(([, p]) => p !== null);
+    expect(phaseRows).toEqual([["Phase 1", 0], ["Phase 2", 1]]);
+    const annex = tables(d)[1];
+    expect(annex.rowPhase!.filter((p) => p === 1)).toHaveLength(2); // the phase row and its evaluation window
+  });
+});

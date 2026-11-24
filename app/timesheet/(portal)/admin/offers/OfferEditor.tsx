@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { Download, Loader2, Plus, Save, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { LetterPreview } from "@/components/offers/LetterPreview";
+import { LetterPreview, type PreviewEdit } from "@/components/offers/LetterPreview";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -63,6 +63,29 @@ export function OfferEditor({
     setData((d) => ({ ...d, engagementType: type, phases: defaultPhases(type, d.joiningDate), designation: type === "full_time" && d.designation === "Intern" ? "" : d.designation, ppoConsideration: type === "full_time" ? false : d.ppoConsideration, noticeDays: type === "full_time" && d.noticeDays === "7" ? "30" : d.noticeDays }));
   }
   const setPhase = (i: number, patch: Partial<Phase>) => set("phases", data.phases.map((p, k) => (k === i ? { ...p, ...patch } : p)));
+  const addPhase = () => {
+    const last = data.phases[data.phases.length - 1];
+    const start = last ? dayAfter(last.endDate) : data.joiningDate;
+    set("phases", [...data.phases, { name: `Phase ${data.phases.length + 1}`, startDate: start, endDate: dayBefore(addMonths(start, 3)), isPaid: true, monthlyAmount: "", evaluationWindow: monthName(dayBefore(addMonths(start, 3))) }]);
+  };
+  // The preview is editable: click a clause or a phase in the letter. Wording changed here belongs to THIS letter only.
+  const edit: PreviewEdit | undefined = locked
+    ? undefined
+    : {
+        raw: (k) => (k in data.clauseOverrides ? (data.clauseOverrides[k] ?? "") : clauses[k]),
+        changed: (k) => typeof data.clauseOverrides[k] === "string" && data.clauseOverrides[k]!.trim() !== "" && data.clauseOverrides[k] !== clauses[k],
+        setClause: (k, text) => set("clauseOverrides", { ...data.clauseOverrides, [k]: text }),
+        resetClause: (k) =>
+          set(
+            "clauseOverrides",
+            Object.fromEntries(Object.entries(data.clauseOverrides).filter(([key]) => key !== k)),
+          ),
+        phases: data.phases,
+        setPhase,
+        phased: data.engagementType === "phased_internship",
+        ...(data.engagementType === "phased_internship" && data.phases.length < 8 ? { addPhase } : {}),
+        ...(data.engagementType === "phased_internship" ? { removePhase: (i: number) => set("phases", data.phases.filter((_, k) => k !== i)) } : {}),
+      };
 
   // The live preview: the same builder the PDF uses.
   const view = useMemo(() => {
@@ -236,11 +259,7 @@ export function OfferEditor({
                     size="sm"
                     className="max-md:min-h-11"
                     disabled={locked}
-                    onClick={() => {
-                      const last = data.phases[data.phases.length - 1];
-                      const start = last ? dayAfter(last.endDate) : data.joiningDate;
-                      set("phases", [...data.phases, { name: `Phase ${data.phases.length + 1}`, startDate: start, endDate: dayBefore(addMonths(start, 3)), isPaid: true, monthlyAmount: "", evaluationWindow: monthName(dayBefore(addMonths(start, 3))) }]);
-                    }}
+                    onClick={addPhase}
                   >
                     <Plus aria-hidden="true" /> Add phase
                   </Button>
@@ -432,7 +451,7 @@ export function OfferEditor({
           </section>
         )}
         <div className="max-h-[85vh] overflow-auto rounded-md bg-neutral-100 p-3">
-          <LetterPreview letter={view.doc} logoUrl={logoUrl} signatureUrl={signatureUrl} sealUrl={sealUrl} />
+          <LetterPreview letter={view.doc} logoUrl={logoUrl} signatureUrl={signatureUrl} sealUrl={sealUrl} edit={edit} />
         </div>
       </div>
 
