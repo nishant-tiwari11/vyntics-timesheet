@@ -124,7 +124,8 @@ export default async function SalaryPage({ searchParams }: { searchParams: Promi
 
   const currency = slips[0]?.currency ?? "INR";
   const months = slips.map((s) => s.month);
-  const selected = isMonthKey(raw.month) && months.includes(raw.month) ? raw.month : months[0];
+  // A payslip stays closed until "View" is clicked (the month is then in the address).
+  const selected = isMonthKey(raw.month) && months.includes(raw.month) ? raw.month : undefined;
   const tab = raw.tab === "structure" && shared ? "structure" : "payslips";
 
   let detail: PayslipDetail | null = null;
@@ -188,7 +189,7 @@ export default async function SalaryPage({ searchParams }: { searchParams: Promi
           {/* Tabs */}
           <nav aria-label="My Salary sections" className="flex gap-1 border-b no-print">
             {[
-              { id: "payslips", label: "Payslips", href: `/timesheet/salary${selected ? `?month=${selected}` : ""}` },
+              { id: "payslips", label: "Payslips", href: "/timesheet/salary" },
               ...(shared ? [{ id: "structure", label: "Salary structure", href: "/timesheet/salary?tab=structure" }] : []),
             ].map((t) => (
               <Link
@@ -276,7 +277,14 @@ export default async function SalaryPage({ searchParams }: { searchParams: Promi
             )
           ) : (
             <>
-              <MonthPicker months={months} current={selected} />
+              {selected && (
+                <div className="flex flex-wrap items-end justify-between gap-3 no-print">
+                  <MonthPicker months={months} current={selected} />
+                  <Link href="/timesheet/salary" className={link}>
+                    Hide payslip
+                  </Link>
+                </div>
+              )}
 
               {detail && (
                 <article aria-label={`Payslip for ${monthName(detail.month)}`} className="grid gap-5 rounded-lg border p-5 print-area">
