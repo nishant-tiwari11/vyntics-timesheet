@@ -26,7 +26,7 @@ const refresh = () => {
 };
 
 /** Save a draft, or (when the letter was already sent) create its next draft version. Returns the id to open. */
-export async function saveOfferAction(id: string | null, userId: string, input: unknown): Promise<OfferResult> {
+export async function saveOfferAction(id: string | null, userId: string | null, input: unknown): Promise<OfferResult> {
   try {
     const saved = await saveOffer(id, userId, input);
     refresh();
@@ -118,6 +118,8 @@ export async function loadOfferAction(id: string): Promise<Read<{ detail: OfferD
 export async function loadNewOfferAction(userId: string): Promise<Read<{ name: string; initial: LetterData }>> {
   const no = await denied();
   if (no) return { ok: false, error: no };
+  // An empty id means "someone with no account in the portal": a blank letter to fill in.
+  if (userId === "") return { ok: true, name: "", initial: newLetter(todayInOffice(), { name: "", email: "", manager: "" }) };
   if (!isUuid(userId)) return { ok: false, error: "Choose the employee." };
   try {
     const supabase = await createClient();

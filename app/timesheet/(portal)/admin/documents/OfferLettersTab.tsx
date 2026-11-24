@@ -19,6 +19,7 @@ import { OfferSettingsForm } from "../offers/settings/OfferSettingsForm";
 const STATUS_LABEL = { draft: "Draft", sent: "Sent", accepted: "Accepted" } as const;
 const TYPE_LABEL = Object.fromEntries(ENGAGEMENT_TYPES.map((t) => [t.id, t.label])) as Record<string, string>;
 const selectClass = "h-9 rounded-[var(--radius)] border border-input bg-background px-3 text-sm max-md:h-11";
+const NOBODY = "__nobody";
 const PICTURES = { signatureUrl: "/api/offers/asset?kind=signature", sealUrl: "/api/offers/asset?kind=seal", logoUrl: "/api/offers/asset?kind=logo" };
 
 type Mode = { m: "list" } | { m: "new"; userId: string } | { m: "edit"; id: string } | { m: "settings" };
@@ -126,7 +127,7 @@ export function OfferLettersTab({ people }: { people: { id: string; name: string
       <div className="grid gap-4">
         <div className="grid gap-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-base font-semibold">{row ? row.name : `New offer letter for ${fresh?.name ?? ""}`}</h2>
+            <h2 className="text-base font-semibold">{row ? row.name : fresh?.name ? `New offer letter for ${fresh.name}` : "New offer letter"}</h2>
             {row && <Badge variant={row.status === "draft" ? "outline" : "default"}>{STATUS_LABEL[row.status]}</Badge>}
             {row && (
               <span className="text-sm text-muted-foreground">
@@ -148,12 +149,13 @@ export function OfferLettersTab({ people }: { people: { id: string; name: string
               )}
             </p>
           )}
-          {!row && <p className="text-sm text-muted-foreground">Choose the type, fill in the details and check the preview. Nothing is sent until you click Send.</p>}
+          {!row && <p className="text-sm text-muted-foreground">Choose the type, fill in the details and check the preview. Nothing is sent until you click Send, and a letter for someone without an account can only be downloaded.</p>}
         </div>
 
         <OfferEditor
           key={row ? row.id : `new-${fresh?.userId ?? ""}`}
-          letter={row ? { id: row.id, userId: row.userId, status: row.status, version: row.version, isCurrent: row.isCurrent } : { id: null, userId: fresh?.userId ?? "", status: "draft", version: 1, isCurrent: true }}
+          letter={row ? { id: row.id, userId: row.userId, status: row.status, version: row.version, isCurrent: row.isCurrent } : { id: null, userId: fresh?.userId || null, status: "draft", version: 1, isCurrent: true }}
+          people={people}
           initial={data.initial}
           company={settings.company}
           clauses={settings.clauses}
@@ -214,7 +216,7 @@ export function OfferLettersTab({ people }: { people: { id: string; name: string
             className="flex flex-wrap items-end gap-2"
             onSubmit={(e) => {
               e.preventDefault();
-              if (pick) setMode({ m: "new", userId: pick });
+              if (pick) setMode({ m: "new", userId: pick === NOBODY ? "" : pick });
             }}
           >
             <div className="grid gap-1.5">
@@ -222,7 +224,8 @@ export function OfferLettersTab({ people }: { people: { id: string; name: string
                 New letter for
               </label>
               <select id="new-offer-person" value={pick} onChange={(e) => setPick(e.target.value)} className={`${selectClass} w-64 max-w-full`}>
-                <option value="">Choose an employee</option>
+                <option value="">Choose who it is for</option>
+                <option value={NOBODY}>Someone not in the portal (type their details)</option>
                 {people.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
@@ -298,7 +301,7 @@ export function OfferLettersTab({ people }: { people: { id: string; name: string
           {data.rows.length === 0 ? (
             <div className="ts-card ts-empty">
               <strong>{filtered ? "No letters match" : "No offer letters yet"}</strong>
-              <p>{filtered ? "Try a different filter." : "Choose an employee above and click Generate offer letter."}</p>
+              <p>{filtered ? "Try a different filter." : "Choose who it is for above and click Generate offer letter."}</p>
             </div>
           ) : (
             <div className="overflow-x-auto rounded-lg border">

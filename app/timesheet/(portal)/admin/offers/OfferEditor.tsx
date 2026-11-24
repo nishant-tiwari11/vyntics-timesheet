@@ -19,9 +19,10 @@ import { deleteOfferAction, saveOfferAction, sendOfferAction } from "./actions";
 const field = "grid gap-1.5";
 const select = "h-9 w-full rounded-[var(--radius)] border border-input bg-background px-3 text-sm outline-none focus-visible:border-foreground focus-visible:ring-[3px] focus-visible:ring-foreground/20 max-md:h-11";
 
-export type EditorLetter = { id: string | null; userId: string; status: "draft" | "sent" | "accepted"; version: number; isCurrent: boolean };
+export type EditorLetter = { id: string | null; userId: string | null; status: "draft" | "sent" | "accepted"; version: number; isCurrent: boolean };
 
 export function OfferEditor({
+  people,
   onOpen,
   onClose,
   letter,
@@ -39,17 +40,21 @@ export function OfferEditor({
   logoUrl?: string;
   signatureUrl?: string;
   sealUrl?: string;
+  /** The employees a letter can be linked to. */
+  people: { id: string; name: string }[];
   /** Open this letter (after it was created or changed): the tab loads it again. */
   onOpen: (id: string) => void;
   /** Back to the list. */
   onClose: () => void;
 }) {
   const [data, setData] = useState<LetterData>(initial);
+  // Who the letter is linked to ("" = nobody: a letter for someone with no account in the portal).
+  const [linked, setLinked] = useState(letter.userId ?? "");
   const [saved, setSaved] = useState(JSON.stringify(initial));
   const [pending, startTransition] = useTransition();
   const [confirm, setConfirm] = useState<"send" | "delete" | null>(null);
   const locked = letter.status !== "draft" || !letter.isCurrent;
-  const dirty = JSON.stringify(data) !== saved;
+  const dirty = JSON.stringify(data) !== saved || (linked !== (letter.userId ?? "") && !locked);
 
   const set = <K extends keyof LetterData>(key: K, value: LetterData[K]) => setData((d) => ({ ...d, [key]: value }));
   const text = (key: keyof LetterData) => (e: React.ChangeEvent<HTMLInputElement>) => set(key, e.target.value as never);
@@ -67,7 +72,7 @@ export function OfferEditor({
 
   function save(then?: (id: string) => void) {
     startTransition(async () => {
-      const res = await saveOfferAction(letter.id, letter.userId, data);
+      const res = await saveOfferAction(letter.id, linked || null, data);
       if (!res.ok) return void toast.error(res.error);
       const id = res.id ?? letter.id ?? "";
       if (locked) toast.success("A new draft version was created. The sent letter is unchanged.");
@@ -329,6 +334,23 @@ export function OfferEditor({
           </div>
         </fieldset>
 
+        {!locked && (
+          <div className="grid gap-1.5 rounded-lg border p-4">
+            <Label htmlFor="o-link">Linked employee</Label>
+            <select id="o-link" className={select} value={linked} onChange={(e) => setLinked(e.target.value)}>
+              <option value="">Not linked: a letter for someone with no account in the portal</option>
+              {people.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground">
+              {linked ? "Sending puts the letter on this employee's profile for them to accept." : "You can preview, save and download the PDF. To send it, link it to an employee once they have signed in."}
+            </p>
+          </div>
+        )}
+
         {!view.ok && (
           <p role="alert" className="rounded-md border border-destructive/40 px-3 py-2 text-sm text-destructive">
             {view.error}
@@ -345,7 +367,7 @@ export function OfferEditor({
               <Button type="button" disabled={busy || !view.ok || (!dirty && letter.id !== null)} onClick={() => save()} className="max-md:min-h-11">
                 {busy ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Save aria-hidden="true" />} Save draft
               </Button>
-              <Button type="button" variant="outline" disabled={busy || !view.ok} onClick={() => setConfirm("send")} className="max-md:min-h-11">
+              <Button type="button" variant="outline" disabled={busy || !view.ok || !linked} title={linked ? undefined : "Link the letter to an employee first"} onClick={() => setConfirm("send")} className="max-md:min-h-11">
                 <Send aria-hidden="true" /> Send to employee
               </Button>
               {letter.id && (

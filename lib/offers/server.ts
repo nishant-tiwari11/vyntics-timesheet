@@ -75,7 +75,8 @@ export type OfferRow = {
   groupId: string;
   version: number;
   isCurrent: boolean;
-  userId: string;
+  /** The employee it is linked to, or null for a letter made for someone with no account in the portal. */
+  userId: string | null;
   status: OfferStatus;
   type: EngagementType;
   name: string;
@@ -90,7 +91,7 @@ export type OfferRow = {
   signedDocumentId: string | null;
 };
 type Db = {
-  id: string; group_id: string; version: number; is_current: boolean; user_id: string; status: string; engagement_type: string; candidate_name: string;
+  id: string; group_id: string; version: number; is_current: boolean; user_id: string | null; status: string; engagement_type: string; candidate_name: string;
   created_at: string; updated_at: string; sent_at: string | null; accepted_at: string | null; accepted_name: string | null; accepted_on: string | null;
   accept_method: string | null; document_id: string | null; signed_document_id: string | null; data?: unknown;
 };
@@ -171,14 +172,15 @@ export async function getMyOffer(): Promise<OfferDetail | null> {
   return getOffer((data as unknown as { id: string }).id);
 }
 
-export async function saveOffer(id: string | null, userId: string, input: unknown): Promise<string> {
+/** `userId` null (or empty) makes a letter for someone who has no account in the portal: it can be previewed and downloaded, and linked to an employee later. */
+export async function saveOffer(id: string | null, userId: string | null, input: unknown): Promise<string> {
   await requireAdmin();
-  if (!isUuid(userId)) throw new TimesheetError("Choose the employee.");
+  if (userId !== null && userId !== "" && !isUuid(userId)) throw new TimesheetError("Choose the employee.");
   if (id !== null && !isUuid(id)) throw new TimesheetError("That letter could not be found.");
   const checked = checkLetter(input);
   if (!checked.ok) throw new TimesheetError(checked.error);
   const supabase = await db();
-  const { data, error } = await supabase.rpc("offer_save" as never, { p_id: id, p_user: userId, p_data: checked.data } as never);
+  const { data, error } = await supabase.rpc("offer_save" as never, { p_id: id, p_user: userId || null, p_data: checked.data } as never);
   if (error) throw failure(error, "Couldn't save the letter. Please try again.");
   return data as unknown as string;
 }
@@ -281,6 +283,7 @@ export async function sendOffer(id: string): Promise<void> {
   if (!found.row.isCurrent || found.row.status !== "draft") throw new TimesheetError("Only the current draft can be sent.");
   const data = asLetter(found.data);
   if (!data) throw new TimesheetError("Fix the details first, then save the draft before sending.");
+  if (!found.row.userId) throw new TimesheetError("Link this letter to an employee before sending it.");
 
   // The earlier version's profile entry (if it was sent) becomes the earlier version of this document.
   const older = found.versions.find((v) => v.version < found.row.version && v.documentId);
