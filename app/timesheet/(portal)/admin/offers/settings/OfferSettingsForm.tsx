@@ -1,24 +1,51 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { Loader2, RotateCcw, Save, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { CLAUSE_FIELDS, CLAUSE_MAX, DEFAULT_CLAUSES, type ClauseKey } from "@/lib/offers/clauses";
+import { clauseVars } from "@/lib/offers/build";
+import { CLAUSE_FIELDS, CLAUSE_MAX, DEFAULT_CLAUSES, fillClause, type ClauseKey } from "@/lib/offers/clauses";
+import { newLetter } from "@/lib/offers/defaults";
 import type { CompanyInfo } from "@/lib/offers/types";
 import { saveOfferSettingsAction } from "../actions";
 
 type Kind = "logo" | "signature" | "seal";
 
+// What each {{detail}} is called on screen, and an example of what it turns into.
+const DETAIL_LABEL: Record<string, string> = {
+  company: "Company name",
+  firstName: "First name",
+  name: "Full name",
+  designation: "Role",
+  joiningDate: "Joining date",
+  workLocation: "Work location",
+  reportingManager: "Reporting manager",
+  noticeDays: "Notice days",
+  nonCircumventionMonths: "Non-circumvention months",
+  probationMonths: "Probation",
+  ctc: "Annual CTC",
+  stipend: "Stipend",
+  periodStart: "Period start",
+  periodEnd: "Period end",
+  phaseCount: "Number of phases",
+  phaseList: "List of phases",
+  phaseMoney: "Pay for each phase",
+  engagementWord: "internship / employment",
+  inLieu: "Stipend in lieu of notice",
+  ppoOutcome: "PPO outcome",
+};
+const COMMON_DETAILS = ["company", "firstName", "designation", "joiningDate", "workLocation", "noticeDays"];
+
 // The wording, grouped by the kind of letter it belongs to.
 const GROUPS: { id: string; title: string; about: string; keys: ClauseKey[] }[] = [
-  { id: "internship", title: "Internship (unpaid and paid)", about: "One period: the opening, the Engagement Period, the stipend or unpaid clause, attendance and the PPO row.", keys: ["intro_internship", "engagement_period", "stipend_unpaid", "stipend_paid", "attendance", "ppo_row"] },
-  { id: "phased", title: "Phased internship", about: "Two or more phases, each evaluated: the opening, phases, evaluation, PPO paragraph, stipend and the annexure outcome.", keys: ["intro_phased", "phases_intro", "phases_evaluation", "phases_ppo", "stipend_phased", "outcome"] },
-  { id: "full_time", title: "Full-time employment", about: "The opening, employment period, salary, probation, working hours and leave.", keys: ["intro_full_time", "employment_period", "salary", "probation", "working_hours", "leave"] },
-  { id: "all", title: "All letters", about: "Shared by every type: responsibilities, confidentiality, IP, ethics, non-circumvention, outside work, ending, return of property and the acceptance line.", keys: ["responsibilities", "confidentiality", "intellectual_property", "ethics", "non_circumvention", "outside_work", "ending", "return_property", "acceptance_intro"] },
+  { id: "internship", title: "Internship", about: "Unpaid and paid internships, which have one period.", keys: ["intro_internship", "engagement_period", "stipend_unpaid", "stipend_paid", "attendance", "ppo_row"] },
+  { id: "phased", title: "Phased internship", about: "Two or more phases, each evaluated.", keys: ["intro_phased", "phases_intro", "phases_evaluation", "phases_ppo", "stipend_phased", "outcome"] },
+  { id: "full_time", title: "Full-time", about: "Salary, probation, working hours and leave.", keys: ["intro_full_time", "employment_period", "salary", "probation", "working_hours", "leave"] },
+  { id: "all", title: "All letters", about: "Clauses every type has: confidentiality, IP, ethics and so on.", keys: ["responsibilities", "confidentiality", "intellectual_property", "ethics", "non_circumvention", "outside_work", "ending", "return_property", "acceptance_intro"] },
 ];
 const PICTURES: { kind: Kind; label: string; hint: string }[] = [
   { kind: "logo", label: "Logo", hint: "Top left of every page. Square works best." },
@@ -93,6 +120,12 @@ export function OfferSettingsForm({ saved, ready, pictures, onChanged }: { saved
   const [company, setCompany] = useState<CompanyInfo>(saved.company);
   const [clauses, setClauses] = useState<Record<ClauseKey, string>>(saved.clauses);
   const [pending, startTransition] = useTransition();
+  const [tab, setTab] = useState(GROUPS[0].id);
+  // An example letter, so each clause can show how it will read with real details.
+  const sample = useMemo(() => {
+    const d = newLetter("2026-11-24", { name: "Asha Rao", email: "asha@example.com", manager: "Ravi Menon" });
+    return clauseVars({ ...d, designation: "Intern", ctc: "600000", probationMonths: "3", phases: d.phases.map((ph) => (ph.isPaid ? { ...ph, monthlyAmount: "12000" } : ph)) }, company);
+  }, [company]);
   const dirty = JSON.stringify({ company, clauses }) !== JSON.stringify(saved);
   const field = (key: keyof CompanyInfo) => (e: React.ChangeEvent<HTMLInputElement>) => setCompany((c) => ({ ...c, [key]: e.target.value }));
 
@@ -146,52 +179,91 @@ export function OfferSettingsForm({ saved, ready, pictures, onChanged }: { saved
         </div>
       </section>
 
-      <section className="grid gap-3" aria-label="Wording">
+      <section className="grid gap-4" aria-label="Wording">
         <div className="grid gap-1">
           <h2 className="text-base font-semibold">Wording of each clause</h2>
           <p className="text-sm text-muted-foreground">
-            You can use <code>{"{{company}}"}</code>, <code>{"{{firstName}}"}</code>, <code>{"{{designation}}"}</code>, <code>{"{{joiningDate}}"}</code>, <code>{"{{noticeDays}}"}</code>, <code>{"{{ctc}}"}</code>, <code>{"{{workLocation}}"}</code> and the others already in the standard text. A blank line starts a new paragraph.
+            Pick the kind of letter, then change any clause. Click a detail button to put it into the text: it is replaced by the real name, date or amount in each letter. A blank line starts a new paragraph.
           </p>
         </div>
-        {GROUPS.map((g) => {
-          const fields = CLAUSE_FIELDS.filter((c) => g.keys.includes(c.key));
-          const customised = fields.filter((c) => clauses[c.key] !== DEFAULT_CLAUSES[c.key]).length;
-          return (
-            <details key={g.id} className="group rounded-lg border" open={g.id === "internship"}>
-              <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 p-4 marker:hidden">
-                <span className="grid gap-0.5">
-                  <span className="text-sm font-semibold">{g.title}</span>
-                  <span className="text-xs font-normal text-muted-foreground">{g.about}</span>
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {fields.length} {fields.length === 1 ? "piece" : "pieces"}
-                  {customised > 0 ? ` · ${customised} changed` : ""}
-                </span>
-              </summary>
-              <div className="grid gap-3 border-t p-4">
-                {fields.map((c) => {
-                  const changed = clauses[c.key] !== DEFAULT_CLAUSES[c.key];
-                  return (
-                    <div key={c.key} className="grid gap-1.5 rounded-lg border p-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <Label htmlFor={`cl-${c.key}`} className="font-semibold">
-                          {c.label}
-                        </Label>
-                        <span className="text-xs text-muted-foreground">Used in: {c.used}</span>
-                      </div>
-                      <Textarea id={`cl-${c.key}`} rows={4} maxLength={CLAUSE_MAX} value={clauses[c.key]} onChange={(e) => setClauses((x) => ({ ...x, [c.key]: e.target.value }))} />
-                      {changed && (
-                        <Button type="button" variant="ghost" size="sm" className="w-fit max-md:min-h-11" onClick={() => setClauses((x) => ({ ...x, [c.key]: DEFAULT_CLAUSES[c.key] }))}>
-                          <RotateCcw aria-hidden="true" /> Use the standard wording
-                        </Button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </details>
-          );
-        })}
+
+        <div role="tablist" aria-label="Kind of letter" className="flex flex-wrap gap-2">
+          {GROUPS.map((g) => {
+            const changed = CLAUSE_FIELDS.filter((c) => g.keys.includes(c.key) && clauses[c.key] !== DEFAULT_CLAUSES[c.key]).length;
+            return (
+              <button
+                key={g.id}
+                type="button"
+                role="tab"
+                aria-selected={tab === g.id}
+                onClick={() => setTab(g.id)}
+                className="inline-flex min-h-9 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors hover:border-foreground aria-selected:border-foreground aria-selected:bg-foreground aria-selected:text-background max-md:min-h-11"
+              >
+                {g.title}
+                {changed > 0 && <span className="rounded-full bg-background/20 px-1.5 text-xs">{changed} edited</span>}
+              </button>
+            );
+          })}
+        </div>
+
+        {GROUPS.filter((g) => g.id === tab).map((g) => (
+          <div key={g.id} role="tabpanel" className="grid gap-3">
+            <p className="text-sm text-muted-foreground">{g.about}</p>
+            {CLAUSE_FIELDS.filter((c) => g.keys.includes(c.key)).map((c) => {
+              const changed = clauses[c.key] !== DEFAULT_CLAUSES[c.key];
+              // The details this clause uses in the standard wording, plus the common ones.
+              const used = [...DEFAULT_CLAUSES[c.key].matchAll(/\{\{\s*([A-Za-z][A-Za-z0-9]*)\s*\}\}/g)].map((m) => m[1]);
+              const buttons = [...new Set([...COMMON_DETAILS, ...used])].filter((k) => DETAIL_LABEL[k]);
+              const insert = (key: string) => {
+                const el = document.getElementById(`cl-${c.key}`) as HTMLTextAreaElement | null;
+                const at = el?.selectionStart ?? clauses[c.key].length;
+                const to = el?.selectionEnd ?? at;
+                const text = clauses[c.key];
+                setClauses((x) => ({ ...x, [c.key]: `${text.slice(0, at)}{{${key}}}${text.slice(to)}` }));
+                requestAnimationFrame(() => {
+                  el?.focus();
+                  el?.setSelectionRange(at + key.length + 4, at + key.length + 4);
+                });
+              };
+              return (
+                <div key={c.key} className="grid gap-2 rounded-lg border p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Label htmlFor={`cl-${c.key}`} className="text-sm font-semibold">
+                      {c.label}
+                    </Label>
+                    {changed && <span className="rounded-full border px-2 text-xs">Edited</span>}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Appears in: {c.used}</p>
+                  <Textarea id={`cl-${c.key}`} rows={4} maxLength={CLAUSE_MAX} value={clauses[c.key]} onChange={(e) => setClauses((x) => ({ ...x, [c.key]: e.target.value }))} />
+                  <div className="flex flex-wrap items-center gap-1.5" aria-label="Add a detail">
+                    <span className="text-xs text-muted-foreground">Add:</span>
+                    {buttons.map((k) => (
+                      <button key={k} type="button" onClick={() => insert(k)} className="rounded-full border px-2.5 py-0.5 text-xs hover:border-foreground max-md:min-h-9" title={`Inserts {{${k}}}`}>
+                        {DETAIL_LABEL[k]}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="rounded-md bg-muted/40 p-3 text-sm">
+                    <p className="mb-1 text-xs font-medium text-muted-foreground">How it reads (example)</p>
+                    {fillClause(clauses[c.key], sample)
+                      .split(/\n\s*\n/)
+                      .filter(Boolean)
+                      .map((para, i) => (
+                        <p key={i} className="mt-1.5 first:mt-0">
+                          {para}
+                        </p>
+                      ))}
+                  </div>
+                  {changed && (
+                    <Button type="button" variant="ghost" size="sm" className="w-fit max-md:min-h-11" onClick={() => setClauses((x) => ({ ...x, [c.key]: DEFAULT_CLAUSES[c.key] }))}>
+                      <RotateCcw aria-hidden="true" /> Use the standard wording
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </section>
 
       <div className="sticky bottom-0 flex flex-wrap items-center gap-3 border-t bg-background py-3">
