@@ -102,8 +102,8 @@ export function OfferLettersTab({ people }: { people: { id: string; name: string
       <div className="grid gap-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="grid gap-1">
-            <h2 className="text-base font-semibold">Company and wording</h2>
-            <p className="text-sm text-muted-foreground">Used by every offer letter. Which clauses appear for each type of letter is fixed, so a typo here can&apos;t remove one.</p>
+            <h2 className="text-base font-semibold">Company settings</h2>
+            <p className="text-sm text-muted-foreground">The company details and pictures used by every offer letter. To change the wording of a letter, click the clause in its preview.</p>
           </div>
           <Button type="button" variant="outline" className="max-md:min-h-11" onClick={back}>
             Back to the list
@@ -202,7 +202,7 @@ export function OfferLettersTab({ people }: { people: { id: string; name: string
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="max-w-2xl text-sm text-muted-foreground">One template, four kinds of letter. Create a draft, send it to the employee, and they accept it in the portal. A sent letter appears on their profile under Documents.</p>
         <Button type="button" variant="outline" className="max-md:min-h-11" onClick={() => setMode({ m: "settings" })}>
-          <Settings aria-hidden="true" /> Company and wording
+          <Settings aria-hidden="true" /> Company settings
         </Button>
       </div>
 
