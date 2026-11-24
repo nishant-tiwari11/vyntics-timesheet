@@ -59,7 +59,11 @@ export type LetterData = {
   includeOutsideWorkClause: boolean;
   /** Wording changed for THIS letter only (edited in the preview). Anything not listed uses the company wording from the settings. */
   clauseOverrides: Partial<Record<ClauseKey, string>>;
+  /** Clauses added to THIS letter only, shown after the standard ones. */
+  customClauses: CustomClause[];
 };
+
+export type CustomClause = { title: string; text: string };
 
 /** Company details, set once by an admin. */
 export type CompanyInfo = {
@@ -102,6 +106,7 @@ export function emptyLetter(today: string): LetterData {
     nonCircumventionMonths: "24",
     includeOutsideWorkClause: true,
     clauseOverrides: {},
+    customClauses: [],
   };
 }
 
@@ -109,7 +114,7 @@ export function emptyLetter(today: string): LetterData {
 export type LetterBlock =
   | { t: "heading"; text: string }
   | { t: "para"; text: string; key?: ClauseKey }
-  | { t: "clause"; n: number; title: string; paras: string[]; /** The wording each paragraph comes from, so the preview can edit it. */ keys?: ClauseKey[] }
+  | { t: "clause"; n: number; title: string; paras: string[]; /** The wording each paragraph comes from, so the preview can edit it. */ keys?: ClauseKey[]; /** Set for a clause added to this letter: its position in the letter's own list. */ custom?: number }
   | { t: "table"; header?: string[]; rows: string[][]; widths: number[]; align?: ("left" | "right")[]; boldLastRow?: boolean; /** For each row, the phase (0-based) it shows, so the preview can edit it. */ rowPhase?: (number | null)[] }
   | { t: "acceptance"; company: string; signatoryName: string; signatoryTitle: string; letterDate: string; candidateName: string; typed?: { name: string; date: string } }
   | { t: "annexureTitle"; text: string }

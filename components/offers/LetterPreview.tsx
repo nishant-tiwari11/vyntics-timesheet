@@ -3,7 +3,7 @@
 import { Fragment, useState } from "react";
 import { Pencil, RotateCcw, Trash2 } from "lucide-react";
 import type { ClauseKey } from "@/lib/offers/clauses";
-import type { LetterBlock, LetterDoc, Phase } from "@/lib/offers/types";
+import type { CustomClause, LetterBlock, LetterDoc, Phase } from "@/lib/offers/types";
 
 // The letter drawn on screen from the same structure the PDF is drawn from, so what you read here is what the PDF says.
 // Black text on white with the purple section headings of the printed letter. A picture that is not uploaded just stays hidden.
@@ -29,6 +29,11 @@ export type PreviewEdit = {
   phased: boolean;
   addPhase?: () => void;
   removePhase?: (index: number) => void;
+  /** Clauses added to this letter. */
+  customs: CustomClause[];
+  setCustom: (index: number, patch: Partial<CustomClause>) => void;
+  addCustom: () => void;
+  removeCustom: (index: number) => void;
 };
 
 const DETAILS: { key: string; label: string }[] = [
@@ -78,6 +83,42 @@ function ClauseEditor({ k, edit, onDone }: { k: ClauseKey; edit: PreviewEdit; on
             <RotateCcw className="size-3" aria-hidden="true" /> Use the company wording
           </button>
         )}
+      </div>
+    </div>
+  );
+}
+
+function CustomEditor({ index, edit, onDone }: { index: number; edit: PreviewEdit; onDone: () => void }) {
+  const c = edit.customs[index];
+  if (!c) return null;
+  return (
+    <div className="my-2 grid gap-2 rounded-md border border-neutral-900 bg-neutral-50 p-3 text-[13px]" role="group" aria-label="Edit this clause">
+      <div className="grid gap-1">
+        <label htmlFor={`custom-${index}-title`} className="text-xs font-semibold text-neutral-600">
+          Clause title
+        </label>
+        <input id={`custom-${index}-title`} className={input} value={c.title} maxLength={80} placeholder="For example: Working Hours" onChange={(e) => edit.setCustom(index, { title: e.target.value })} />
+      </div>
+      <div className="grid gap-1">
+        <label htmlFor={`custom-${index}-text`} className="text-xs font-semibold text-neutral-600">
+          Wording. A blank line starts a new paragraph.
+        </label>
+        <textarea id={`custom-${index}-text`} rows={6} maxLength={3000} className={`${input} resize-y leading-relaxed`} value={c.text} onChange={(e) => edit.setCustom(index, { text: e.target.value })} />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={onDone} className="rounded bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white">
+          Done
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            edit.removeCustom(index);
+            onDone();
+          }}
+          className="inline-flex items-center gap-1 rounded border border-neutral-300 bg-white px-3 py-1.5 text-xs"
+        >
+          <Trash2 className="size-3" aria-hidden="true" /> Remove this clause
+        </button>
       </div>
     </div>
   );
@@ -156,6 +197,8 @@ function PhaseEditor({ index, edit, onDone }: { index: number; edit: PreviewEdit
 export function LetterPreview({ letter, logoUrl, signatureUrl, sealUrl, edit }: { letter: LetterDoc; logoUrl?: string; signatureUrl?: string; sealUrl?: string; edit?: PreviewEdit }) {
   const [editKey, setEditKey] = useState<ClauseKey | null>(null);
   const [editPhase, setEditPhase] = useState<{ phase: number; block: number } | null>(null);
+  const [editCustom, setEditCustom] = useState<number | null>(null);
+  const lastClause = letter.blocks.reduce((at, b, i) => (b.t === "clause" ? i : at), -1);
 
   /** A paragraph of wording. In edit mode it is clickable; the one being edited is replaced by its editor (once per wording). */
   // (Plain functions, not components: a component defined here would be rebuilt on every keystroke and the box being typed in would lose focus.)
@@ -239,6 +282,23 @@ export function LetterPreview({ letter, logoUrl, signatureUrl, sealUrl, edit }: 
     );
   }
 
+  /** The "add a clause" button, shown after the last clause. */
+  function addButton() {
+    if (!edit || edit.customs.length >= 10) return null;
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          edit.addCustom();
+          setEditCustom(edit.customs.length);
+        }}
+        className="mt-3 rounded border border-dashed border-neutral-400 px-3 py-1.5 text-xs text-neutral-600 hover:border-neutral-900"
+      >
+        + Add a clause
+      </button>
+    );
+  }
+
   const shown = new Set<string>();
   return (
     <article aria-label="Offer letter preview" className="mx-auto w-full max-w-[794px] bg-white p-6 text-[13px] leading-relaxed text-[#1f2937] shadow-sm ring-1 ring-black/10 sm:p-10">
@@ -285,9 +345,40 @@ export function LetterPreview({ letter, logoUrl, signatureUrl, sealUrl, edit }: 
               {b.text}
             </h2>
           );
+        if (b.t === "clause" && b.custom !== undefined && edit)
+          return (
+            <Fragment key={i}>
+              {editCustom === b.custom ? (
+                <CustomEditor index={b.custom} edit={edit} onDone={() => setEditCustom(null)} />
+              ) : (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  title="Click to edit this clause"
+                  onClick={() => setEditCustom(b.custom ?? null)}
+                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setEditCustom(b.custom ?? null))}
+                  className="group/edit mt-3 grid cursor-text gap-2 rounded-sm outline-1 outline-transparent hover:bg-amber-50 hover:outline-dashed hover:outline-neutral-400 focus-visible:outline-dashed focus-visible:outline-neutral-900"
+                >
+                  {b.paras.map((p, k) => (
+                    <p key={k} className="text-justify">
+                      {k === 0 && (
+                        <strong>
+                          {b.n}. {b.title} -{" "}
+                        </strong>
+                      )}
+                      {p}
+                      {k === 0 && <span className="ml-1.5 rounded-full border border-neutral-400 px-1.5 text-[10px] text-neutral-500">added</span>}
+                    </p>
+                  ))}
+                </div>
+              )}
+              {i === lastClause && addButton()}
+            </Fragment>
+          );
         if (b.t === "clause")
           return (
-            <div key={i} className="mt-3 grid gap-2">
+            <Fragment key={i}>
+            <div className="mt-3 grid gap-2">
               {b.paras.map((p, k) => (
                 <Fragment key={k}>
                   {wording({
@@ -304,6 +395,8 @@ export function LetterPreview({ letter, logoUrl, signatureUrl, sealUrl, edit }: 
                 </Fragment>
               ))}
             </div>
+            {i === lastClause && addButton()}
+            </Fragment>
           );
         if (b.t === "table") return <Fragment key={i}>{renderTable(b, i)}</Fragment>;
         if (b.t === "annexureTitle")

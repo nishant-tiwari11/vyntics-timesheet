@@ -269,3 +269,27 @@ describe("editing a letter's own wording and phases (the editable preview)", () 
     expect(annex.rowPhase!.filter((p) => p === 1)).toHaveLength(2); // the phase row and its evaluation window
   });
 });
+
+describe("clauses added to one letter", () => {
+  const ft = { ...base, engagementType: "full_time", ctc: "600000", salaryBreakup: [{ label: "Basic", monthly: "50000" }] };
+  const clauses = (d: unknown) => {
+    const r = checkLetter(d);
+    if (!r.ok) throw new Error(r.error);
+    return buildLetter(r.data, company).blocks.filter((b): b is Extract<LetterBlock, { t: "clause" }> => b.t === "clause");
+  };
+
+  it("numbers an added clause after the standard ones", () => {
+    const list = clauses({ ...ft, customClauses: [{ title: "Working Hours", text: "Hours are 10 to 6, {{firstName}}." }] });
+    const last = list[list.length - 1];
+    expect(last.title).toBe("Working Hours");
+    expect(last.custom).toBe(0);
+    expect(last.n).toBe(list.length);
+    expect(last.paras[0]).toContain("Nishant");
+  });
+
+  it("ignores an empty clause but rejects a half-filled one", () => {
+    expect(clauses({ ...ft, customClauses: [{ title: "", text: "" }] }).some((c) => c.custom !== undefined)).toBe(false);
+    const r = checkLetter({ ...ft, customClauses: [{ title: "Only a title", text: "" }] });
+    expect(r.ok).toBe(false);
+  });
+});

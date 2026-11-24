@@ -56,6 +56,7 @@ export function previewLetterData(d: LetterData, today: string): LetterData {
     phases: d.engagementType === "full_time" ? [] : d.engagementType === "phased_internship" ? phases : phases.slice(0, 1),
     ctc: d.engagementType === "full_time" ? cleanAmount(d.ctc) || "0" : "",
     salaryBreakup: d.salaryBreakup.filter((l) => l.label.trim() && cleanAmount(l.monthly)).map((l) => ({ label: l.label.trim(), monthly: cleanAmount(l.monthly) })),
+    customClauses: (d.customClauses ?? []).filter((c) => c.title.trim() || c.text.trim()).map((c) => ({ title: c.title.trim() || "[Clause title]", text: c.text.trim() || "[Wording]" })),
     probationMonths: /^\d{1,2}$/.test(d.probationMonths) ? d.probationMonths : "0",
     noticeDays: /^\d{1,3}$/.test(d.noticeDays) ? d.noticeDays : "0",
     nonCircumventionMonths: /^\d{1,2}$/.test(d.nonCircumventionMonths) ? d.nonCircumventionMonths : "0",

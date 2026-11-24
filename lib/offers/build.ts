@@ -135,6 +135,11 @@ export function buildLetter(data: LetterData, company: CompanyInfo, standard: Re
   }
   clause(intern ? "Ending The Internship" : "Ending Your Employment", "ending");
   clause("Return Of Property And Access", "return_property");
+  // Clauses added to this letter only. They may use {{details}} too.
+  for (const [i, c] of (data.customClauses ?? []).entries()) {
+    const body = paras(fillClause(c.text, vars));
+    if (body.length > 0) blocks.push({ t: "clause", n: ++n, title: c.title, paras: body, custom: i });
+  }
 
   // ---- Acceptance ----
   blocks.push({ t: "heading", text: "ACCEPTANCE" });

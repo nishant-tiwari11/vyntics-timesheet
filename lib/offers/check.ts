@@ -117,6 +117,19 @@ export function checkLetter(input: unknown): Result {
     }
   }
 
+  // Clauses added to this letter only.
+  const customClauses: { title: string; text: string }[] = [];
+  const rawCustom = Array.isArray(i.customClauses) ? (i.customClauses as unknown[]).slice(0, 10) : [];
+  for (const c of rawCustom) {
+    const o = (c && typeof c === "object" ? c : {}) as Record<string, unknown>;
+    const title = clean(o.title, 80);
+    const text = (typeof o.text === "string" ? o.text : "").replace(/₹/g, "INR ").replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, "").replace(/\r\n?/g, "\n").trim();
+    if (!title && !text) continue; // an empty one is ignored
+    if (!title || !text) return fail("Each clause you add needs a title and its wording.");
+    if (text.length > CLAUSE_MAX) return fail(`A clause is longer than ${CLAUSE_MAX} characters.`);
+    customClauses.push({ title, text });
+  }
+
   return {
     ok: true,
     data: {
@@ -139,6 +152,7 @@ export function checkLetter(input: unknown): Result {
       nonCircumventionMonths,
       includeOutsideWorkClause: i.includeOutsideWorkClause !== false,
       clauseOverrides,
+      customClauses,
     },
   };
 }
