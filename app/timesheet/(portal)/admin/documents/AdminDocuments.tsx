@@ -18,10 +18,10 @@ import { UserAvatar } from "../../../_components/UserAvatar";
 import { DocumentPreviewModal, type PreviewDoc } from "../../profile/documents/DocumentPreviewModal";
 import { StatusBadge } from "../../profile/documents/DocumentList";
 import { ReviewDialog, type ReviewTarget } from "../../profile/documents/ReviewDialog";
-import { loadActivityAction, loadOfferTemplateAction, setManagerSensitiveAction } from "./actions";
+import { OfferLettersTab } from "./OfferLettersTab";
+import { loadActivityAction, setManagerSensitiveAction } from "./actions";
 import type { OnboardingRow } from "@/lib/onboarding/server";
 import { ActionRequired } from "./ActionRequired";
-import { OfferLetterTab, type OfferTemplateInfo } from "./OfferLetterTab";
 import { OnboardingAdmin } from "./OnboardingAdmin";
 
 const ALL = "__all__";
@@ -45,16 +45,12 @@ export function AdminDocuments({ docs, employees, truncated, today, onboarding, 
   const [view, setView] = useState<View>(initialView);
   // The activity list and the offer template are only read when their tab is first opened.
   const [audit, setAudit] = useState<AuditRow[] | null>(null);
-  const [offerTemplate, setOfferTemplate] = useState<OfferTemplateInfo | null>(null);
   const [lazyError, setLazyError] = useState<string | null>(null);
   useEffect(() => {
     if (view === "activity" && audit === null) {
       void loadActivityAction().then((res) => (res.ok ? setAudit(res.rows) : setLazyError(res.error)));
     }
-    if (view === "offer" && offerTemplate === null) {
-      void loadOfferTemplateAction().then((res) => (res.ok ? setOfferTemplate(res.template as OfferTemplateInfo) : setLazyError(res.error)));
-    }
-  }, [view, audit, offerTemplate]);
+  }, [view, audit]);
   const [quick, setQuick] = useState<Quick>("all");
   const [q, setQ] = useState("");
   const [category, setCategory] = useState(ALL);
@@ -124,7 +120,7 @@ export function AdminDocuments({ docs, employees, truncated, today, onboarding, 
     { id: "action", label: "Action required", count: lettersToIssue + toVerify },
     { id: "onboarding", label: "Onboarding", count: unfinished },
     { id: "documents", label: "All documents", count: docs.length },
-    { id: "offer", label: "Offer letter" },
+    { id: "offer", label: "Offer letters" },
     { id: "activity", label: "Activity" },
     { id: "managers", label: "Manager access" },
   ];
@@ -321,12 +317,7 @@ export function AdminDocuments({ docs, employees, truncated, today, onboarding, 
 
       {view === "onboarding" && <OnboardingAdmin rows={onboarding} onPreview={setPreview} onReview={setReview} />}
 
-      {view === "offer" &&
-        (offerTemplate ? (
-          <OfferLetterTab employees={employees.filter((e) => e.role !== "viewer")} today={today} template={offerTemplate} />
-        ) : (
-          <p role="status" className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">{lazyError ?? "Loading the template…"}</p>
-        ))}
+      {view === "offer" && <OfferLettersTab people={employees.filter((e) => e.role !== "viewer").map((e) => ({ id: e.id, name: e.name }))} />}
 
       {view === "activity" && (
         <section className="grid gap-3" aria-label="Document activity">

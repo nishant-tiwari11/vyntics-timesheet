@@ -4,6 +4,8 @@ import { AVATAR_BUCKET } from "@/lib/avatar";
 import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminCounts } from "@/lib/timesheet/admin";
+import { getMyDuty } from "@/lib/timesheet/duty";
+import type { DutyState } from "@/lib/timesheet/dutyTypes";
 import { logError } from "@/lib/timesheet/log";
 
 // Everything the portal's frame (menu counts, the notification bell, profile pictures) needs, in ONE request: one sign-in check
@@ -19,6 +21,8 @@ export type ShellData = {
   notifications: NotificationsData;
   /** Who has a profile picture, and a number that changes when it does (the stored file's time). */
   avatars: Record<string, number>;
+  /** Where the signed-in person stands on duty (null for people who don't go on duty). */
+  duty: DutyState | null;
 };
 
 const EMPTY: NotificationsData = { items: [], unread: 0, approvals: null };
@@ -42,7 +46,11 @@ export async function loadNotifications(refresh: boolean): Promise<Notifications
   const listTask = (async () => {
     try {
       // Reminders are only made when asked (the browser asks about once an hour); the database also limits it to every 6 hours.
-      if (refresh) await supabase.rpc("docs_refresh_reminders" as never);
+      if (refresh) {
+        await supabase.rpc("docs_refresh_reminders" as never);
+        // Admins: a heads-up for holidays in the next few days that nobody has decided on (is the office closed?).
+        if (me.role === "admin") await supabase.rpc("holidays_refresh_reminders" as never);
+      }
       const [list, unread] = await Promise.all([
         supabase.from("notifications" as never).select("id, title, body, link, read_at, created_at").order("created_at", { ascending: false }).limit(20),
         supabase.from("notifications" as never).select("id", { count: "exact", head: true }).is("read_at", null),
@@ -80,6 +88,11 @@ async function loadAvatars(): Promise<Record<string, number>> {
 }
 
 export async function loadShellData(refresh: boolean): Promise<ShellData> {
-  const [counts, notifications, avatars] = await Promise.all([loadNavCounts().catch(() => ({}) as Record<string, number>), loadNotifications(refresh), loadAvatars()]);
-  return { counts, notifications, avatars };
+  const [counts, notifications, avatars, duty] = await Promise.all([
+    loadNavCounts().catch(() => ({}) as Record<string, number>),
+    loadNotifications(refresh),
+    loadAvatars(),
+    getMyDuty().catch(() => null),
+  ]);
+  return { counts, notifications, avatars, duty };
 }

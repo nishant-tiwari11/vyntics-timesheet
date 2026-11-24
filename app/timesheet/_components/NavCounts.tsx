@@ -31,7 +31,7 @@ export function NavCountsProvider({ userId, children }: { userId: string; childr
         if (!res.ok) return;
         const body = (await res.json()) as { ok?: boolean } & Partial<ShellData>;
         if (!body.ok || !body.counts || !body.notifications || !body.avatars) return;
-        const next: ShellData = { counts: body.counts, notifications: body.notifications, avatars: body.avatars };
+        const next: ShellData = { counts: body.counts, notifications: body.notifications, avatars: body.avatars, duty: body.duty ?? null };
         last.current = Date.now();
         // Only redraw (and save) when something really changed.
         setData((old) => (changed(old, next) ? next : old));

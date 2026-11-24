@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { IMAGE_KINDS, type ImageKind } from "@/lib/documents/docxTemplate";
-import { IMAGE_MAX_BYTES, readSigningImage, removeSigningImage, saveSigningImage, signingImageStatus } from "@/lib/documents/signingAssets";
+import { IMAGE_MAX_BYTES, type AssetKind, readSigningImage, removeSigningImage, saveSigningImage, signingImageStatus } from "@/lib/documents/signingAssets";
 import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
 import { logError } from "@/lib/timesheet/log";
 
@@ -12,7 +11,7 @@ import { logError } from "@/lib/timesheet/log";
 const HEADERS = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: HEADERS });
 const fail = (error: string, status: number) => json({ ok: false, error }, status);
-const kindOf = (v: unknown): ImageKind | null => (IMAGE_KINDS as readonly unknown[]).includes(v) ? (v as ImageKind) : null;
+const kindOf = (v: unknown): AssetKind | null => (["signature", "seal", "logo"] as readonly unknown[]).includes(v) ? (v as AssetKind) : null;
 
 async function admin() {
   const me = await getCurrentUser();
@@ -34,7 +33,7 @@ export async function GET(request: NextRequest) {
     return json({ ok: true, ...(await signingImageStatus()) });
   } catch (e) {
     logError("signing assets status", e);
-    return json({ ok: true, signature: false, seal: false });
+    return json({ ok: true, signature: false, seal: false, logo: false });
   }
 }
 
@@ -46,7 +45,7 @@ export async function POST(request: NextRequest) {
     const form = await request.formData();
     const kind = kindOf(form.get("kind"));
     const file = form.get("file");
-    if (!kind) return fail("Choose signature or seal.", 400);
+    if (!kind) return fail("Choose signature, seal or logo.", 400);
     if (!(file instanceof File)) return fail("Choose a picture first.", 400);
     const res = await saveSigningImage(kind, new Uint8Array(await file.arrayBuffer()));
     return res.ok ? json({ ok: true }) : fail(res.error, 400);
@@ -60,6 +59,6 @@ export async function DELETE(request: NextRequest) {
   const denied = await admin();
   if (denied) return denied;
   const kind = kindOf(request.nextUrl.searchParams.get("kind"));
-  if (!kind) return fail("Choose signature or seal.", 400);
+  if (!kind) return fail("Choose signature, seal or logo.", 400);
   return (await removeSigningImage(kind)) ? json({ ok: true }) : fail("Couldn't remove the picture. Please try again.", 500);
 }

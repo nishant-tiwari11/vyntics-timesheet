@@ -10,10 +10,12 @@ import { createClient } from "@/lib/supabase/server";
 // plain, small PNG (transparency kept, metadata and anything hidden in the file dropped).
 
 export const IMAGE_MAX_BYTES = 1024 * 1024;
-const KEY = (kind: ImageKind) => `templates/${kind}.png`;
-const LIMITS: Record<ImageKind, { width: number; height: number }> = { signature: { width: 600, height: 240 }, seal: { width: 400, height: 400 } };
+/** The two pictures on the letter, plus the company logo used by the offer letters section. */
+export type AssetKind = ImageKind | "logo";
+const KEY = (kind: AssetKind) => `templates/${kind}.png`;
+const LIMITS: Record<AssetKind, { width: number; height: number }> = { signature: { width: 600, height: 240 }, seal: { width: 400, height: 400 }, logo: { width: 600, height: 600 } };
 
-export async function saveSigningImage(kind: ImageKind, input: Uint8Array): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function saveSigningImage(kind: AssetKind, input: Uint8Array): Promise<{ ok: true } | { ok: false; error: string }> {
   if (input.byteLength === 0) return { ok: false, error: "Choose a picture first." };
   if (input.byteLength > IMAGE_MAX_BYTES) return { ok: false, error: "That picture is over 1 MB." };
   const type = await detectKind(input);
@@ -37,23 +39,23 @@ export async function saveSigningImage(kind: ImageKind, input: Uint8Array): Prom
   return { ok: true };
 }
 
-export async function removeSigningImage(kind: ImageKind): Promise<boolean> {
+export async function removeSigningImage(kind: AssetKind): Promise<boolean> {
   const supabase = await createClient();
   const { error } = await supabase.storage.from(DOC_BUCKET).remove([KEY(kind)]);
   return !error;
 }
 
 /** The picture's PNG bytes, or null when none is uploaded (or it can't be read). */
-export async function readSigningImage(kind: ImageKind): Promise<Uint8Array | null> {
+export async function readSigningImage(kind: AssetKind): Promise<Uint8Array | null> {
   const supabase = await createClient();
   const { data, error } = await supabase.storage.from(DOC_BUCKET).download(KEY(kind));
   if (error || !data) return null;
   return new Uint8Array(await data.arrayBuffer());
 }
 
-export async function signingImageStatus(): Promise<Record<ImageKind, boolean>> {
+export async function signingImageStatus(): Promise<Record<AssetKind, boolean>> {
   const supabase = await createClient();
   const { data } = await supabase.storage.from(DOC_BUCKET).list("templates", { limit: 50 });
   const names = new Set((data ?? []).map((f) => f.name));
-  return { signature: names.has("signature.png"), seal: names.has("seal.png") };
+  return { signature: names.has("signature.png"), seal: names.has("seal.png"), logo: names.has("logo.png") };
 }
