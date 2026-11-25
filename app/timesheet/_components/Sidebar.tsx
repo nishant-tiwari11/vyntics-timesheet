@@ -17,10 +17,10 @@ export type SideUser = { id: string; name: string; email: string; roleLabel: str
 export function SideBody({ user, collapsed = false, onNavigate }: { user: SideUser; collapsed?: boolean; onNavigate?: () => void }) {
   return (
     <>
-      <Link href={user.isAdmin ? "/timesheet/admin" : "/timesheet/dashboard"} className="ts-brand" onClick={onNavigate} title={user.isAdmin ? "Vyntics Timesheet" : "Vyntics Workspace"}>
+      <Link href={user.isAdmin ? "/timesheet/admin" : "/timesheet/dashboard"} className="ts-brand" onClick={onNavigate} title="Vyntics Workspace">
         <Image src={logo} alt="" width={32} height={32} priority className="ts-brand-logo" />
         <span className="ts-brand-text">
-          Vyntics <span className="ts-muted">{user.isAdmin ? "Timesheet" : "Workspace"}</span>
+          Vyntics <span className="ts-muted">Workspace</span>
         </span>
       </Link>
 
