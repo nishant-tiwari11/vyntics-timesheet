@@ -7,14 +7,13 @@ import { Skeleton } from "../../_components/Skeleton";
 import { UserAvatar } from "../../_components/UserAvatar";
 import { AddLogButton } from "./LogDialog";
 import { loadWeekStats } from "./data";
+import TimeTracker from "./TimeTracker";
 import { SectionError } from "./sections";
 
 // The dashboard's top: a greeting with the week's numbers, then a grid of rounded tiles (you, your hours, today).
 // Every tile reads the same cached week numbers, so this is one database call.
 
 const fmtHours = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(1)}h`;
-/** 2.5 hours as "2:30". */
-const clock = (h: number) => `${Math.floor(h)}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`;
 
 type User = { id: string; name: string; role: Role };
 
@@ -56,17 +55,19 @@ export async function Head({ user, today }: { user: User; today: string }) {
             <div className="ts-dstats">
               <div className="ts-dpills">
                 <div className="ts-dpill ts-dpill-wide">
-                  <span className="ts-dpill-label">Week target</span>
+                  <span className="ts-dpill-label">
+                    Week target <b>{Math.round(weekPct * 100)}%</b>
+                  </span>
                   <span className="ts-dpill-bar is-striped" role="progressbar" aria-label="Week target" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(weekPct * 100)}>
                     <span style={{ width: `${weekPct * 100}%` }} />
-                    <em>{Math.round(weekPct * 100)}%</em>
                   </span>
                 </div>
                 <div className="ts-dpill">
-                  <span className="ts-dpill-label">Today</span>
+                  <span className="ts-dpill-label">
+                    Today <b>{Math.round(dayPct * 100)}%</b>
+                  </span>
                   <span className="ts-dpill-bar is-solid" role="progressbar" aria-label="Today" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(dayPct * 100)}>
                     <span style={{ width: `${dayPct * 100}%` }} />
-                    <em>{Math.round(dayPct * 100)}%</em>
                   </span>
                 </div>
               </div>
@@ -142,9 +143,6 @@ export async function TopTiles({ user, today }: { user: User; today: string }) {
 
   // Bars are scaled so the daily target sits a little below the top.
   const top = Math.max(target * 1.25, ...days.map((d) => d.hours), 1);
-  const ring = { r: 62, c: 2 * Math.PI * 62 };
-  const pct = Math.min(todayHours / target, 1);
-  const left = Math.max(target - todayHours, 0);
 
   return (
     <>
@@ -180,8 +178,14 @@ export async function TopTiles({ user, today }: { user: User; today: string }) {
           {days.map((d) => (
             <span key={d.date} className={`ts-bar${d.date === today ? " is-today" : ""}${isWeekend(d.date) ? " is-off" : ""}`} aria-hidden="true">
               <span className="ts-bar-track">
-                {d.hours > 0 && <em className="ts-bar-tip">{fmtHours(d.hours)}</em>}
-                <span className="ts-bar-fill" style={{ height: `${Math.max((d.hours / top) * 100, d.hours > 0 ? 3 : 0)}%` }} />
+                <span className="ts-bar-rail">
+                  <span className="ts-bar-fill" style={{ height: `${Math.min((d.hours / top) * 100, 100)}%` }} />
+                </span>
+                {d.hours > 0 && (
+                  <em className="ts-bar-tip" style={{ bottom: `calc(${Math.min((d.hours / top) * 100, 100)}% + 6px)` }}>
+                    {fmtHours(d.hours)}
+                  </em>
+                )}
               </span>
               <span className="ts-bar-day">{formatYmd(d.date, { weekday: "short" }).slice(0, 1)}</span>
             </span>
@@ -189,30 +193,8 @@ export async function TopTiles({ user, today }: { user: User; today: string }) {
         </div>
       </section>
 
-      {/* Today */}
-      <section className="ts-tile ts-t-today" aria-labelledby="today-title">
-        <div className="ts-tile-head">
-          <h2 className="ts-tile-title" id="today-title">
-            Today
-          </h2>
-          <Link href={`/timesheet/worklog?view=day&date=${today}`} className="ts-tile-arrow" aria-label="Open today in your work log">
-            <ArrowUpRight className="size-4" aria-hidden="true" />
-          </Link>
-        </div>
-        <div className="ts-ringbox">
-          <svg viewBox="0 0 160 160" aria-hidden="true">
-            <circle cx="80" cy="80" r={ring.r} className="ts-ringbox-track" />
-            <circle cx="80" cy="80" r={ring.r} className="ts-ringbox-fill" strokeDasharray={ring.c} strokeDashoffset={ring.c * (1 - pct)} transform="rotate(-90 80 80)" />
-          </svg>
-          <div className="ts-ringbox-text">
-            <strong>{clock(todayHours)}</strong>
-            <span>Logged today</span>
-          </div>
-        </div>
-        <p className="ts-ringbox-note">
-          {todayHours >= target ? "Today's target is reached." : isWeekend(today) ? "A weekly off day. Logging is optional." : `${fmtHours(left)} to reach today's ${fmtHours(target)}.`}
-        </p>
-      </section>
+      {/* Time tracker: on duty time today, with going on and off duty */}
+      <TimeTracker today={today} logged={todayHours} target={target} />
     </>
   );
 }

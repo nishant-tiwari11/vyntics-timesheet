@@ -1632,11 +1632,15 @@
   font-size: 13px;
   color: var(--ts-muted);
 }
+.ts-dpill-label b {
+  margin-left: 6px;
+  font-weight: 700;
+  color: var(--ts-text);
+}
 .ts-dpill-bar {
   position: relative;
-  display: flex;
-  align-items: center;
-  height: 36px;
+  display: block;
+  height: 30px;
   border: 1px solid var(--ts-border);
   border-radius: 999px;
   background: var(--ts-surface);
@@ -1645,20 +1649,12 @@
 .ts-dpill-bar > span {
   position: absolute;
   inset: 0 auto 0 0;
+  min-width: 0;
   border-radius: 999px;
   background: var(--ts-text);
 }
 .ts-dpill-bar.is-striped {
   background: repeating-linear-gradient(135deg, var(--ts-surface) 0 6px, var(--ts-border) 6px 7px);
-}
-.ts-dpill-bar em {
-  position: relative;
-  padding-left: 14px;
-  font-size: 13px;
-  font-style: normal;
-  font-weight: 600;
-  mix-blend-mode: difference;
-  color: #fff;
 }
 .ts-dnums {
   display: flex;
@@ -1859,27 +1855,36 @@
   position: relative;
   display: flex;
   flex: 1;
-  align-items: flex-end;
   justify-content: center;
   width: 100%;
   min-height: 0;
 }
+.ts-bar-rail {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  width: 14px;
+  height: 100%;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ts-text) 8%, var(--ts-surface));
+  overflow: hidden;
+}
 .ts-bar-fill {
   display: block;
-  width: 12px;
+  width: 100%;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--ts-text) 24%, var(--ts-surface));
+  background: color-mix(in srgb, var(--ts-text) 55%, var(--ts-surface));
 }
 .ts-bar.is-today .ts-bar-fill {
   background: var(--ts-text);
 }
-.ts-bar.is-off .ts-bar-fill {
-  background: color-mix(in srgb, var(--ts-text) 12%, var(--ts-surface));
+.ts-bar.is-off .ts-bar-rail {
+  background: repeating-linear-gradient(180deg, var(--ts-surface) 0 3px, var(--ts-border) 3px 4px);
 }
 .ts-bar-tip {
-  display: none;
   position: absolute;
-  bottom: calc(100% + 4px);
+  left: 50%;
+  display: none;
   padding: 2px 8px;
   border-radius: 8px;
   background: var(--ts-text);
@@ -1888,6 +1893,7 @@
   font-style: normal;
   font-weight: 600;
   white-space: nowrap;
+  transform: translateX(-50%);
 }
 .ts-bar.is-today .ts-bar-tip {
   display: block;
@@ -2020,5 +2026,55 @@
   }
   .ts-dnum-value {
     font-size: 28px;
+  }
+}
+
+/* Time tracker: go on and off duty from the tile */
+.ts-tracker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.ts-tracker-hint {
+  font-size: 13px;
+  color: var(--ts-muted);
+}
+.ts-tracker-start,
+.ts-tracker-stop {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--ts-text);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ts-tracker-start {
+  background: var(--ts-surface);
+  color: var(--ts-text);
+}
+.ts-tracker-start:hover {
+  background: var(--ts-bg);
+}
+.ts-tracker-stop {
+  background: var(--ts-text);
+  color: var(--ts-surface);
+}
+.ts-tracker-start:disabled,
+.ts-tracker-stop:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+@media (max-width: 640px) {
+  .ts-tracker-start,
+  .ts-tracker-stop {
+    min-height: 44px;
   }
 }
