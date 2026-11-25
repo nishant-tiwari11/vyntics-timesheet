@@ -211,7 +211,7 @@ export function WeekSkeleton() {
       <div className="ts-tile ts-t-week" aria-busy="true">
         <Skeleton height={140} />
       </div>
-      <div className="ts-tile ts-tile-dark ts-t-up" aria-busy="true">
+      <div className="ts-tile ts-t-up" aria-busy="true">
         <Skeleton height={140} />
       </div>
     </>

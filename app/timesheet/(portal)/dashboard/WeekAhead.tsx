@@ -34,7 +34,7 @@ const LOOK_AHEAD_DAYS = 90;
 // A compact look at your week and what is coming next. Your own days only; the full month is on the Calendar page.
 export default async function WeekAhead({ today, isAdmin = false, legacy = false }: { today: string; isAdmin?: boolean; /** The plain cards, for the admin dashboard. */ legacy?: boolean }) {
   const card = legacy ? "ts-card" : "ts-tile ts-t-week";
-  const cardDark = legacy ? "ts-card" : "ts-tile ts-tile-dark ts-t-up";
+  const cardDark = legacy ? "ts-card" : "ts-tile ts-t-up";
   const heading = legacy ? "ts-h2" : "ts-tile-title";
   const monday = mondayOf(today);
   const sunday = addDays(monday, 6);
