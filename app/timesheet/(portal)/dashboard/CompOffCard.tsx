@@ -8,7 +8,7 @@ import { logError } from "@/lib/timesheet/log";
 import { SectionError } from "./sections";
 
 // Your comp-off at a glance. Loads on its own, so a failure here never affects the rest of the dashboard.
-export default async function CompOffCard() {
+export default async function CompOffCard({ legacy = false }: { /** The plain card, for the admin dashboard. */ legacy?: boolean }) {
   let balance: CompOffBalance | null = null;
   let error: string | null = null;
   try {
@@ -19,9 +19,9 @@ export default async function CompOffCard() {
   }
 
   return (
-    <section className="ts-tile ts-t-comp" aria-labelledby="comp-off-card-title">
+    <section className={legacy ? "ts-card" : "ts-tile ts-t-comp"} aria-labelledby="comp-off-card-title">
       <div className="ts-section-head">
-        <h2 className="ts-tile-title" id="comp-off-card-title">
+        <h2 className={legacy ? "ts-h2" : "ts-tile-title"} id="comp-off-card-title">
           Comp-off
         </h2>
         <Button asChild variant="outline" className="max-md:min-h-11">
