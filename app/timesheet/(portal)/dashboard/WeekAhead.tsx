@@ -155,7 +155,7 @@ export default async function WeekAhead({ today, isAdmin = false }: { today: str
                     {hours > 0 ? fmtHours(hours) : "—"}
                   </span>
                   <span className="ts-week-bar" aria-hidden="true">
-                    <span style={{ height: `${Math.min(hours / dayTarget, 1) * 100}%` }} />
+                    <span style={{ width: `${Math.min(hours / dayTarget, 1) * 100}%` }} />
                   </span>
                   <span className="ts-week-tags" aria-hidden="true">
                     {tags.map((t) => {
@@ -175,7 +175,7 @@ export default async function WeekAhead({ today, isAdmin = false }: { today: str
         </ol>
       </section>
 
-      <section className="ts-card ts-card-dark" aria-labelledby="next-title">
+      <section className="ts-card" aria-labelledby="next-title">
         <div className="ts-section-head">
           <h2 className="ts-h2" id="next-title">
             Upcoming

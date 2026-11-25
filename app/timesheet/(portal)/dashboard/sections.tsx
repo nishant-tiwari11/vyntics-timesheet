@@ -81,21 +81,7 @@ export async function Hero({ user, today }: { user: { id: string; name: string; 
             </p>
           </div>
         </div>
-        <div className="ts-hero-actions">
-          {res.ok && (
-            <div className="ts-hero-today" role="group" aria-label="Today">
-              <span className="ts-hero-today-label">Today</span>
-              <span className="ts-hero-today-value">
-                {fmtHours(res.data.today)}
-                <span>/{fmtHours(dailyTarget())}</span>
-              </span>
-              <span className="ts-hero-today-bar" aria-hidden="true">
-                <span style={{ width: `${Math.min(res.data.today / dailyTarget(), 1) * 100}%` }} />
-              </span>
-            </div>
-          )}
-          <AddLogButton today={today} />
-        </div>
+        <AddLogButton today={today} />
       </div>
       {!res.ok ? (
         <p className="ts-hero-error" role="alert">
