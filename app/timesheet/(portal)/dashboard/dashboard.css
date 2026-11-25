@@ -2071,3 +2071,160 @@
     min-height: 44px;
   }
 }
+
+/* ---------- Soft and airy: the employee dashboard sits on a light grey canvas ---------- */
+.ts-dash-soft {
+  --soft-canvas: color-mix(in srgb, var(--ts-text) 4.5%, var(--ts-surface));
+  --soft-shadow: 0 1px 2px rgb(0 0 0 / 4%), 0 10px 28px rgb(0 0 0 / 5%);
+  gap: 24px;
+  padding: 32px;
+  border-radius: 36px;
+  background: var(--soft-canvas);
+}
+.ts-dash-soft .ts-dhead {
+  gap: 26px;
+}
+.ts-dash-soft .ts-bento {
+  gap: 20px;
+}
+.ts-dash-soft .ts-tile,
+.ts-dash-soft .ts-card {
+  padding: 26px;
+  border-color: transparent;
+  border-radius: 30px;
+  background: var(--ts-surface);
+  box-shadow: var(--soft-shadow);
+}
+.ts-dash-soft .ts-tile-title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.ts-dash-soft .ts-tile-arrow {
+  width: 38px;
+  height: 38px;
+  border-color: transparent;
+  background: var(--soft-canvas);
+}
+.ts-dash-soft .ts-tile-arrow:hover {
+  background: var(--ts-text);
+  color: var(--ts-surface);
+}
+
+/* Greeting row */
+.ts-dash-soft .ts-dhead .ts-greeting {
+  font-weight: 400;
+}
+.ts-dash-soft .ts-dpill-label {
+  font-size: 12px;
+}
+.ts-dash-soft .ts-dpill-bar {
+  height: 28px;
+  border-color: transparent;
+  background: var(--ts-surface);
+  box-shadow: var(--soft-shadow);
+}
+.ts-dash-soft .ts-dpill-bar.is-striped {
+  background: repeating-linear-gradient(135deg, var(--ts-surface) 0 6px, var(--soft-canvas) 6px 8px);
+}
+.ts-dash-soft .ts-dnum-icon {
+  width: 46px;
+  height: 46px;
+  border-color: transparent;
+  border-radius: 50%;
+  background: var(--ts-surface);
+  box-shadow: var(--soft-shadow);
+}
+.ts-dash-soft .ts-dnum-value {
+  font-weight: 500;
+}
+
+/* Profile */
+.ts-dash-soft .ts-profile-facts,
+.ts-dash-soft .ts-profile-facts div + div {
+  border-color: var(--soft-canvas);
+}
+
+/* Charts: thinner and lighter */
+.ts-dash-soft .ts-chart-big {
+  font-weight: 500;
+}
+.ts-dash-soft .ts-bar-rail {
+  width: 12px;
+  background: var(--soft-canvas);
+}
+.ts-dash-soft .ts-bar-fill {
+  background: color-mix(in srgb, var(--ts-text) 42%, var(--ts-surface));
+}
+.ts-dash-soft .ts-bar.is-today .ts-bar-fill {
+  background: var(--ts-text);
+}
+.ts-dash-soft .ts-bar.is-off .ts-bar-rail {
+  background: repeating-linear-gradient(180deg, var(--ts-surface) 0 3px, var(--soft-canvas) 3px 5px);
+}
+.ts-dash-soft .ts-bars-line {
+  border-top-color: color-mix(in srgb, var(--ts-text) 30%, transparent);
+}
+.ts-dash-soft .ts-ringbox-track {
+  stroke: var(--soft-canvas);
+  stroke-width: 9;
+}
+.ts-dash-soft .ts-ringbox-fill {
+  stroke-width: 9;
+}
+.ts-dash-soft .ts-ringbox-text strong {
+  font-weight: 500;
+}
+
+/* The week strip and lists */
+.ts-dash-soft .ts-week-tile {
+  border-color: transparent;
+  border-radius: 20px;
+  background: var(--soft-canvas);
+}
+.ts-dash-soft .ts-week-tile.is-today {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--ts-text);
+  background: var(--ts-surface);
+}
+.ts-dash-soft .ts-week-tile.is-off {
+  background: repeating-linear-gradient(135deg, var(--soft-canvas) 0 6px, color-mix(in srgb, var(--ts-text) 8%, var(--soft-canvas)) 6px 7px);
+}
+.ts-dash-soft .ts-upcoming li {
+  border-top-color: var(--soft-canvas);
+}
+.ts-dash-soft .ts-upcoming-date {
+  border-color: transparent;
+  border-radius: 16px;
+  background: var(--soft-canvas);
+}
+
+/* The time logs table and the comp-off card sit on the canvas the same way */
+.ts-dash-soft .ts-flush {
+  overflow: hidden;
+}
+.ts-dash-soft .ts-logs-table thead th {
+  background: var(--soft-canvas);
+}
+
+@media (max-width: 1100px) {
+  .ts-dash-soft {
+    padding: 22px;
+    border-radius: 30px;
+  }
+}
+@media (max-width: 640px) {
+  .ts-dash-soft {
+    gap: 18px;
+    padding: 14px;
+    border-radius: 24px;
+  }
+  .ts-dash-soft .ts-bento {
+    gap: 14px;
+  }
+  .ts-dash-soft .ts-tile,
+  .ts-dash-soft .ts-card {
+    padding: 20px;
+    border-radius: 24px;
+  }
+}

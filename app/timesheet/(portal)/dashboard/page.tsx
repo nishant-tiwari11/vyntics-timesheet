@@ -38,7 +38,7 @@ export default async function DashboardPage({
   };
 
   return (
-    <div className="ts-page ts-dash">
+    <div className={`ts-page ts-dash${isAdmin ? "" : " ts-dash-soft"}`}>
       {/* Admins keep the plain dashboard. The tile layout is for everyone else. */}
       {isAdmin ? (
         <>
