@@ -19,9 +19,9 @@ export default async function CompOffCard() {
   }
 
   return (
-    <section className="ts-card" aria-labelledby="comp-off-card-title">
+    <section className="ts-tile ts-t-comp" aria-labelledby="comp-off-card-title">
       <div className="ts-section-head">
-        <h2 className="ts-h2" id="comp-off-card-title">
+        <h2 className="ts-tile-title" id="comp-off-card-title">
           Comp-off
         </h2>
         <Button asChild variant="outline" className="max-md:min-h-11">

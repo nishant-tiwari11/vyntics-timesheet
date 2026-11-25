@@ -54,8 +54,8 @@ export default async function WeekAhead({ today, isAdmin = false }: { today: str
 
   if (!logs.ok || !offRes.ok) {
     return (
-      <section className="ts-card" aria-labelledby="week-title">
-        <h2 className="ts-h2" id="week-title">
+      <section className="ts-tile ts-t-week" aria-labelledby="week-title">
+        <h2 className="ts-tile-title" id="week-title">
           This week
         </h2>
         <SectionError message={!logs.ok ? logs.error : !offRes.ok ? offRes.error : ""} />
@@ -106,10 +106,10 @@ export default async function WeekAhead({ today, isAdmin = false }: { today: str
     .slice(0, 5);
 
   return (
-    <div className="ts-week-grid">
-      <section className="ts-card" aria-labelledby="week-title">
+    <>
+      <section className="ts-tile ts-t-week" aria-labelledby="week-title">
         <div className="ts-section-head">
-          <h2 className="ts-h2" id="week-title">
+          <h2 className="ts-tile-title" id="week-title">
             This week
           </h2>
           <Link href="/timesheet/calendar" className="ts-link">
@@ -170,9 +170,9 @@ export default async function WeekAhead({ today, isAdmin = false }: { today: str
         </ol>
       </section>
 
-      <section className="ts-card" aria-labelledby="next-title">
+      <section className="ts-tile ts-tile-dark ts-t-up" aria-labelledby="next-title">
         <div className="ts-section-head">
-          <h2 className="ts-h2" id="next-title">
+          <h2 className="ts-tile-title" id="next-title">
             Upcoming
           </h2>
           {isAdmin && (
@@ -210,6 +210,6 @@ export default async function WeekAhead({ today, isAdmin = false }: { today: str
           </ul>
         )}
       </section>
-    </div>
+    </>
   );
 }

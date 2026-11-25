@@ -36,6 +36,10 @@ export type WeekStats = {
   under: number;
   /** Working days so far this week (Mon to today, up to Friday), not counting approved leave. */
   elapsed: number;
+  /** Hours logged today. */
+  today: number;
+  /** Hours logged on each day of this week, Monday first. */
+  days: { date: string; hours: number }[];
 };
 
 /** This week's numbers for the stat cards, from your own work-log hours. */
@@ -73,6 +77,11 @@ export const loadWeekStats = cache(() =>
       met,
       under: elapsed - met,
       elapsed,
+      today: Math.round((hoursByDate[today] ?? 0) * 100) / 100,
+      days: Array.from({ length: 7 }, (_, i) => {
+        const date = addDays(monday, i);
+        return { date, hours: Math.round((hoursByDate[date] ?? 0) * 100) / 100 };
+      }),
     };
   })
 );
