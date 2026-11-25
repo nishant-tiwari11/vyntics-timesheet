@@ -1582,3 +1582,155 @@
   outline-offset: 2px;
 }
 
+
+/* ---------- Dashboard hero: a black card with your week inside ---------- */
+.ts-hero {
+  display: grid;
+  gap: 22px;
+  padding: 24px;
+  border-radius: calc(var(--ts-radius) * 1.6);
+  background: var(--ts-text);
+  color: var(--ts-surface);
+}
+.ts-hero .ts-skel {
+  background: color-mix(in srgb, var(--ts-surface) 14%, transparent);
+}
+.ts-hero-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.ts-hero-id {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+.ts-hero .ts-greeting {
+  color: var(--ts-surface);
+}
+.ts-hero-sub {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: color-mix(in srgb, var(--ts-surface) 66%, transparent);
+}
+/* The Add time log button turns white on the black card */
+.ts-hero [data-slot="button"] {
+  background: var(--ts-surface);
+  color: var(--ts-text);
+  border-color: transparent;
+}
+.ts-hero [data-slot="button"]:hover {
+  background: color-mix(in srgb, var(--ts-surface) 86%, var(--ts-text));
+}
+.ts-hero-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: 18px 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--ts-surface) 18%, transparent);
+  list-style: none;
+}
+.ts-hero-metric {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 20px;
+  border-left: 1px solid color-mix(in srgb, var(--ts-surface) 14%, transparent);
+}
+.ts-hero-metric:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+.ts-hero-metric-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.ts-hero-metric-label {
+  margin: 0;
+  font-size: 13px;
+  color: color-mix(in srgb, var(--ts-surface) 66%, transparent);
+}
+.ts-hero-metric-value {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.ts-hero-metric-value span {
+  font-size: 16px;
+  font-weight: 400;
+  color: color-mix(in srgb, var(--ts-surface) 60%, transparent);
+}
+.ts-hero-metric-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--ts-surface) 80%, transparent);
+}
+.ts-hero-metric-note.is-warn {
+  color: #fcd34d;
+}
+.ts-hero-error {
+  margin: 0;
+  font-size: 14px;
+}
+.ts-hero .ts-ring {
+  flex: none;
+  width: 56px;
+  height: 56px;
+}
+.ts-hero .ts-ring svg {
+  width: 56px;
+  height: 56px;
+}
+.ts-hero .ts-ring-track {
+  stroke: color-mix(in srgb, var(--ts-surface) 22%, transparent);
+}
+.ts-hero .ts-ring-fill {
+  stroke: var(--ts-surface);
+}
+.ts-hero .ts-ring-pct {
+  font-size: 12px;
+  color: var(--ts-surface);
+}
+@media (max-width: 760px) {
+  .ts-hero {
+    padding: 18px;
+  }
+  .ts-hero-metrics {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+  .ts-hero-metric {
+    padding: 0;
+    border-left: 0;
+  }
+  .ts-hero-metric-value {
+    font-size: 24px;
+  }
+}
+
+/* A small bar under each day of the week: how much of the day target is logged */
+.ts-week-bar {
+  display: block;
+  width: 86%;
+  height: 4px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: var(--ts-border);
+  overflow: hidden;
+}
+.ts-week-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ts-text);
+}

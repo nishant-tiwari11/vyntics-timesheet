@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { formatRange, isWeekend, todayInOffice, workingDaysLabel } from "@/lib/timesheet/dates";
+import { ROLE_LABEL, type Role } from "@/lib/access/config";
+import { formatRange, formatTodayLong, greeting, isWeekend, todayInOffice, workingDaysLabel } from "@/lib/timesheet/dates";
 import { dailyTarget } from "@/lib/timesheet/settings";
 import { CheckCircle2, Clock, Palmtree, TriangleAlert, CalendarOff, type LucideIcon } from "lucide-react";
 import { Skeleton } from "../../_components/Skeleton";
 import { UserAvatar } from "../../_components/UserAvatar";
 import CancelButton from "./CancelButton";
+import { AddLogButton } from "./LogDialog";
 import { loadOffDates, loadRequests, loadSnapshot, loadWeekStats } from "./data";
 
 const TYPE_LABEL = { leave: "Leave", wfh: "WFH" } as const;
@@ -29,6 +31,81 @@ export function CardSkeleton({ title, tall }: { title: string; tall?: boolean })
       <span className="ts-sr-only" role="status">
         Loading {title}…
       </span>
+    </section>
+  );
+}
+
+// ---------------------------- Hero ----------------------------
+
+export function HeroSkeleton() {
+  return (
+    <section className="ts-hero" aria-busy="true" aria-label="Loading your dashboard">
+      <Skeleton height={120} />
+    </section>
+  );
+}
+
+function HeroMetric({ label, value, of, note, kind, ring }: { label: string; value: string; of?: string; note: string; kind: "good" | "warn" | "neutral"; ring?: number }) {
+  return (
+    <li className="ts-hero-metric">
+      {ring !== undefined && <Ring pct={ring} />}
+      <div className="ts-hero-metric-text">
+        <p className="ts-hero-metric-label">{label}</p>
+        <p className="ts-hero-metric-value">
+          {value}
+          {of && <span>/{of}</span>}
+        </p>
+        <p className={`ts-hero-metric-note is-${kind}`}>
+          {kind === "good" ? <CheckCircle2 className="size-3.5" aria-hidden="true" /> : kind === "warn" ? <TriangleAlert className="size-3.5" aria-hidden="true" /> : <Clock className="size-3.5" aria-hidden="true" />}
+          {note}
+        </p>
+      </div>
+    </li>
+  );
+}
+
+/** The top of the dashboard: who you are, the date, Add time log, and your week at a glance. */
+export async function Hero({ user, today }: { user: { id: string; name: string; role: Role }; today: string }) {
+  const res = await loadWeekStats();
+  return (
+    <section className="ts-hero" aria-label="Your week">
+      <div className="ts-hero-top">
+        <div className="ts-hero-id">
+          <UserAvatar userId={user.id} name={user.name} className="size-16 text-xl ring-2 ring-white/20" />
+          <div>
+            <h1 className="ts-greeting">
+              {greeting()}, {user.name}
+            </h1>
+            <p className="ts-hero-sub">
+              {formatTodayLong()} · {ROLE_LABEL[user.role]}
+            </p>
+          </div>
+        </div>
+        <AddLogButton today={today} />
+      </div>
+      {!res.ok ? (
+        <p className="ts-hero-error" role="alert">
+          {res.error}
+        </p>
+      ) : (
+        (() => {
+          const { hours, target, met, under, elapsed } = res.data;
+          return (
+            <ul className="ts-hero-metrics" aria-label="This week">
+              <HeroMetric
+                label="Logged this week"
+                value={fmtHours(hours)}
+                of={fmtHours(target)}
+                ring={target > 0 ? hours / target : 0}
+                kind={target > 0 && hours >= target ? "good" : "neutral"}
+                note={target > 0 && hours >= target ? "Target reached" : `${fmtHours(Math.max(target - hours, 0))} to go`}
+              />
+              <HeroMetric label="Days met target" value={String(met)} of={String(elapsed)} kind="good" note={met === 1 ? "1 day on target" : `${met} days on target`} />
+              <HeroMetric label="Days under target" value={String(under)} of={String(elapsed)} kind={under > 0 ? "warn" : "good"} note={under > 0 ? "Needs attention" : "None, well done"} />
+            </ul>
+          );
+        })()
+      )}
     </section>
   );
 }

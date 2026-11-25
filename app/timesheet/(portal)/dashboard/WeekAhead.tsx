@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CalendarDays, CalendarOff, Home, PartyPopper, Palmtree, Sparkles, type LucideIcon } from "lucide-react";
 import { addDays, daysInclusive, formatRange, formatYmd, isWeekend, mondayOf } from "@/lib/timesheet/dates";
 import { listUpcomingEvents } from "@/lib/timesheet/events";
+import { dailyTarget } from "@/lib/timesheet/settings";
 import { listHolidaysBetween } from "@/lib/timesheet/holidays";
 import { TimesheetError } from "@/lib/timesheet/errors";
 import { holidayTypeLabel, type Holiday } from "@/lib/timesheet/holidayTypes";
@@ -72,6 +73,7 @@ export default async function WeekAhead({ today, isAdmin = false }: { today: str
   const holidayByDate = new Map(holidays.map((h) => [h.date, h]));
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+  const dayTarget = dailyTarget();
 
   // Upcoming: the next five things from today, soonest first.
   type Next = { id: string; date: string; label: string; detail: string; kind: "leave" | "wfh" | "comp" | "holiday" | "event" };
@@ -151,6 +153,9 @@ export default async function WeekAhead({ today, isAdmin = false }: { today: str
                   </span>
                   <span className="ts-week-hours" aria-hidden="true">
                     {hours > 0 ? fmtHours(hours) : "—"}
+                  </span>
+                  <span className="ts-week-bar" aria-hidden="true">
+                    <span style={{ width: `${Math.min(hours / dayTarget, 1) * 100}%` }} />
                   </span>
                   <span className="ts-week-tags" aria-hidden="true">
                     {tags.map((t) => {
