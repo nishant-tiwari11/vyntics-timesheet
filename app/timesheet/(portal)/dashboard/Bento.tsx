@@ -148,15 +148,21 @@ export async function TopTiles({ user, today }: { user: User; today: string }) {
     <>
       {/* You */}
       <section className="ts-tile ts-t-profile" aria-label="You">
-        <UserAvatar userId={user.id} name={user.name} className="ts-profile-img !size-full !rounded-none text-7xl" />
-        <span className="ts-profile-shade" aria-hidden="true" />
-        <div className="ts-profile-info">
-          <strong>{user.name}</strong>
-          <span>{ROLE_LABEL[user.role]}</span>
-        </div>
-        <Link href="/timesheet/profile" className="ts-profile-badge" aria-label="Open your profile">
-          <b>{fmtHours(todayHours)}</b>
-          <span>logged today</span>
+        <UserAvatar userId={user.id} name={user.name} className="size-28 text-4xl ring-4 ring-[var(--ts-border)]" />
+        <strong className="ts-profile-name">{user.name}</strong>
+        <span className="ts-profile-role">{ROLE_LABEL[user.role]}</span>
+        <dl className="ts-profile-facts">
+          <div>
+            <dt>Today</dt>
+            <dd>{fmtHours(todayHours)}</dd>
+          </div>
+          <div>
+            <dt>This week</dt>
+            <dd>{fmtHours(hours)}</dd>
+          </div>
+        </dl>
+        <Link href="/timesheet/profile" className="ts-profile-link">
+          View profile
         </Link>
       </section>
 
