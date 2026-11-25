@@ -11,7 +11,6 @@ import { PrefetchWarmer } from "./PrefetchWarmer";
 import { PageTitle } from "./NavLinks";
 import { NotificationsBell } from "./NotificationsBell";
 import { Sidebar, type SideUser } from "./Sidebar";
-import { UserMenu } from "./UserMenu";
 
 export default async function Shell({
   id,
@@ -50,11 +49,10 @@ export default async function Shell({
             <PageTitle />
             {(role === "employee" || role === "manager") && <DutyControl />}
             <CommandPalette role={role} />
-            {/* Keeps the top bar's spacing: the notification bell and your picture stay on the right. */}
+            {/* Keeps the top bar's spacing: the notification bell stays on the right (your profile and sign out are at the bottom of the side menu). */}
             <span className="ts-search" aria-hidden="true" />
             <div className="ts-topbar-right">
               <NotificationsBell />
-              <UserMenu id={id} name={shown} email={email} roleLabel={ROLE_LABEL[role]} />
             </div>
           </header>
           {rejectedDocs > 0 && (
