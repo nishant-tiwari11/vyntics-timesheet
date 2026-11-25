@@ -2,13 +2,14 @@ import "./dashboard.css";
 import Link from "next/link";
 import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
-import { formatTodayLong, todayInOffice } from "@/lib/timesheet/dates";
+import { formatTodayLong, greeting, todayInOffice } from "@/lib/timesheet/dates";
+import { AddLogButton } from "./LogDialog";
 import TimeLogs from "./TimeLogs";
 import CompOffCard from "./CompOffCard";
 import WeekAhead from "./WeekAhead";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZES, RANGES, STATUS_FILTERS, type LogQuery } from "./logQuery";
-import { SnapshotSkeleton, TimeLogsSkeleton } from "../../_components/skeletons";
-import { CardSkeleton, Hero, HeroSkeleton, SnapshotRow } from "./sections";
+import { SnapshotSkeleton, StatsSkeleton, TimeLogsSkeleton } from "../../_components/skeletons";
+import { CardSkeleton, SnapshotRow, StatCards } from "./sections";
 
 export const metadata = { title: "Dashboard" };
 
@@ -37,11 +38,19 @@ export default async function DashboardPage({
 
   return (
     <div className="ts-page ts-dash">
-      {user && (
-        <Suspense fallback={<HeroSkeleton />}>
-          <Hero user={user} today={today} />
-        </Suspense>
-      )}
+      <header className="ts-dash-head">
+        <div>
+          <h1 className="ts-greeting">
+            {greeting()}, {user?.name}
+          </h1>
+          <p className="ts-muted">{formatTodayLong()}</p>
+        </div>
+        <AddLogButton today={today} />
+      </header>
+
+      <Suspense fallback={<StatsSkeleton />}>
+        <StatCards />
+      </Suspense>
 
       {isAdmin && (
         <section className="ts-section" aria-labelledby="snap-title">
