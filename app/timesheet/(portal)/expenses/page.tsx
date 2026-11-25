@@ -77,8 +77,11 @@ export default async function ExpensesPage() {
         </div>
       </dl>
 
-      <section aria-label="New expense" className="grid gap-3 rounded-lg border p-4">
-        <h2 className="text-base font-semibold">New expense</h2>
+      <section aria-label="New expense" className="grid gap-4 rounded-lg border p-5">
+        <div className="grid gap-0.5">
+          <h2 className="text-base font-semibold">New expense</h2>
+          <p className="text-sm text-muted-foreground">Fill in the details and attach the bill. An admin approves it, then it is paid with your salary.</p>
+        </div>
         <ClaimForm categories={categories} today={today} />
       </section>
 
