@@ -1582,3 +1582,649 @@
   outline-offset: 2px;
 }
 
+
+/* ---------- Dashboard: greeting, numbers and the tile grid ---------- */
+.ts-dhead {
+  display: grid;
+  gap: 22px;
+}
+.ts-dhead-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ts-dhead .ts-greeting {
+  font-size: 40px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.ts-dhead .ts-greeting strong {
+  font-weight: 700;
+}
+.ts-dhead-top p {
+  margin: 4px 0 0;
+}
+.ts-dstats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px 32px;
+}
+.ts-dpills {
+  display: flex;
+  flex: 1 1 360px;
+  flex-wrap: wrap;
+  gap: 16px;
+  max-width: 620px;
+}
+.ts-dpill {
+  display: grid;
+  flex: 1 1 140px;
+  gap: 6px;
+}
+.ts-dpill-wide {
+  flex: 2 1 240px;
+}
+.ts-dpill-label {
+  font-size: 13px;
+  color: var(--ts-muted);
+}
+.ts-dpill-label b {
+  margin-left: 6px;
+  font-weight: 700;
+  color: var(--ts-text);
+}
+.ts-dpill-bar {
+  position: relative;
+  display: block;
+  height: 30px;
+  border: 1px solid var(--ts-border);
+  border-radius: 999px;
+  background: var(--ts-surface);
+  overflow: hidden;
+}
+.ts-dpill-bar > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  min-width: 0;
+  border-radius: 999px;
+  background: var(--ts-text);
+}
+.ts-dpill-bar.is-striped {
+  background: repeating-linear-gradient(135deg, var(--ts-surface) 0 6px, var(--ts-border) 6px 7px);
+}
+.ts-dnums {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ts-dnums li {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-areas: "icon value" "icon label";
+  align-items: center;
+  column-gap: 12px;
+}
+.ts-dnum-icon {
+  display: grid;
+  grid-area: icon;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--ts-surface);
+  border: 1px solid var(--ts-border);
+}
+.ts-dnum-value {
+  grid-area: value;
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.ts-dnum-value small {
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--ts-muted);
+}
+.ts-dnum-label {
+  grid-area: label;
+  font-size: 13px;
+  color: var(--ts-muted);
+}
+
+.ts-bento {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-flow: row dense;
+  gap: 16px;
+}
+.ts-tile {
+  position: relative;
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid var(--ts-border);
+  border-radius: 24px;
+  background: var(--ts-surface);
+  box-shadow: var(--ts-shadow);
+}
+.ts-tile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.ts-tile-title {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 600;
+}
+.ts-tile-head .ts-tile-title {
+  margin: 0;
+}
+.ts-tile-arrow {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--ts-border);
+  border-radius: 999px;
+  background: var(--ts-surface);
+  color: var(--ts-text);
+}
+.ts-tile-arrow:hover {
+  border-color: var(--ts-text);
+}
+.ts-t-profile {
+  display: flex;
+  grid-column: span 3;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
+}
+.ts-t-chart {
+  grid-column: span 5;
+}
+.ts-t-today {
+  grid-column: span 4;
+}
+.ts-t-week {
+  grid-column: span 8;
+}
+.ts-t-up {
+  grid-column: span 4;
+  grid-row: span 2;
+}
+.ts-t-comp {
+  grid-column: span 8;
+}
+.ts-t-error {
+  grid-column: 1 / -1;
+}
+
+/* You */
+.ts-profile-name {
+  margin-top: 12px;
+  font-size: 20px;
+  line-height: 1.2;
+}
+.ts-profile-role {
+  font-size: 14px;
+  color: var(--ts-muted);
+}
+.ts-profile-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  margin: 16px 0 0;
+  padding: 14px 0;
+  border-top: 1px solid var(--ts-border);
+  border-bottom: 1px solid var(--ts-border);
+}
+.ts-profile-facts div + div {
+  border-left: 1px solid var(--ts-border);
+}
+.ts-profile-facts dt {
+  font-size: 12px;
+  color: var(--ts-muted);
+}
+.ts-profile-facts dd {
+  margin: 2px 0 0;
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.ts-profile-link {
+  margin-top: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* Hours each day */
+.ts-chart-big {
+  margin: 14px 0 6px;
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.ts-chart-big span {
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--ts-muted);
+}
+.ts-bars {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 12px;
+  height: 170px;
+  padding-top: 26px;
+}
+.ts-bars-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--ts-muted);
+  opacity: 0.55;
+}
+.ts-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-height: 0;
+}
+.ts-bar-track {
+  position: relative;
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
+}
+.ts-bar-rail {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  width: 14px;
+  height: 100%;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ts-text) 8%, var(--ts-surface));
+  overflow: hidden;
+}
+.ts-bar-fill {
+  display: block;
+  width: 100%;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ts-text) 55%, var(--ts-surface));
+}
+.ts-bar.is-today .ts-bar-fill {
+  background: var(--ts-text);
+}
+.ts-bar.is-off .ts-bar-rail {
+  background: repeating-linear-gradient(180deg, var(--ts-surface) 0 3px, var(--ts-border) 3px 4px);
+}
+.ts-bar-tip {
+  position: absolute;
+  left: 50%;
+  display: none;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: var(--ts-text);
+  color: var(--ts-surface);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 600;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+.ts-bar.is-today .ts-bar-tip {
+  display: block;
+}
+.ts-bar-day {
+  font-size: 12px;
+  color: var(--ts-muted);
+}
+.ts-bar.is-today .ts-bar-day {
+  font-weight: 700;
+  color: var(--ts-text);
+}
+
+/* Today ring */
+.ts-ringbox {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(100%, 190px);
+  margin: 12px auto 4px;
+  aspect-ratio: 1;
+}
+.ts-ringbox svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.ts-ringbox-track {
+  fill: none;
+  stroke: var(--ts-border);
+  stroke-width: 10;
+}
+.ts-ringbox-fill {
+  fill: none;
+  stroke: var(--ts-text);
+  stroke-width: 10;
+  stroke-linecap: round;
+}
+.ts-ringbox-text {
+  position: relative;
+  display: grid;
+  text-align: center;
+}
+.ts-ringbox-text strong {
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.ts-ringbox-text span {
+  font-size: 13px;
+  color: var(--ts-muted);
+}
+.ts-ringbox-note {
+  margin: 8px 0 0;
+  font-size: 13px;
+  text-align: center;
+  color: var(--ts-muted);
+}
+
+/* Upcoming is the black tile */
+.ts-tile-dark {
+  background: var(--ts-text);
+  border-color: var(--ts-text);
+  color: var(--ts-surface);
+}
+.ts-tile-dark .ts-tile-title,
+.ts-tile-dark .ts-upcoming-name,
+.ts-tile-dark .ts-upcoming-date strong {
+  color: var(--ts-surface);
+}
+.ts-tile-dark .ts-muted,
+.ts-tile-dark .ts-upcoming-main .ts-muted,
+.ts-tile-dark .ts-empty,
+.ts-tile-dark .ts-empty p {
+  color: color-mix(in srgb, var(--ts-surface) 66%, transparent);
+}
+.ts-tile-dark .ts-empty strong,
+.ts-tile-dark .ts-link {
+  color: var(--ts-surface);
+}
+.ts-tile-dark .ts-upcoming li {
+  border-top-color: color-mix(in srgb, var(--ts-surface) 16%, transparent);
+}
+.ts-tile-dark .ts-upcoming-date {
+  border-color: color-mix(in srgb, var(--ts-surface) 28%, transparent);
+  color: color-mix(in srgb, var(--ts-surface) 66%, transparent);
+}
+.ts-tile-dark .ts-ev {
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--ts-surface) 30%, transparent);
+  color: var(--ts-surface);
+}
+.ts-tile-dark .ts-skel {
+  background: color-mix(in srgb, var(--ts-surface) 14%, transparent);
+}
+
+@media (max-width: 1100px) {
+  .ts-t-profile,
+  .ts-t-today {
+    grid-column: span 6;
+  }
+  .ts-t-chart,
+  .ts-t-week,
+  .ts-t-up,
+  .ts-t-comp {
+    grid-column: 1 / -1;
+  }
+  .ts-t-up {
+    grid-row: auto;
+  }
+  .ts-dhead .ts-greeting {
+    font-size: 32px;
+  }
+}
+@media (max-width: 640px) {
+  .ts-t-profile,
+  .ts-t-today {
+    grid-column: 1 / -1;
+  }
+  .ts-dhead .ts-greeting {
+    font-size: 26px;
+  }
+  .ts-dnums {
+    gap: 18px;
+  }
+  .ts-dnum-value {
+    font-size: 28px;
+  }
+}
+
+/* Time tracker: go on and off duty from the tile */
+.ts-tracker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.ts-tracker-hint {
+  font-size: 13px;
+  color: var(--ts-muted);
+}
+.ts-tracker-start,
+.ts-tracker-stop {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--ts-text);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ts-tracker-start {
+  background: var(--ts-surface);
+  color: var(--ts-text);
+}
+.ts-tracker-start:hover {
+  background: var(--ts-bg);
+}
+.ts-tracker-stop {
+  background: var(--ts-text);
+  color: var(--ts-surface);
+}
+.ts-tracker-start:disabled,
+.ts-tracker-stop:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+@media (max-width: 640px) {
+  .ts-tracker-start,
+  .ts-tracker-stop {
+    min-height: 44px;
+  }
+}
+
+/* ---------- Soft and airy: the employee dashboard sits on a light grey canvas ---------- */
+.ts-dash-soft {
+  --soft-canvas: color-mix(in srgb, var(--ts-text) 4.5%, var(--ts-surface));
+  --soft-shadow: 0 1px 2px rgb(0 0 0 / 4%), 0 10px 28px rgb(0 0 0 / 5%);
+  gap: 24px;
+  padding: 32px;
+  border-radius: 36px;
+  background: var(--soft-canvas);
+}
+.ts-dash-soft .ts-dhead {
+  gap: 26px;
+}
+.ts-dash-soft .ts-bento {
+  gap: 20px;
+}
+.ts-dash-soft .ts-tile,
+.ts-dash-soft .ts-card {
+  padding: 26px;
+  border-color: transparent;
+  border-radius: 30px;
+  background: var(--ts-surface);
+  box-shadow: var(--soft-shadow);
+}
+.ts-dash-soft .ts-tile-title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.ts-dash-soft .ts-tile-arrow {
+  width: 38px;
+  height: 38px;
+  border-color: transparent;
+  background: var(--soft-canvas);
+}
+.ts-dash-soft .ts-tile-arrow:hover {
+  background: var(--ts-text);
+  color: var(--ts-surface);
+}
+
+/* Greeting row */
+.ts-dash-soft .ts-dhead .ts-greeting {
+  font-weight: 400;
+}
+.ts-dash-soft .ts-dpill-label {
+  font-size: 12px;
+}
+.ts-dash-soft .ts-dpill-bar {
+  height: 28px;
+  border-color: transparent;
+  background: var(--ts-surface);
+  box-shadow: var(--soft-shadow);
+}
+.ts-dash-soft .ts-dpill-bar.is-striped {
+  background: repeating-linear-gradient(135deg, var(--ts-surface) 0 6px, var(--soft-canvas) 6px 8px);
+}
+.ts-dash-soft .ts-dnum-icon {
+  width: 46px;
+  height: 46px;
+  border-color: transparent;
+  border-radius: 50%;
+  background: var(--ts-surface);
+  box-shadow: var(--soft-shadow);
+}
+.ts-dash-soft .ts-dnum-value {
+  font-weight: 500;
+}
+
+/* Profile */
+.ts-dash-soft .ts-profile-facts,
+.ts-dash-soft .ts-profile-facts div + div {
+  border-color: var(--soft-canvas);
+}
+
+/* Charts: thinner and lighter */
+.ts-dash-soft .ts-chart-big {
+  font-weight: 500;
+}
+.ts-dash-soft .ts-bar-rail {
+  width: 12px;
+  background: var(--soft-canvas);
+}
+.ts-dash-soft .ts-bar-fill {
+  background: color-mix(in srgb, var(--ts-text) 42%, var(--ts-surface));
+}
+.ts-dash-soft .ts-bar.is-today .ts-bar-fill {
+  background: var(--ts-text);
+}
+.ts-dash-soft .ts-bar.is-off .ts-bar-rail {
+  background: repeating-linear-gradient(180deg, var(--ts-surface) 0 3px, var(--soft-canvas) 3px 5px);
+}
+.ts-dash-soft .ts-bars-line {
+  border-top-color: color-mix(in srgb, var(--ts-text) 30%, transparent);
+}
+.ts-dash-soft .ts-ringbox-track {
+  stroke: var(--soft-canvas);
+  stroke-width: 9;
+}
+.ts-dash-soft .ts-ringbox-fill {
+  stroke-width: 9;
+}
+.ts-dash-soft .ts-ringbox-text strong {
+  font-weight: 500;
+}
+
+/* The week strip and lists */
+.ts-dash-soft .ts-week-tile {
+  border-color: transparent;
+  border-radius: 20px;
+  background: var(--soft-canvas);
+}
+.ts-dash-soft .ts-week-tile.is-today {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--ts-text);
+  background: var(--ts-surface);
+}
+.ts-dash-soft .ts-week-tile.is-off {
+  background: repeating-linear-gradient(135deg, var(--soft-canvas) 0 6px, color-mix(in srgb, var(--ts-text) 8%, var(--soft-canvas)) 6px 7px);
+}
+.ts-dash-soft .ts-upcoming li {
+  border-top-color: var(--soft-canvas);
+}
+.ts-dash-soft .ts-upcoming-date {
+  border-color: transparent;
+  border-radius: 16px;
+  background: var(--soft-canvas);
+}
+
+/* The time logs table and the comp-off card sit on the canvas the same way */
+.ts-dash-soft .ts-flush {
+  overflow: hidden;
+}
+.ts-dash-soft .ts-logs-table thead th {
+  background: var(--soft-canvas);
+}
+
+@media (max-width: 1100px) {
+  .ts-dash-soft {
+    padding: 22px;
+    border-radius: 30px;
+  }
+}
+@media (max-width: 640px) {
+  .ts-dash-soft {
+    gap: 18px;
+    padding: 14px;
+    border-radius: 24px;
+  }
+  .ts-dash-soft .ts-bento {
+    gap: 14px;
+  }
+  .ts-dash-soft .ts-tile,
+  .ts-dash-soft .ts-card {
+    padding: 20px;
+    border-radius: 24px;
+  }
+}

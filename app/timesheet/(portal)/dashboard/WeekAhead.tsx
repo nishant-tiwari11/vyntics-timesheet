@@ -32,7 +32,10 @@ const when = (date: string, today: string) => {
 const LOOK_AHEAD_DAYS = 90;
 
 // A compact look at your week and what is coming next. Your own days only; the full month is on the Calendar page.
-export default async function WeekAhead({ today, isAdmin = false }: { today: string; isAdmin?: boolean }) {
+export default async function WeekAhead({ today, isAdmin = false, legacy = false }: { today: string; isAdmin?: boolean; /** The plain cards, for the admin dashboard. */ legacy?: boolean }) {
+  const card = legacy ? "ts-card" : "ts-tile ts-t-week";
+  const cardDark = legacy ? "ts-card" : "ts-tile ts-t-up";
+  const heading = legacy ? "ts-h2" : "ts-tile-title";
   const monday = mondayOf(today);
   const sunday = addDays(monday, 6);
   const horizon = addDays(today, LOOK_AHEAD_DAYS);
@@ -54,8 +57,8 @@ export default async function WeekAhead({ today, isAdmin = false }: { today: str
 
   if (!logs.ok || !offRes.ok) {
     return (
-      <section className="ts-card" aria-labelledby="week-title">
-        <h2 className="ts-h2" id="week-title">
+      <section className={card} aria-labelledby="week-title">
+        <h2 className={heading} id="week-title">
           This week
         </h2>
         <SectionError message={!logs.ok ? logs.error : !offRes.ok ? offRes.error : ""} />
@@ -106,10 +109,10 @@ export default async function WeekAhead({ today, isAdmin = false }: { today: str
     .slice(0, 5);
 
   return (
-    <div className="ts-week-grid">
-      <section className="ts-card" aria-labelledby="week-title">
+    <div className={legacy ? "ts-week-grid" : "contents"}>
+      <section className={card} aria-labelledby="week-title">
         <div className="ts-section-head">
-          <h2 className="ts-h2" id="week-title">
+          <h2 className={heading} id="week-title">
             This week
           </h2>
           <Link href="/timesheet/calendar" className="ts-link">
@@ -170,9 +173,9 @@ export default async function WeekAhead({ today, isAdmin = false }: { today: str
         </ol>
       </section>
 
-      <section className="ts-card" aria-labelledby="next-title">
+      <section className={cardDark} aria-labelledby="next-title">
         <div className="ts-section-head">
-          <h2 className="ts-h2" id="next-title">
+          <h2 className={heading} id="next-title">
             Upcoming
           </h2>
           {isAdmin && (
