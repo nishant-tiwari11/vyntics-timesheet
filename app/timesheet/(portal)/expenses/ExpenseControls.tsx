@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { FileText, Paperclip, X } from "lucide-react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -23,9 +24,19 @@ export function ClaimForm({ categories, today, claim, billCount = 0, onDone }: {
   const [description, setDescription] = useState(claim?.description ?? "");
   const [error, setError] = useState<string | null>(null);
   const [files, setFiles] = useState<File[]>([]);
+  const [over, setOver] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
   const room = BILL_MAX_PER_CLAIM - billCount;
   const picked = categories.find((c) => c.id === categoryId);
+
+  // Add chosen or dropped files to the list, up to what is left of the 5-per-expense limit.
+  function addFiles(list: File[]) {
+    const next = [...files];
+    for (const f of list) if (!next.some((x) => x.name === f.name && x.size === f.size)) next.push(f);
+    if (next.length > room) toast.error(`You can attach ${BILL_MAX_PER_CLAIM} bills to one expense.`);
+    setFiles(next.slice(0, Math.max(room, 0)));
+  }
 
   function save(submit: boolean) {
     setError(null);
@@ -93,36 +104,71 @@ export function ClaimForm({ categories, today, claim, billCount = 0, onDone }: {
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="exp-amount">Amount</Label>
-          <Input id="exp-amount" inputMode="decimal" placeholder="450.00" value={amount} onChange={(e) => setAmount(e.target.value)} disabled={pending} className="max-md:min-h-11" />
+          <div className="relative">
+            <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted-foreground">
+              ₹
+            </span>
+            <Input id="exp-amount" inputMode="decimal" placeholder="450.00" value={amount} onChange={(e) => setAmount(e.target.value)} disabled={pending} className="pl-7 tabular-nums max-md:min-h-11" />
+          </div>
         </div>
       </div>
       <div className="grid gap-1.5">
-        <Label htmlFor="exp-description">Description</Label>
+        <div className="flex items-baseline justify-between gap-2">
+          <Label htmlFor="exp-description">Description</Label>
+          <span className="text-xs text-muted-foreground tabular-nums" aria-hidden="true">
+            {description.length}/300
+          </span>
+        </div>
         <Textarea id="exp-description" rows={2} maxLength={300} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="For example: Taxi to the client office" disabled={pending} />
       </div>
       <div className="grid gap-1.5">
         <Label htmlFor="exp-bill">Bill or receipt (optional)</Label>
-        <Input
+        <input
+          ref={fileInput}
           id="exp-bill"
           type="file"
           multiple
           accept={BILL_ACCEPT}
           disabled={pending || room <= 0}
+          className="sr-only"
           onChange={(e) => {
-            const picked = Array.from(e.target.files ?? []);
-            if (picked.length > room) toast.error(`You can attach ${BILL_MAX_PER_CLAIM} bills to one expense.`);
-            setFiles(picked.slice(0, Math.max(room, 0)));
+            addFiles(Array.from(e.target.files ?? []));
+            e.target.value = "";
           }}
-          className="max-md:min-h-11"
         />
-        <p className="text-xs text-muted-foreground">
-          {BILL_TYPES_TEXT}. Up to {BILL_MAX_PER_CLAIM} per expense. Only you and the admins who approve it can see your bills.
-        </p>
+        <button
+          type="button"
+          disabled={pending || room <= 0}
+          onClick={() => fileInput.current?.click()}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setOver(true);
+          }}
+          onDragLeave={() => setOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setOver(false);
+            addFiles(Array.from(e.dataTransfer.files));
+          }}
+          className={`flex flex-col items-center gap-1 rounded-lg border border-dashed px-4 py-5 text-center text-sm transition-colors hover:border-foreground disabled:opacity-50 max-md:min-h-11 ${over ? "border-foreground bg-muted/50" : ""}`}
+        >
+          <Paperclip className="size-5 text-muted-foreground" aria-hidden="true" />
+          <span className="font-medium">{room <= 0 ? "This expense already has the most bills" : "Drop a bill here, or click to choose"}</span>
+          <span className="text-xs text-muted-foreground">
+            {BILL_TYPES_TEXT}. Up to {BILL_MAX_PER_CLAIM} per expense.
+          </span>
+        </button>
+        <p className="text-xs text-muted-foreground">Only you and the admins who approve it can see your bills.</p>
         {files.length > 0 && (
-          <ul className="text-xs text-muted-foreground">
+          <ul className="grid gap-1.5" aria-label="Bills to attach">
             {files.map((f) => (
-              <li key={f.name + f.size}>
-                {f.name} ({fmtSize(f.size)})
+              <li key={f.name + f.size} className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm">
+                <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{fmtSize(f.size)}</span>
+                <button type="button" onClick={() => setFiles(files.filter((x) => x !== f))} disabled={pending} aria-label={`Remove ${f.name}`} className="rounded p-1 hover:bg-muted max-md:p-2">
+                  <X className="size-4" aria-hidden="true" />
+                </button>
               </li>
             ))}
           </ul>
@@ -133,13 +179,14 @@ export function ClaimForm({ categories, today, claim, billCount = 0, onDone }: {
           {error}
         </p>
       )}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button type="submit" disabled={pending} className="max-md:min-h-11">
           {pending ? "Saving..." : "Submit for approval"}
         </Button>
         <Button type="button" variant="outline" disabled={pending} onClick={() => save(false)} className="max-md:min-h-11">
           Save as draft
         </Button>
+        <span className="text-xs text-muted-foreground">A draft is not sent until you submit it.</span>
       </div>
     </form>
   );

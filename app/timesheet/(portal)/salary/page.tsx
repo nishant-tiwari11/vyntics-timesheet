@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getMyPayslip, getMyStructure, listMyPayslips, logSelf, structureShared } from "@/lib/payroll/mine";
+import { salaryPinState } from "@/lib/payroll/pin";
 import { isMonthKey } from "@/lib/payroll/period";
 import { listMyQueries, type QueryRow } from "@/lib/payroll/queries";
 import type { PayslipDetail, PayslipListItem, StructureView } from "@/lib/payroll/slipTypes";
@@ -13,7 +14,7 @@ import { formatYmd } from "@/lib/timesheet/dates";
 import { TimesheetError } from "@/lib/timesheet/errors";
 import { logError } from "@/lib/timesheet/log";
 import { cn } from "@/lib/utils";
-import { Amount, HideToggle } from "./AmountMask";
+import { Amount, HideToggle, SalaryLock, type PinState } from "./AmountMask";
 import LazyNetPayChart from "./LazyNetPayChart";
 import MonthPicker from "./MonthPicker";
 import PrintButton from "./PrintButton";
@@ -100,9 +101,15 @@ export default async function SalaryPage({ searchParams }: { searchParams: Promi
   let slips: PayslipListItem[] = [];
   let queries: QueryRow[] = [];
   let shared = false;
+  let pinState: PinState = "none";
   let error: string | null = null;
   try {
-    [slips, queries, shared] = await Promise.all([listMyPayslips(), listMyQueries().catch(() => [] as QueryRow[]), structureShared().catch(() => false)]);
+    [slips, queries, shared, pinState] = await Promise.all([
+      listMyPayslips(),
+      listMyQueries().catch(() => [] as QueryRow[]),
+      structureShared().catch(() => false),
+      salaryPinState().catch((): PinState => "none"), // if it can't be checked, stay locked
+    ]);
   } catch (e) {
     if (!(e instanceof TimesheetError)) logError("salary-page", e);
     error = e instanceof TimesheetError ? e.message : "Something went wrong. Please try again.";
@@ -122,17 +129,21 @@ export default async function SalaryPage({ searchParams }: { searchParams: Promi
     );
   }
 
+  // Locked: the money is not even sent to the browser. Only the months, days and status are.
+  const locked = pinState !== "open";
+  if (locked) slips = slips.map((x) => ({ ...x, gross: 0, deductions: 0, net: 0 }));
   const currency = slips[0]?.currency ?? "INR";
   const months = slips.map((s) => s.month);
-  const selected = isMonthKey(raw.month) && months.includes(raw.month) ? raw.month : months[0];
+  // A payslip stays closed until "View" is clicked (the month is then in the address).
+  const selected = isMonthKey(raw.month) && months.includes(raw.month) ? raw.month : undefined;
   const tab = raw.tab === "structure" && shared ? "structure" : "payslips";
 
   let detail: PayslipDetail | null = null;
   let structure: StructureView | null = null;
   let detailError: string | null = null;
   try {
-    if (tab === "payslips" && selected) detail = await getMyPayslip(selected);
-    if (tab === "structure") structure = await getMyStructure(currency);
+    if (!locked && tab === "payslips" && selected) detail = await getMyPayslip(selected);
+    if (!locked && tab === "structure") structure = await getMyStructure(currency);
   } catch (e) {
     if (!(e instanceof TimesheetError)) logError("salary-page", e);
     detailError = e instanceof TimesheetError ? e.message : "Something went wrong. Please try again.";
@@ -141,17 +152,18 @@ export default async function SalaryPage({ searchParams }: { searchParams: Promi
   await logSelf(detail ? "viewed_payslip" : "viewed_my_salary", detail?.id ?? null);
 
   const latest = slips[0];
-  const ytd = latest ? slips.filter((s) => s.month.slice(0, 4) === latest.month.slice(0, 4)).reduce((n, s) => n + s.gross, 0) : 0;
+  const ytd = latest && !locked ? slips.filter((s) => s.month.slice(0, 4) === latest.month.slice(0, 4)).reduce((n, s) => n + s.gross, 0) : 0;
   const myQueries = queries.filter((q) => !detail || q.payslipId === detail.id);
 
   return (
+    <SalaryLock locked={locked}>
     <div className="grid gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3 no-print">
         <div className="grid gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">My Salary</h1>
           <p className="text-sm text-muted-foreground">Your payslips, read-only. Only finalized payslips appear here, and only yours.</p>
         </div>
-        <HideToggle />
+        <HideToggle state={pinState} />
       </div>
 
       {slips.length === 0 ? (
@@ -188,7 +200,7 @@ export default async function SalaryPage({ searchParams }: { searchParams: Promi
           {/* Tabs */}
           <nav aria-label="My Salary sections" className="flex gap-1 border-b no-print">
             {[
-              { id: "payslips", label: "Payslips", href: `/timesheet/salary${selected ? `?month=${selected}` : ""}` },
+              { id: "payslips", label: "Payslips", href: "/timesheet/salary" },
               ...(shared ? [{ id: "structure", label: "Salary structure", href: "/timesheet/salary?tab=structure" }] : []),
             ].map((t) => (
               <Link
@@ -214,7 +226,12 @@ export default async function SalaryPage({ searchParams }: { searchParams: Promi
             </div>
           )}
 
-          {tab === "structure" ? (
+          {locked && (selected || tab === "structure") ? (
+            <div className="ts-card ts-empty">
+              <strong>Amounts are hidden</strong>
+              <p>Press Show amounts at the top and enter your salary PIN to open this.</p>
+            </div>
+          ) : tab === "structure" ? (
             structure ? (
               <section aria-label="Salary structure" className="grid gap-4">
                 <p className="text-sm text-muted-foreground">Your current monthly breakdown, effective from {day(structure.effectiveFrom)}. This is your fixed pay before any leave, overtime, bonus or deduction.</p>
@@ -276,7 +293,14 @@ export default async function SalaryPage({ searchParams }: { searchParams: Promi
             )
           ) : (
             <>
-              <MonthPicker months={months} current={selected} />
+              {selected && (
+                <div className="flex flex-wrap items-end justify-between gap-3 no-print">
+                  <MonthPicker months={months} current={selected} />
+                  <Link href="/timesheet/salary" className={link}>
+                    Hide payslip
+                  </Link>
+                </div>
+              )}
 
               {detail && (
                 <article aria-label={`Payslip for ${monthName(detail.month)}`} className="grid gap-5 rounded-lg border p-5 print-area">
@@ -416,12 +440,6 @@ export default async function SalaryPage({ searchParams }: { searchParams: Promi
                 </section>
               )}
 
-              {/* Net pay over time (loaded on its own) */}
-              <section aria-label="Net pay over time" className="grid gap-3 no-print">
-                <h2 className="text-base font-semibold">Net pay over time</h2>
-                <LazyNetPayChart slips={slips} currency={currency} />
-              </section>
-
               {/* Every month */}
               <section aria-label="All payslips" className="grid gap-3 no-print">
                 <h2 className="text-base font-semibold">All payslips</h2>
@@ -458,7 +476,7 @@ export default async function SalaryPage({ searchParams }: { searchParams: Promi
                           </TableCell>
                           <TableCell>
                             <div className="flex justify-end gap-1.5">
-                              <Link href={`/timesheet/salary?month=${s.month}`} className={link} aria-label={`View the ${monthName(s.month)} payslip`}>
+                              <Link href={`/timesheet/salary?month=${s.month}`} className="inline-flex min-h-9 items-center rounded-md bg-foreground px-4 text-sm font-medium text-background transition-opacity hover:opacity-85" aria-label={`View the ${monthName(s.month)} payslip`}>
                                 View
                               </Link>
                               <a href={`/timesheet/salary/pdf?month=${s.month}`} className={link} aria-label={`Download the ${monthName(s.month)} payslip as a PDF`}>
@@ -472,10 +490,19 @@ export default async function SalaryPage({ searchParams }: { searchParams: Promi
                   </Table>
                 </div>
               </section>
+
+              {/* Net pay over time (loaded on its own). One month has nothing to compare. */}
+              {slips.length > 1 && !locked && (
+                <section aria-label="Net pay over time" className="grid gap-3 no-print">
+                  <h2 className="text-base font-semibold">Net pay over time</h2>
+                  <LazyNetPayChart slips={slips} currency={currency} />
+                </section>
+              )}
             </>
           )}
         </>
       )}
     </div>
+    </SalaryLock>
   );
 }

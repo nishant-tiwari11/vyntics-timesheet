@@ -31,10 +31,10 @@ export function SideBody({ user, collapsed = false, onNavigate }: { user: SideUs
           <UserAvatar userId={user.id} name={user.name} className="size-10 text-base" />
         </Link>
         {!collapsed && (
-          <span className="ts-side-who" title={user.email}>
+          <Link href="/timesheet/profile" className="ts-side-who rounded-md hover:underline focus-visible:outline-2" title={`${user.email}, open your profile`} onClick={onNavigate}>
             <span className="ts-side-name">{user.name}</span>
             <span className="ts-side-role">{user.roleLabel}</span>
-          </span>
+          </Link>
         )}
         <form action={signOut} onSubmit={clearLocalCache} className="ts-side-signout">
           <button type="submit" className="ts-btn ts-btn-ghost ts-btn-sm" title="Sign out" aria-label="Sign out">
@@ -64,18 +64,17 @@ export function Sidebar({ user, initialCollapsed }: { user: SideUser; initialCol
 
   return (
     <aside className="ts-side" data-collapsed={user.isAdmin ? false : collapsed} aria-label="Sidebar">
-      <SideBody user={user} collapsed={collapsed} />
       <button
         type="button"
         className="ts-side-toggle"
         onClick={toggle}
         aria-pressed={user.isAdmin ? false : collapsed}
         aria-label={user.isAdmin ? "Move the menu to the top bar" : collapsed ? "Expand the menu" : "Collapse the menu to icons"}
-        title={collapsed ? "Expand the menu" : "Collapse the menu"}
+        title={user.isAdmin ? "Move the menu to the top bar" : collapsed ? "Expand the menu" : "Collapse the menu"}
       >
         {collapsed ? <ChevronsRight className="size-4" aria-hidden="true" /> : <ChevronsLeft className="size-4" aria-hidden="true" />}
-        <span className="ts-side-toggle-text">{user.isAdmin ? "Menu on top" : "Collapse"}</span>
       </button>
+      <SideBody user={user} collapsed={collapsed} />
     </aside>
   );
 }

@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
+import { salaryPinState } from "@/lib/payroll/pin";
 import { getMyPayslip, getMyPayslipsForYear, logSelf } from "@/lib/payroll/mine";
 import { isMonthKey } from "@/lib/payroll/period";
 import { buildPayslipsPdf } from "@/lib/payroll/pdf";
@@ -15,6 +16,9 @@ const plain = (status: number, message: string) =>
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return plain(401, "Sign in to download your payslip.");
+
+  // The PDF holds the amounts, so it needs the salary PIN to have been entered, just like the page.
+  if ((await salaryPinState().catch(() => "none")) !== "open") return plain(403, "Open My Salary, press Show amounts and enter your salary PIN first.");
 
   const params = new URL(request.url).searchParams;
   const month = params.get("month");
