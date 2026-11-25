@@ -6,6 +6,12 @@ import { Fragment, Suspense, useRef } from "react";
 import { useNavCounts } from "./NavCounts";
 
 export const ICONS = {
+  overview: (
+    <>
+      <path d="M12 3l9 5-9 5-9-5z" />
+      <path d="M3 13l9 5 9-5" />
+    </>
+  ),
   dashboard: (
     <>
       <rect x="3" y="3" width="7" height="7" rx="1.5" />
@@ -131,6 +137,7 @@ export type NavLink = {
 
 const LINKS: NavLink[] = [
   { href: "/timesheet/dashboard", label: "Dashboard", icon: "dashboard" },
+  { href: "/timesheet/overview", label: "My Overview", icon: "overview" },
   { href: "/timesheet/leave", label: "Leave & WFH", icon: "leave" },
   { href: "/timesheet/worklog", label: "Work log", icon: "worklog" },
   { href: "/timesheet/calendar", label: "Calendar", icon: "calendar" },
@@ -164,6 +171,7 @@ const ADMIN_MENU: NavLink[] = [
 ];
 
 export function titleFor(pathname: string): string {
+  if (pathname.startsWith("/timesheet/overview")) return "My Overview";
   if (pathname.startsWith("/timesheet/leave")) return "Leave & WFH";
   if (pathname.startsWith("/timesheet/worklog")) return "Work log";
   if (pathname.startsWith("/timesheet/salary")) return "My Salary";
