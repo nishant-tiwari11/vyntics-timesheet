@@ -64,18 +64,17 @@ export function Sidebar({ user, initialCollapsed }: { user: SideUser; initialCol
 
   return (
     <aside className="ts-side" data-collapsed={user.isAdmin ? false : collapsed} aria-label="Sidebar">
-      <SideBody user={user} collapsed={collapsed} />
       <button
         type="button"
         className="ts-side-toggle"
         onClick={toggle}
         aria-pressed={user.isAdmin ? false : collapsed}
         aria-label={user.isAdmin ? "Move the menu to the top bar" : collapsed ? "Expand the menu" : "Collapse the menu to icons"}
-        title={collapsed ? "Expand the menu" : "Collapse the menu"}
+        title={user.isAdmin ? "Move the menu to the top bar" : collapsed ? "Expand the menu" : "Collapse the menu"}
       >
         {collapsed ? <ChevronsRight className="size-4" aria-hidden="true" /> : <ChevronsLeft className="size-4" aria-hidden="true" />}
-        <span className="ts-side-toggle-text">{user.isAdmin ? "Menu on top" : "Collapse"}</span>
       </button>
+      <SideBody user={user} collapsed={collapsed} />
     </aside>
   );
 }

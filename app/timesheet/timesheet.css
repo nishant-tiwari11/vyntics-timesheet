@@ -400,9 +400,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
+  align-self: flex-start;
+  margin-bottom: -8px;
+  width: 36px;
   min-height: 36px;
-  padding: 6px 12px;
+  padding: 0;
+  justify-content: center;
   border: 0;
   border-radius: var(--ts-radius);
   background: transparent;
@@ -420,8 +423,7 @@
   outline-offset: 2px;
 }
 .ts-side[data-collapsed="true"] .ts-side-toggle {
-  justify-content: center;
-  padding: 6px 0;
+  align-self: center;
 }
 .ts-side-signout .ts-btn {
   gap: 8px;
