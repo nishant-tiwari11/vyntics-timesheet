@@ -11,7 +11,8 @@ import { formatYmd, todayInOffice } from "@/lib/timesheet/dates";
 import { TimesheetError } from "@/lib/timesheet/errors";
 import { logError } from "@/lib/timesheet/log";
 import { BillsCell } from "./BillsCell";
-import { ClaimForm, RowActions } from "./ExpenseControls";
+import { RowActions } from "./ExpenseControls";
+import NewExpense from "./NewExpense";
 import ExpenseStatusBadge from "./StatusBadge";
 
 export const metadata = { title: "Expenses" };
@@ -57,9 +58,12 @@ export default async function ExpensesPage() {
 
   return (
     <div className="grid gap-6">
-      <div className="grid gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Expenses</h1>
-        <p className="text-sm text-muted-foreground">Claim money you spent for work. Once approved, it is paid back with your salary, as a separate line on your payslip.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="grid gap-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Expenses</h1>
+          <p className="text-sm text-muted-foreground">Claim money you spent for work. Once approved, it is paid back with your salary, as a separate line on your payslip.</p>
+        </div>
+        <NewExpense categories={categories} today={today} />
       </div>
 
       <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -77,20 +81,12 @@ export default async function ExpensesPage() {
         </div>
       </dl>
 
-      <section aria-label="New expense" className="grid gap-4 rounded-lg border p-5">
-        <div className="grid gap-0.5">
-          <h2 className="text-base font-semibold">New expense</h2>
-          <p className="text-sm text-muted-foreground">Fill in the details and attach the bill. An admin approves it, then it is paid with your salary.</p>
-        </div>
-        <ClaimForm categories={categories} today={today} />
-      </section>
-
       <section aria-label="My expenses" className="grid gap-3">
         <h2 className="text-base font-semibold">My claims</h2>
         {claims.length === 0 ? (
           <div className="ts-card ts-empty">
             <strong>No expenses yet</strong>
-            <p>Add one above. It goes to an admin for approval.</p>
+            <p>Press Add new expense at the top. It goes to an admin for approval.</p>
           </div>
         ) : (
           <div className="overflow-x-auto rounded-lg border">
