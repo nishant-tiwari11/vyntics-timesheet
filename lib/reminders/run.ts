@@ -52,6 +52,9 @@ async function loadSettings(db: Db): Promise<ChatSettings> {
 
 type Row = Person & { fullName: string; managerId: string | null; reminded: string | null; summarised: string | null; digested: string | null };
 
+/** The name of a person's own thread in the Chat space: all their reminders go into it. */
+const threadOf = (userId: string) => `timesheet-${userId}`;
+
 /**
  * One person's Google account ID, which is also their Google Chat user ID (read from their sign-in record; people who signed in
  * another way simply have none). Each person is looked up on their own: listing everyone at once fails for the whole list if a
@@ -166,6 +169,7 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
         title: "Timesheet reminder",
         subtitle: (person as Row).fullName,
         mention: await googleId(db, person.id),
+        threadKey: threadOf(person.id),
         fact: { label: "Logged today", value: `<b>${hoursText(hours)}</b> of ${hoursText(day.target)}`, icon: "CLOCK" },
         text,
         link: link ? { url: link, label: "Add time log" } : undefined,
@@ -194,6 +198,7 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
         title: "Your week in review",
         subtitle: p.fullName,
         mention: await googleId(db, p.id),
+        threadKey: threadOf(p.id),
         fact: { label: "Logged this week", value: `<b>${hoursText(hours)}</b> of ${hoursText(weekTarget)}`, icon: "STAR" },
         text: weekSummaryText(p.name, hours, weekTarget),
         link: link ? { url: link, label: "Open my time logs" } : undefined,
@@ -242,6 +247,7 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
         title: "You didn't go off duty",
         subtitle: p.fullName,
         mention: await googleId(db, p.id),
+        threadKey: threadOf(p.id),
         fact: { label: "Duty started", value: `<b>${dateLabel}</b> at ${start}`, icon: "CLOCK" },
         text: forgotDutyText(p.name, dateLabel, start),
         link: link ? { url: link, label: "Add time log" } : undefined,
@@ -273,6 +279,7 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
     const card: ChatCard = {
       title: "Approvals waiting",
       subtitle: p.fullName,
+      threadKey: threadOf(p.id),
       fact: { label: "Waiting for your decision", value: `<b>${total}</b> item${total === 1 ? "" : "s"}`, icon: "DESCRIPTION" },
       text: approvalsText(p.name, counts),
       link: link ? { url: link, label: "Review" } : undefined,

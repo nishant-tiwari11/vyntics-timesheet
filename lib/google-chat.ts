@@ -38,6 +38,11 @@ export type ChatCard = {
   link?: { url: string; label: string };
   /** The person's Google account ID (digits). When given, the message really @mentions them and they are notified. */
   mention?: string;
+  /**
+   * A name for this person's own thread. Every message with the same key lands in the same thread in the space, so each person
+   * has one personal thread with all their reminders. (If the space doesn't use threads, the message is posted as normal.)
+   */
+  threadKey?: string;
 };
 
 const escapeHtml = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -49,6 +54,10 @@ const escapeHtml = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;")
  */
 export async function sendChat(card: ChatCard): Promise<void> {
   const url = webhook();
+  if (url && card.threadKey && /^[\w-]{1,200}$/.test(card.threadKey)) {
+    url.searchParams.set("threadKey", card.threadKey);
+    url.searchParams.set("messageReplyOption", "REPLY_MESSAGE_FALLBACK_TO_NEW_THREAD");
+  }
   if (!url) throw new ChatError("Google Chat isn't set up on this server (GOOGLE_CHAT_WEBHOOK_URL is missing or isn't a Google Chat address).");
   if (!card.text.trim()) throw new ChatError("The message is empty.");
   if (card.link && !/^https?:\/\//i.test(card.link.url)) throw new ChatError("The link isn't a web address.");
