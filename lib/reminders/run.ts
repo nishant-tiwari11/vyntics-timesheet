@@ -115,8 +115,9 @@ async function stamp(db: Db, id: string, column: "last_reminded_at" | "last_summ
 
 /** Who already has a personal thread in the space (a "Thread started" note in the audit log), so the heading is posted only once. */
 const THREAD_NOTE = "Thread started";
-async function loadThreads(db: Db): Promise<Set<string>> {
-  const { data, error } = await db.from("access_audit").select("target").eq("action", "chat_reminder_sent").eq("detail", THREAD_NOTE).limit(5000);
+const WELCOME_NOTE = "Thread welcome";
+async function loadMarks(db: Db, note: string): Promise<Set<string>> {
+  const { data, error } = await db.from("access_audit").select("target").eq("action", "chat_reminder_sent").eq("detail", note).limit(5000);
   if (error) throw new Error(WRITE_FAILED);
   return new Set(data.map((r) => String(r.target)));
 }
@@ -166,14 +167,31 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
 
   // Start a personal thread for every employee and manager who doesn't have one yet. Safe to run again: it only adds the missing ones.
   if (job === "threads") {
-    const [everyone, threads] = await Promise.all([loadPeople(db), loadThreads(db)]);
-    const missing = everyone.filter((p) => (p.role === "employee" || p.role === "manager") && p.optedIn && p.email && !threads.has(p.email));
+    const [everyone, threads, welcomed] = await Promise.all([loadPeople(db), loadMarks(db, THREAD_NOTE), loadMarks(db, WELCOME_NOTE)]);
+    const link = portalUrl("/timesheet/dashboard");
+    const missing = everyone.filter((p) => (p.role === "employee" || p.role === "manager") && p.optedIn && p.email && (!threads.has(p.email) || !welcomed.has(p.email)));
     result.considered = missing.length;
     for (const p of missing) {
       try {
-        await sendChatText(`${p.name.toUpperCase()} - TIMESHEET UPDATES`, threadOf(p.id));
-        await new Promise((r) => setTimeout(r, 1100));
-        await audit(db, "chat_reminder_sent", p.email, THREAD_NOTE);
+        if (!threads.has(p.email)) {
+          await sendChatText(`${p.name.toUpperCase()} - TIMESHEET UPDATES`, threadOf(p.id));
+          await new Promise((r) => setTimeout(r, 1100));
+          await audit(db, "chat_reminder_sent", p.email, THREAD_NOTE);
+          threads.add(p.email);
+        }
+        // A first reply, tagged, so the thread shows "1 reply", is easy to open, and the person knows it is theirs.
+        if (!welcomed.has(p.email)) {
+          await sendChat({
+            title: "Your timesheet thread",
+            subtitle: p.fullName,
+            mention: await googleId(db, p.id),
+            threadKey: threadOf(p.id),
+            text: `Hi ${p.name}, this is your personal timesheet thread. Your reminders will appear here, and you can reply here too.`,
+            link: link ? { url: link, label: "Open my timesheet" } : undefined,
+          });
+          await new Promise((r) => setTimeout(r, 1100));
+          await audit(db, "chat_reminder_sent", p.email, WELCOME_NOTE);
+        }
         result.sent++;
       } catch (e) {
         if (!(e instanceof ChatError)) logError("reminders: thread", e);
@@ -188,7 +206,7 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
   const day = await dayContext(db, today);
   if (day.isOff) return skip("Today is a weekly off or a holiday.");
   const people = await loadPeople(db);
-  const threads = await loadThreads(db);
+  const threads = await loadMarks(db, THREAD_NOTE);
 
   if (job === "reminder") {
     if (!timeReached(nowInOffice(now), settings.reminderTime)) return skip(`Before the reminder time (${settings.reminderTime}).`);
