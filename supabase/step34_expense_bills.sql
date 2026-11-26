@@ -52,7 +52,7 @@ on conflict (id) do update
 drop policy if exists "expense bills bucket: read what the table lets you read" on storage.objects;
 create policy "expense bills bucket: read what the table lets you read" on storage.objects
   for select to authenticated
-  using (bucket_id = 'expense-bills' and exists (select 1 from public.expense_bills b where b.storage_key = name));
+  using (bucket_id = 'expense-bills' and exists (select 1 from public.expense_bills b where b.storage_key = objects.name));
 
 drop policy if exists "expense bills bucket: add to own folder" on storage.objects;
 create policy "expense bills bucket: add to own folder" on storage.objects

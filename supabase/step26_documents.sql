@@ -203,7 +203,7 @@ on conflict (id) do update
 drop policy if exists "documents bucket: read what the table lets you read" on storage.objects;
 create policy "documents bucket: read what the table lets you read" on storage.objects
   for select to authenticated
-  using (bucket_id = 'documents' and exists (select 1 from public.employee_documents d where d.storage_key = name));
+  using (bucket_id = 'documents' and exists (select 1 from public.employee_documents d where d.storage_key = objects.name));
 
 drop policy if exists "documents bucket: add to own folder or admin" on storage.objects;
 create policy "documents bucket: add to own folder or admin" on storage.objects
