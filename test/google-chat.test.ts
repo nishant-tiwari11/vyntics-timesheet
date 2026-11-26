@@ -24,6 +24,14 @@ describe("sendChat threads", () => {
     expect(url.searchParams.get("token")).toBe("T");
   });
 
+  it("starts a person's thread with a plain heading message", async () => {
+    const { sendChatText } = await import("@/lib/google-chat");
+    await sendChatText("VIPUL - TIMESHEET UPDATES", "timesheet-abc");
+    const [url, init] = fetchMock.mock.calls[0] as [string | URL, RequestInit];
+    expect(new URL(String(url)).searchParams.get("threadKey")).toBe("timesheet-abc");
+    expect(JSON.parse(String(init.body))).toEqual({ text: "VIPUL - TIMESHEET UPDATES" });
+  });
+
   it("posts a plain message when there is no thread key, or the key is not safe", async () => {
     const { sendChat } = await import("@/lib/google-chat");
     await sendChat(card);

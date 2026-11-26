@@ -1,5 +1,5 @@
 import "server-only";
-import { ChatError, chatConfigured, sendChat, type ChatCard } from "@/lib/google-chat";
+import { ChatError, chatConfigured, sendChat, sendChatText, type ChatCard } from "@/lib/google-chat";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { addDays, formatTime, formatYmd, mondayOf, todayInOffice } from "@/lib/timesheet/dates";
 import { logError } from "@/lib/timesheet/log";
@@ -113,10 +113,34 @@ async function stamp(db: Db, id: string, column: "last_reminded_at" | "last_summ
   if (error) logError("reminders: stamp", error);
 }
 
-/** Send one message; a failure is recorded and never stops the others. */
-/** `column` is the profile stamp that says "sent today"; null for a message that must not use up another message's slot. */
-async function deliver(db: Db, who: { id: string; email: string }, kind: string, card: ChatCard, column: "last_reminded_at" | "last_summary_at" | "last_digest_at" | null) {
+/** Who already has a personal thread in the space (a "Thread started" note in the audit log), so the heading is posted only once. */
+const THREAD_NOTE = "Thread started";
+async function loadThreads(db: Db): Promise<Set<string>> {
+  const { data, error } = await db.from("access_audit").select("target").eq("action", "chat_reminder_sent").eq("detail", THREAD_NOTE).limit(5000);
+  if (error) throw new Error(WRITE_FAILED);
+  return new Set(data.map((r) => String(r.target)));
+}
+
+/**
+ * Send one message into the person's own thread; a failure is recorded and never stops the others. The first time someone gets a
+ * message, their thread is started with a heading ("VIPUL - TIMESHEET UPDATES") and their message goes in as a reply to it.
+ * `column` is the profile stamp that says "sent today"; null for a message that must not use up another message's slot.
+ */
+async function deliver(
+  db: Db,
+  threads: Set<string>,
+  who: { id: string; email: string; name: string },
+  kind: string,
+  card: ChatCard,
+  column: "last_reminded_at" | "last_summary_at" | "last_digest_at" | null,
+) {
   try {
+    if (card.threadKey && !threads.has(who.email)) {
+      await sendChatText(`${who.name.toUpperCase()} - TIMESHEET UPDATES`, card.threadKey);
+      await new Promise((r) => setTimeout(r, 1100));
+      await audit(db, "chat_reminder_sent", who.email, THREAD_NOTE);
+      threads.add(who.email);
+    }
     await sendChat(card);
     // Google Chat allows about one message a second into a space.
     await new Promise((r) => setTimeout(r, 1100));
@@ -144,6 +168,7 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
   const day = await dayContext(db, today);
   if (day.isOff) return skip("Today is a weekly off or a holiday.");
   const people = await loadPeople(db);
+  const threads = await loadThreads(db);
 
   if (job === "reminder") {
     if (!timeReached(nowInOffice(now), settings.reminderTime)) return skip(`Before the reminder time (${settings.reminderTime}).`);
@@ -174,7 +199,7 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
         text,
         link: link ? { url: link, label: "Add time log" } : undefined,
       };
-      if (await deliver(db, person, `Daily reminder (${Math.round(hours * 100) / 100}h logged)`, card, "last_reminded_at")) result.sent++;
+      if (await deliver(db, threads, person, `Daily reminder (${Math.round(hours * 100) / 100}h logged)`, card, "last_reminded_at")) result.sent++;
       else result.failed++;
     }
     return result;
@@ -203,7 +228,7 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
         text: weekSummaryText(p.name, hours, weekTarget),
         link: link ? { url: link, label: "Open my time logs" } : undefined,
       };
-      if (await deliver(db, p, `Weekly summary (${hours}h of ${weekTarget}h)`, card, "last_summary_at")) result.sent++;
+      if (await deliver(db, threads, p, `Weekly summary (${hours}h of ${weekTarget}h)`, card, "last_summary_at")) result.sent++;
       else result.failed++;
     }
     return result;
@@ -252,7 +277,7 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
         text: forgotDutyText(p.name, dateLabel, start),
         link: link ? { url: link, label: "Add time log" } : undefined,
       };
-      if (await deliver(db, p, kind, card, null)) result.sent++;
+      if (await deliver(db, threads, p, kind, card, null)) result.sent++;
       else result.failed++;
     }
     return result;
@@ -284,7 +309,7 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
       text: approvalsText(p.name, counts),
       link: link ? { url: link, label: "Review" } : undefined,
     };
-    if (await deliver(db, p, `Pending approvals (${total})`, card, "last_digest_at")) result.sent++;
+    if (await deliver(db, threads, p, `Pending approvals (${total})`, card, "last_digest_at")) result.sent++;
     else result.failed++;
   }
   return result;
