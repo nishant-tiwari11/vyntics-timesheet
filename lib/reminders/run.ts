@@ -52,24 +52,22 @@ async function loadSettings(db: Db): Promise<ChatSettings> {
 
 type Row = Person & { fullName: string; managerId: string | null; reminded: string | null; summarised: string | null; digested: string | null };
 
-/** Each person's Google account ID, which is also their Google Chat user ID. Read from the sign-in records; people who signed in another way simply have none. */
-async function googleIds(db: Db): Promise<Map<string, string>> {
-  const ids = new Map<string, string>();
+/**
+ * One person's Google account ID, which is also their Google Chat user ID (read from their sign-in record; people who signed in
+ * another way simply have none). Each person is looked up on their own: listing everyone at once fails for the whole list if a
+ * single disabled account can't be read, and then nobody is tagged. Without an ID the card still goes out, naming the person.
+ */
+async function googleId(db: Db, userId: string): Promise<string | undefined> {
   try {
-    for (let page = 1; page <= 20; page++) {
-      const { data, error } = await db.auth.admin.listUsers({ page, perPage: 1000 });
-      if (error) throw error;
-      for (const u of data.users) {
-        const g = u.identities?.find((i) => i.provider === "google");
-        const sub = String((g?.identity_data as { sub?: string } | undefined)?.sub ?? g?.id ?? "");
-        if (/^\d{5,30}$/.test(sub)) ids.set(u.id, sub);
-      }
-      if (data.users.length < 1000) break;
-    }
+    const { data, error } = await db.auth.admin.getUserById(userId);
+    if (error) throw error;
+    const g = data.user?.identities?.find((i) => i.provider === "google");
+    const sub = String((g?.identity_data as { sub?: string } | undefined)?.sub ?? g?.id ?? "");
+    return /^\d{5,30}$/.test(sub) ? sub : undefined;
   } catch (e) {
-    logError("reminders: google ids", e); // without them the cards still go out, naming the person instead of tagging them
+    logError("reminders: google id", e);
+    return undefined;
   }
-  return ids;
 }
 
 async function loadPeople(db: Db): Promise<Row[]> {
@@ -143,7 +141,6 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
   const day = await dayContext(db, today);
   if (day.isOff) return skip("Today is a weekly off or a holiday.");
   const people = await loadPeople(db);
-  const chatIds = job === "approvals" ? new Map<string, string>() : await googleIds(db);
 
   if (job === "reminder") {
     if (!timeReached(nowInOffice(now), settings.reminderTime)) return skip(`Before the reminder time (${settings.reminderTime}).`);
@@ -168,7 +165,7 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
       const card: ChatCard = {
         title: "Timesheet reminder",
         subtitle: (person as Row).fullName,
-        mention: chatIds.get(person.id),
+        mention: await googleId(db, person.id),
         fact: { label: "Logged today", value: `<b>${hoursText(hours)}</b> of ${hoursText(day.target)}`, icon: "CLOCK" },
         text,
         link: link ? { url: link, label: "Add time log" } : undefined,
@@ -196,7 +193,7 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
       const card: ChatCard = {
         title: "Your week in review",
         subtitle: p.fullName,
-        mention: chatIds.get(p.id),
+        mention: await googleId(db, p.id),
         fact: { label: "Logged this week", value: `<b>${hoursText(hours)}</b> of ${hoursText(weekTarget)}`, icon: "STAR" },
         text: weekSummaryText(p.name, hours, weekTarget),
         link: link ? { url: link, label: "Open my time logs" } : undefined,
@@ -244,7 +241,7 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
       const card: ChatCard = {
         title: "You didn't go off duty",
         subtitle: p.fullName,
-        mention: chatIds.get(p.id),
+        mention: await googleId(db, p.id),
         fact: { label: "Duty started", value: `<b>${dateLabel}</b> at ${start}`, icon: "CLOCK" },
         text: forgotDutyText(p.name, dateLabel, start),
         link: link ? { url: link, label: "Add time log" } : undefined,
