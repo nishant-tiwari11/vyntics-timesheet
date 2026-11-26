@@ -425,6 +425,16 @@
 .ts-side[data-collapsed="true"] .ts-side-toggle {
   align-self: center;
 }
+/* Open menu: the collapse button sits beside the Vyntics Workspace name, in the same row. Collapsed, it stays above the logo. */
+.ts-side:not([data-collapsed="true"]) .ts-side-toggle {
+  position: absolute;
+  top: 18px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  margin: 0;
+}
 .ts-side-signout .ts-btn {
   gap: 8px;
 }
