@@ -1,11 +1,12 @@
 import "server-only";
 import { ChatError, chatConfigured, sendChat, type ChatCard } from "@/lib/google-chat";
 import { createServiceClient } from "@/lib/supabase/admin";
-import { addDays, mondayOf, todayInOffice } from "@/lib/timesheet/dates";
+import { addDays, formatTime, formatYmd, mondayOf, todayInOffice } from "@/lib/timesheet/dates";
 import { logError } from "@/lib/timesheet/log";
 import {
   DEFAULT_CHAT_SETTINGS,
   approvalsText,
+  forgotDutyText,
   hoursText,
   nowInOffice,
   pickReminderRecipients,
@@ -17,7 +18,7 @@ import {
   type Person,
 } from "./core";
 
-export type Job = "reminder" | "summary" | "approvals";
+export type Job = "reminder" | "summary" | "approvals" | "duty";
 export type RunResult = { job: Job; skipped?: string; considered: number; sent: number; failed: number };
 
 type Db = ReturnType<typeof createServiceClient>;
@@ -112,12 +113,13 @@ async function stamp(db: Db, id: string, column: "last_reminded_at" | "last_summ
 }
 
 /** Send one message; a failure is recorded and never stops the others. */
-async function deliver(db: Db, who: { id: string; email: string }, kind: string, card: ChatCard, column: "last_reminded_at" | "last_summary_at" | "last_digest_at") {
+/** `column` is the profile stamp that says "sent today"; null for a message that must not use up another message's slot. */
+async function deliver(db: Db, who: { id: string; email: string }, kind: string, card: ChatCard, column: "last_reminded_at" | "last_summary_at" | "last_digest_at" | null) {
   try {
     await sendChat(card);
     // Google Chat allows about one message a second into a space.
     await new Promise((r) => setTimeout(r, 1100));
-    await stamp(db, who.id, column);
+    if (column) await stamp(db, who.id, column);
     await audit(db, "chat_reminder_sent", who.email, kind);
     return true;
   } catch (e) {
@@ -200,6 +202,54 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
         link: link ? { url: link, label: "Open my time logs" } : undefined,
       };
       if (await deliver(db, p, `Weekly summary (${hours}h of ${weekTarget}h)`, card, "last_summary_at")) result.sent++;
+      else result.failed++;
+    }
+    return result;
+  }
+
+  if (job === "duty") {
+    // People who went on duty and never went off, in the last three days, who haven't logged that day. One message per forgotten
+    // day, however many times the job runs: the message is recorded in the audit log and looked up before sending.
+    const duty = await db
+      .from("duty_logs" as never)
+      .select("id, user_id, duty_date, started_at")
+      .gte("duty_date", addDays(today, -3))
+      .lt("duty_date", today)
+      .or("ended_at.is.null,auto_closed.eq.true")
+      .order("started_at", { ascending: false })
+      .limit(500);
+    if (duty.error) throw new Error(WRITE_FAILED);
+    type Forgot = { id: string; user_id: string; duty_date: string; started_at: string };
+    const latest = new Map<string, Forgot>();
+    for (const d of (duty.data ?? []) as unknown as Forgot[]) if (!latest.has(d.user_id)) latest.set(d.user_id, d);
+    if (latest.size === 0) return result;
+
+    const [logs, sent] = await Promise.all([
+      db.from("work_logs").select("user_id, log_date").in("user_id", [...latest.keys()]).in("log_date", [...new Set([...latest.values()].map((d) => d.duty_date))]).neq("status", "rejected").limit(5000),
+      db.from("access_audit").select("target, detail").eq("action", "chat_reminder_sent").like("detail", "Forgot to go off duty%").limit(5000),
+    ]);
+    if (logs.error || sent.error) throw new Error(WRITE_FAILED);
+    const logged = new Set(logs.data.map((l) => `${l.user_id}|${l.log_date}`));
+    const told = new Set(sent.data.map((a) => `${a.target}|${a.detail}`));
+    const byId = new Map(people.map((p) => [p.id, p]));
+    const link = portalUrl("/timesheet/dashboard");
+    for (const d of latest.values()) {
+      const p = byId.get(d.user_id);
+      if (!p || p.role === "viewer" || !p.optedIn || !p.email || logged.has(`${d.user_id}|${d.duty_date}`)) continue;
+      const kind = `Forgot to go off duty (${d.id})`;
+      if (told.has(`${p.email}|${kind}`)) continue;
+      result.considered++;
+      const dateLabel = formatYmd(d.duty_date, { weekday: "short", day: "numeric", month: "short" });
+      const start = formatTime(d.started_at);
+      const card: ChatCard = {
+        title: "You didn't go off duty",
+        subtitle: p.fullName,
+        mention: chatIds.get(p.id),
+        fact: { label: "Duty started", value: `<b>${dateLabel}</b> at ${start}`, icon: "CLOCK" },
+        text: forgotDutyText(p.name, dateLabel, start),
+        link: link ? { url: link, label: "Add time log" } : undefined,
+      };
+      if (await deliver(db, p, kind, card, null)) result.sent++;
       else result.failed++;
     }
     return result;

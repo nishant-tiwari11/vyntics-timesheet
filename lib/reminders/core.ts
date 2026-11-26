@@ -99,6 +99,11 @@ export function weekSummaryText(name: string, hours: number, target: number): st
   return `Hi ${name}, your week: ${hoursText(hours)} logged of ${hoursText(target)} (${pct}%). ${tail}`;
 }
 
+/** The line sent to someone who went on duty and never went off: "Hi Asha, you went on duty at 09:30 on Wed 25 Nov and did not go off duty..." */
+export function forgotDutyText(name: string, dateLabel: string, startTime: string): string {
+  return `Hi ${name}, you went on duty at ${startTime} on ${dateLabel} and did not go off duty, so it was closed at midnight. Please add your time log for that day with the time you actually finished.`;
+}
+
 /** The approvals line for a manager or admin. */
 export function approvalsText(name: string, n: { requests: number; logs: number; compOff: number }): string {
   const parts = [
