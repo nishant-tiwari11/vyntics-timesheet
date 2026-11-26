@@ -5,17 +5,33 @@ import { Building2, Home, Power } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { formatTime } from "@/lib/timesheet/dates";
+import { formatTime, formatYmd, todayInOffice } from "@/lib/timesheet/dates";
 import { LOCATION_LABEL, durationText, type DutyLocation } from "@/lib/timesheet/dutyTypes";
 import { refreshShell, useShellData } from "./NavCounts";
 import { startDutyAction, stopDutyAction } from "./dutyActions";
+import { LazyWorkLogForm } from "../(portal)/dashboard/LazyForms";
+import { Modal } from "../(portal)/dashboard/LogDialog";
 
 // On duty / Off duty, in the top bar. Going on duty asks where you are working from (the office or home); going off duty ends the
 // stretch. The start and stop times are kept, so the day's duty hours are known (the admin sees them next to the timesheet).
+// "You forgot to go off duty": which forgotten day this browser has already been told about, so the reminder isn't shown again.
+const ACK_KEY = "ts-duty-forgot-ack";
+const readAck = () => {
+  try {
+    return window.localStorage.getItem(ACK_KEY);
+  } catch {
+    return null;
+  }
+};
+
 export function DutyControl() {
   const { data, update } = useShellData();
   const duty = data?.duty ?? null;
   const [open, setOpen] = useState(false);
+  // The reminder for a day they forgot to go off duty: shown to that person only (it comes from their own duty record).
+  const [ack, setAck] = useState<string | null>(readAck);
+  const [later, setLater] = useState(false);
+  const [filling, setFilling] = useState(false);
   const [pending, startTransition] = useTransition();
   const [now, setNow] = useState(() => Date.now());
 
@@ -58,8 +74,52 @@ export function DutyControl() {
     });
   }
 
+  const forgotten = duty.forgotten ?? null;
+  const remind = !!forgotten && ack !== forgotten.id && !later && !filling;
+  function acknowledge() {
+    if (!forgotten) return;
+    setAck(forgotten.id);
+    try {
+      window.localStorage.setItem(ACK_KEY, forgotten.id);
+    } catch {
+      // Without storage the reminder simply shows again next time.
+    }
+  }
+
   return (
     <>
+      <Dialog open={remind} onOpenChange={(o) => !o && setLater(true)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>You forgot to go off duty</DialogTitle>
+            <DialogDescription>
+              {forgotten
+                ? `On ${formatYmd(forgotten.date, { weekday: "long", day: "numeric", month: "long" })} you went on duty at ${formatTime(forgotten.start)} (${LOCATION_LABEL[forgotten.location].toLowerCase()}) and did not go off duty, so it was closed at midnight. Please add your time log for that day with the time you actually finished.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setLater(true)}>
+              Remind me later
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                acknowledge();
+                setFilling(true);
+              }}
+            >
+              Add time log
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {filling && forgotten && (
+        <Modal title="Add time log" description={`For ${formatYmd(forgotten.date, { weekday: "long", day: "numeric", month: "long" })}. You went on duty at ${formatTime(forgotten.start)}; enter the time you finished.`} onClose={() => setFilling(false)}>
+          <LazyWorkLogForm today={todayInOffice()} prefill={{ date: forgotten.date, start: formatTime(forgotten.start), end: "", project: "", text: "" }} onSaved={() => setFilling(false)} />
+        </Modal>
+      )}
+
       <button
         type="button"
         onClick={() => setOpen(true)}

@@ -12,6 +12,11 @@ export type DutyState = {
   location: DutyLocation | null;
   /** Seconds of today's finished stretches. The stretch in progress is added by the browser so the clock keeps moving. */
   todaySeconds: number;
+  /**
+   * The most recent day in the last week when this person went on duty and never went off, so the system closed it at midnight.
+   * Used to remind that person (only) to add their time log.
+   */
+  forgotten?: { id: string; date: string; start: string; location: DutyLocation } | null;
 };
 
 export type DutySession = { start: string; end: string | null; location: DutyLocation; /** Closed by the system because they forgot to go off duty. */ auto: boolean; seconds: number };

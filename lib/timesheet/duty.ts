@@ -23,7 +23,7 @@ export async function getMyDuty(): Promise<DutyState | null> {
     .from("duty_logs" as never)
     .select("id, duty_date, started_at, ended_at, location, auto_closed")
     .eq("user_id", me.id)
-    .or(`duty_date.eq.${today},ended_at.is.null`)
+    .or(`duty_date.eq.${today},ended_at.is.null,and(auto_closed.eq.true,duty_date.gte.${addDays(today, -7)})`)
     .order("started_at", { ascending: true })
     .limit(50);
   if (error) {
@@ -33,12 +33,15 @@ export async function getMyDuty(): Promise<DutyState | null> {
   }
   const rows = (data ?? []) as unknown as Row[];
   const open = rows.find((r) => r.ended_at === null && r.duty_date === today) ?? null;
+  // A day they went on duty and never went off: still open from an earlier day, or closed by the system at midnight.
+  const forgot = rows.filter((r) => r.duty_date < today && (r.ended_at === null || r.auto_closed)).sort((a, b) => b.started_at.localeCompare(a.started_at))[0] ?? null;
   return {
     onDuty: !!open,
     since: open?.started_at ?? null,
     location: open ? asLocation(open.location) : null,
     // Today's finished stretches. The open one is added live by the browser so the clock keeps moving.
     todaySeconds: rows.filter((r) => r.duty_date === today && r.ended_at !== null).reduce((n, r) => n + seconds(r.started_at, r.ended_at), 0),
+    forgotten: forgot ? { id: forgot.id, date: forgot.duty_date, start: forgot.started_at, location: asLocation(forgot.location) } : null,
   };
 }
 
