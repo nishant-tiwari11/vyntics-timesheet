@@ -18,7 +18,7 @@ import {
   type Person,
 } from "./core";
 
-export type Job = "reminder" | "summary" | "approvals" | "duty";
+export type Job = "reminder" | "summary" | "approvals" | "duty" | "threads";
 export type RunResult = { job: Job; skipped?: string; considered: number; sent: number; failed: number };
 
 type Db = ReturnType<typeof createServiceClient>;
@@ -163,6 +163,26 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
   const db = createServiceClient();
   const settings = await loadSettings(db);
   if (!settings.enabled) return skip("Reminders are turned off.");
+
+  // Start a personal thread for every employee and manager who doesn't have one yet. Safe to run again: it only adds the missing ones.
+  if (job === "threads") {
+    const [everyone, threads] = await Promise.all([loadPeople(db), loadThreads(db)]);
+    const missing = everyone.filter((p) => (p.role === "employee" || p.role === "manager") && p.optedIn && p.email && !threads.has(p.email));
+    result.considered = missing.length;
+    for (const p of missing) {
+      try {
+        await sendChatText(`${p.name.toUpperCase()} - TIMESHEET UPDATES`, threadOf(p.id));
+        await new Promise((r) => setTimeout(r, 1100));
+        await audit(db, "chat_reminder_sent", p.email, THREAD_NOTE);
+        result.sent++;
+      } catch (e) {
+        if (!(e instanceof ChatError)) logError("reminders: thread", e);
+        await audit(db, "chat_reminder_failed", p.email, `${THREAD_NOTE}: ${e instanceof ChatError ? e.message : "Unexpected error."}`);
+        result.failed++;
+      }
+    }
+    return result;
+  }
 
   const today = todayInOffice();
   const day = await dayContext(db, today);

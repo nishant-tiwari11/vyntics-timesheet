@@ -8,12 +8,13 @@ import { logError } from "@/lib/timesheet/log";
 //   /api/cron/timesheet-reminder?job=summary      the Friday week summary
 //   /api/cron/timesheet-reminder?job=approvals    the pending-approvals message to managers and admins
 //   /api/cron/timesheet-reminder?job=duty         tells each person who forgot to go off duty (once per forgotten day)
+//   /api/cron/timesheet-reminder?job=threads      starts a personal thread for every employee and manager who has none (run by hand when someone joins)
 //   /api/cron/timesheet-reminder?job=all          the daily reminder, the Friday summary and the forgotten-duty message, one after another (what vercel.json uses: a free Hobby project has one daily slot)
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 const HEADERS = { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" };
-const JOBS: Job[] = ["reminder", "summary", "approvals", "duty"];
+const JOBS: Job[] = ["reminder", "summary", "approvals", "duty", "threads"];
 const ALL: Job[] = ["reminder", "summary", "duty"];
 
 const digest = (v: string) => createHash("sha256").update(v).digest();
