@@ -1,11 +1,12 @@
 import "server-only";
-import { ChatError, chatConfigured, sendChat, type ChatCard } from "@/lib/google-chat";
+import { ChatError, chatConfigured, sendChat, sendChatText, type ChatCard } from "@/lib/google-chat";
 import { createServiceClient } from "@/lib/supabase/admin";
-import { addDays, mondayOf, todayInOffice } from "@/lib/timesheet/dates";
+import { addDays, formatTime, formatYmd, mondayOf, todayInOffice } from "@/lib/timesheet/dates";
 import { logError } from "@/lib/timesheet/log";
 import {
   DEFAULT_CHAT_SETTINGS,
   approvalsText,
+  forgotDutyText,
   hoursText,
   nowInOffice,
   pickReminderRecipients,
@@ -17,7 +18,7 @@ import {
   type Person,
 } from "./core";
 
-export type Job = "reminder" | "summary" | "approvals";
+export type Job = "reminder" | "summary" | "approvals" | "duty" | "threads";
 export type RunResult = { job: Job; skipped?: string; considered: number; sent: number; failed: number };
 
 type Db = ReturnType<typeof createServiceClient>;
@@ -51,24 +52,25 @@ async function loadSettings(db: Db): Promise<ChatSettings> {
 
 type Row = Person & { fullName: string; managerId: string | null; reminded: string | null; summarised: string | null; digested: string | null };
 
-/** Each person's Google account ID, which is also their Google Chat user ID. Read from the sign-in records; people who signed in another way simply have none. */
-async function googleIds(db: Db): Promise<Map<string, string>> {
-  const ids = new Map<string, string>();
+/** The name of a person's own thread in the Chat space: all their reminders go into it. */
+const threadOf = (userId: string) => `timesheet-${userId}`;
+
+/**
+ * One person's Google account ID, which is also their Google Chat user ID (read from their sign-in record; people who signed in
+ * another way simply have none). Each person is looked up on their own: listing everyone at once fails for the whole list if a
+ * single disabled account can't be read, and then nobody is tagged. Without an ID the card still goes out, naming the person.
+ */
+async function googleId(db: Db, userId: string): Promise<string | undefined> {
   try {
-    for (let page = 1; page <= 20; page++) {
-      const { data, error } = await db.auth.admin.listUsers({ page, perPage: 1000 });
-      if (error) throw error;
-      for (const u of data.users) {
-        const g = u.identities?.find((i) => i.provider === "google");
-        const sub = String((g?.identity_data as { sub?: string } | undefined)?.sub ?? g?.id ?? "");
-        if (/^\d{5,30}$/.test(sub)) ids.set(u.id, sub);
-      }
-      if (data.users.length < 1000) break;
-    }
+    const { data, error } = await db.auth.admin.getUserById(userId);
+    if (error) throw error;
+    const g = data.user?.identities?.find((i) => i.provider === "google");
+    const sub = String((g?.identity_data as { sub?: string } | undefined)?.sub ?? g?.id ?? "");
+    return /^\d{5,30}$/.test(sub) ? sub : undefined;
   } catch (e) {
-    logError("reminders: google ids", e); // without them the cards still go out, naming the person instead of tagging them
+    logError("reminders: google id", e);
+    return undefined;
   }
-  return ids;
 }
 
 async function loadPeople(db: Db): Promise<Row[]> {
@@ -111,13 +113,39 @@ async function stamp(db: Db, id: string, column: "last_reminded_at" | "last_summ
   if (error) logError("reminders: stamp", error);
 }
 
-/** Send one message; a failure is recorded and never stops the others. */
-async function deliver(db: Db, who: { id: string; email: string }, kind: string, card: ChatCard, column: "last_reminded_at" | "last_summary_at" | "last_digest_at") {
+/** Who already has a personal thread in the space (a "Thread started" note in the audit log), so the heading is posted only once. */
+const THREAD_NOTE = "Thread started";
+const WELCOME_NOTE = "Thread welcome";
+async function loadMarks(db: Db, note: string): Promise<Set<string>> {
+  const { data, error } = await db.from("access_audit").select("target").eq("action", "chat_reminder_sent").eq("detail", note).limit(5000);
+  if (error) throw new Error(WRITE_FAILED);
+  return new Set(data.map((r) => String(r.target)));
+}
+
+/**
+ * Send one message into the person's own thread; a failure is recorded and never stops the others. The first time someone gets a
+ * message, their thread is started with a heading ("VIPUL - TIMESHEET UPDATES") and their message goes in as a reply to it.
+ * `column` is the profile stamp that says "sent today"; null for a message that must not use up another message's slot.
+ */
+async function deliver(
+  db: Db,
+  threads: Set<string>,
+  who: { id: string; email: string; name: string },
+  kind: string,
+  card: ChatCard,
+  column: "last_reminded_at" | "last_summary_at" | "last_digest_at" | null,
+) {
   try {
+    if (card.threadKey && !threads.has(who.email)) {
+      await sendChatText(`${who.name.toUpperCase()} - TIMESHEET UPDATES`, card.threadKey);
+      await new Promise((r) => setTimeout(r, 1100));
+      await audit(db, "chat_reminder_sent", who.email, THREAD_NOTE);
+      threads.add(who.email);
+    }
     await sendChat(card);
     // Google Chat allows about one message a second into a space.
     await new Promise((r) => setTimeout(r, 1100));
-    await stamp(db, who.id, column);
+    if (column) await stamp(db, who.id, column);
     await audit(db, "chat_reminder_sent", who.email, kind);
     return true;
   } catch (e) {
@@ -128,7 +156,8 @@ async function deliver(db: Db, who: { id: string; email: string }, kind: string,
   }
 }
 
-export async function runJob(job: Job, now: Date = new Date()): Promise<RunResult> {
+/** `onlyEmail` (the threads job only): start the thread for that one person. */
+export async function runJob(job: Job, now: Date = new Date(), onlyEmail?: string): Promise<RunResult> {
   const result: RunResult = { job, considered: 0, sent: 0, failed: 0 };
   const skip = (why: string): RunResult => ({ ...result, skipped: why });
   if (!chatConfigured()) return skip("Google Chat isn't set up (GOOGLE_CHAT_WEBHOOK_URL).");
@@ -137,11 +166,48 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
   const settings = await loadSettings(db);
   if (!settings.enabled) return skip("Reminders are turned off.");
 
+  // Start a personal thread for every employee and manager who doesn't have one yet. Safe to run again: it only adds the missing ones.
+  if (job === "threads") {
+    const [everyone, threads, welcomed] = await Promise.all([loadPeople(db), loadMarks(db, THREAD_NOTE), loadMarks(db, WELCOME_NOTE)]);
+    const link = portalUrl("/timesheet/dashboard");
+    const missing = everyone.filter((p) => p.role !== "viewer" && p.optedIn && p.email && (!onlyEmail || p.email === onlyEmail.trim().toLowerCase()) && (!threads.has(p.email) || !welcomed.has(p.email)));
+    result.considered = missing.length;
+    for (const p of missing) {
+      try {
+        if (!threads.has(p.email)) {
+          await sendChatText(`${p.name.toUpperCase()} - TIMESHEET UPDATES`, threadOf(p.id));
+          await new Promise((r) => setTimeout(r, 1100));
+          await audit(db, "chat_reminder_sent", p.email, THREAD_NOTE);
+          threads.add(p.email);
+        }
+        // A first reply, tagged, so the thread shows "1 reply", is easy to open, and the person knows it is theirs.
+        if (!welcomed.has(p.email)) {
+          await sendChat({
+            title: "Your timesheet thread",
+            subtitle: p.fullName,
+            mention: await googleId(db, p.id),
+            threadKey: threadOf(p.id),
+            text: `Hi ${p.name}, this is your personal timesheet thread. Your reminders will appear here, and you can reply here too.`,
+            link: link ? { url: link, label: "Open my timesheet" } : undefined,
+          });
+          await new Promise((r) => setTimeout(r, 1100));
+          await audit(db, "chat_reminder_sent", p.email, WELCOME_NOTE);
+        }
+        result.sent++;
+      } catch (e) {
+        if (!(e instanceof ChatError)) logError("reminders: thread", e);
+        await audit(db, "chat_reminder_failed", p.email, `${THREAD_NOTE}: ${e instanceof ChatError ? e.message : "Unexpected error."}`);
+        result.failed++;
+      }
+    }
+    return result;
+  }
+
   const today = todayInOffice();
   const day = await dayContext(db, today);
   if (day.isOff) return skip("Today is a weekly off or a holiday.");
   const people = await loadPeople(db);
-  const chatIds = job === "approvals" ? new Map<string, string>() : await googleIds(db);
+  const threads = await loadMarks(db, THREAD_NOTE);
 
   if (job === "reminder") {
     if (!timeReached(nowInOffice(now), settings.reminderTime)) return skip(`Before the reminder time (${settings.reminderTime}).`);
@@ -166,12 +232,13 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
       const card: ChatCard = {
         title: "Timesheet reminder",
         subtitle: (person as Row).fullName,
-        mention: chatIds.get(person.id),
+        mention: await googleId(db, person.id),
+        threadKey: threadOf(person.id),
         fact: { label: "Logged today", value: `<b>${hoursText(hours)}</b> of ${hoursText(day.target)}`, icon: "CLOCK" },
         text,
         link: link ? { url: link, label: "Add time log" } : undefined,
       };
-      if (await deliver(db, person, `Daily reminder (${Math.round(hours * 100) / 100}h logged)`, card, "last_reminded_at")) result.sent++;
+      if (await deliver(db, threads, person, `Daily reminder (${Math.round(hours * 100) / 100}h logged)`, card, "last_reminded_at")) result.sent++;
       else result.failed++;
     }
     return result;
@@ -194,12 +261,62 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
       const card: ChatCard = {
         title: "Your week in review",
         subtitle: p.fullName,
-        mention: chatIds.get(p.id),
+        mention: await googleId(db, p.id),
+        threadKey: threadOf(p.id),
         fact: { label: "Logged this week", value: `<b>${hoursText(hours)}</b> of ${hoursText(weekTarget)}`, icon: "STAR" },
         text: weekSummaryText(p.name, hours, weekTarget),
         link: link ? { url: link, label: "Open my time logs" } : undefined,
       };
-      if (await deliver(db, p, `Weekly summary (${hours}h of ${weekTarget}h)`, card, "last_summary_at")) result.sent++;
+      if (await deliver(db, threads, p, `Weekly summary (${hours}h of ${weekTarget}h)`, card, "last_summary_at")) result.sent++;
+      else result.failed++;
+    }
+    return result;
+  }
+
+  if (job === "duty") {
+    // People who went on duty and never went off, in the last three days, who haven't logged that day. One message per forgotten
+    // day, however many times the job runs: the message is recorded in the audit log and looked up before sending.
+    const duty = await db
+      .from("duty_logs" as never)
+      .select("id, user_id, duty_date, started_at")
+      .gte("duty_date", addDays(today, -3))
+      .lt("duty_date", today)
+      .or("ended_at.is.null,auto_closed.eq.true")
+      .order("started_at", { ascending: false })
+      .limit(500);
+    if (duty.error) throw new Error(WRITE_FAILED);
+    type Forgot = { id: string; user_id: string; duty_date: string; started_at: string };
+    const latest = new Map<string, Forgot>();
+    for (const d of (duty.data ?? []) as unknown as Forgot[]) if (!latest.has(d.user_id)) latest.set(d.user_id, d);
+    if (latest.size === 0) return result;
+
+    const [logs, sent] = await Promise.all([
+      db.from("work_logs").select("user_id, log_date").in("user_id", [...latest.keys()]).in("log_date", [...new Set([...latest.values()].map((d) => d.duty_date))]).neq("status", "rejected").limit(5000),
+      db.from("access_audit").select("target, detail").eq("action", "chat_reminder_sent").like("detail", "Forgot to go off duty%").limit(5000),
+    ]);
+    if (logs.error || sent.error) throw new Error(WRITE_FAILED);
+    const logged = new Set(logs.data.map((l) => `${l.user_id}|${l.log_date}`));
+    const told = new Set(sent.data.map((a) => `${a.target}|${a.detail}`));
+    const byId = new Map(people.map((p) => [p.id, p]));
+    const link = portalUrl("/timesheet/dashboard");
+    for (const d of latest.values()) {
+      const p = byId.get(d.user_id);
+      if (!p || p.role === "viewer" || !p.optedIn || !p.email || logged.has(`${d.user_id}|${d.duty_date}`)) continue;
+      const kind = `Forgot to go off duty (${d.id})`;
+      if (told.has(`${p.email}|${kind}`)) continue;
+      result.considered++;
+      const dateLabel = formatYmd(d.duty_date, { weekday: "short", day: "numeric", month: "short" });
+      const start = formatTime(d.started_at);
+      const card: ChatCard = {
+        title: "You didn't go off duty",
+        subtitle: p.fullName,
+        mention: await googleId(db, p.id),
+        threadKey: threadOf(p.id),
+        fact: { label: "Duty started", value: `<b>${dateLabel}</b> at ${start}`, icon: "CLOCK" },
+        text: forgotDutyText(p.name, dateLabel, start),
+        link: link ? { url: link, label: "Add time log" } : undefined,
+      };
+      if (await deliver(db, threads, p, kind, card, null)) result.sent++;
       else result.failed++;
     }
     return result;
@@ -226,11 +343,12 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
     const card: ChatCard = {
       title: "Approvals waiting",
       subtitle: p.fullName,
+      threadKey: threadOf(p.id),
       fact: { label: "Waiting for your decision", value: `<b>${total}</b> item${total === 1 ? "" : "s"}`, icon: "DESCRIPTION" },
       text: approvalsText(p.name, counts),
       link: link ? { url: link, label: "Review" } : undefined,
     };
-    if (await deliver(db, p, `Pending approvals (${total})`, card, "last_digest_at")) result.sent++;
+    if (await deliver(db, threads, p, `Pending approvals (${total})`, card, "last_digest_at")) result.sent++;
     else result.failed++;
   }
   return result;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   approvalsText,
+  forgotDutyText,
   officeDateOf,
   pickReminderRecipients,
   renderTemplate,
@@ -62,6 +63,12 @@ describe("messages", () => {
   it("summarises the week", () => {
     expect(weekSummaryText("Asha", 36, 40)).toContain("36h logged of 40h (90%)");
     expect(weekSummaryText("Asha", 40, 40)).toContain("Target reached");
+  });
+  it("tells someone who forgot to go off duty which day and what to do", () => {
+    const t = forgotDutyText("Asha", "Wed, 25 Nov", "09:30");
+    expect(t).toContain("Hi Asha");
+    expect(t).toContain("09:30 on Wed, 25 Nov");
+    expect(t).toContain("add your time log");
   });
   it("lists what is waiting", () => {
     expect(approvalsText("Ravi", { requests: 2, logs: 1, compOff: 0 })).toBe("Hi Ravi, you have 2 leave or WFH requests and 1 time log waiting for your approval.");

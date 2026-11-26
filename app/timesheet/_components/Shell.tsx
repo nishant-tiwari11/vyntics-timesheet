@@ -1,7 +1,6 @@
 import { cookies } from "next/headers";
 import { ROLE_LABEL, type Role } from "@/lib/access/config";
 import { DutyControl } from "./DutyControl";
-import { LazyAdminTopNav } from "./LazyAdminTopNav";
 import { CommandPalette } from "./CommandPalette";
 import { MobileNav } from "./MobileNav";
 import { Suspense } from "react";
@@ -39,11 +38,10 @@ export default async function Shell({
         <NavProgress />
       </Suspense>
       <PrefetchWarmer role={role} />
-      <div className="ts-shell" data-topnav={role === "admin" && collapsed}>
+      <div className="ts-shell">
         <Sidebar user={user} initialCollapsed={collapsed} />
 
         <div className="ts-content">
-          {role === "admin" && <LazyAdminTopNav />}
           <header className="ts-topbar">
             <MobileNav user={user} />
             <PageTitle />

@@ -7,13 +7,15 @@ import { logError } from "@/lib/timesheet/log";
 //   /api/cron/timesheet-reminder                  the daily "you have logged less than the target" message
 //   /api/cron/timesheet-reminder?job=summary      the Friday week summary
 //   /api/cron/timesheet-reminder?job=approvals    the pending-approvals message to managers and admins
-//   /api/cron/timesheet-reminder?job=all          the daily reminder and the Friday summary, one after another (what vercel.json uses: a free Hobby project has one daily slot)
+//   /api/cron/timesheet-reminder?job=duty         tells each person who forgot to go off duty (once per forgotten day)
+//   /api/cron/timesheet-reminder?job=threads      starts a personal thread for everyone who has none (run by hand; add &email=name@company.com for one person)
+//   /api/cron/timesheet-reminder?job=all          the daily reminder, the Friday summary and the forgotten-duty message, one after another (what vercel.json uses: a free Hobby project has one daily slot)
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 const HEADERS = { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" };
-const JOBS: Job[] = ["reminder", "summary", "approvals"];
-const ALL: Job[] = ["reminder", "summary"];
+const JOBS: Job[] = ["reminder", "summary", "approvals", "duty", "threads"];
+const ALL: Job[] = ["reminder", "summary", "duty"];
 
 const digest = (v: string) => createHash("sha256").update(v).digest();
 
@@ -49,7 +51,7 @@ export async function GET(req: NextRequest) {
       }
       return NextResponse.json({ ok: true, results }, { headers: HEADERS });
     }
-    return NextResponse.json({ ok: true, ...(await runJob(job)) }, { headers: HEADERS });
+    return NextResponse.json({ ok: true, ...(await runJob(job, new Date(), req.nextUrl.searchParams.get("email") ?? undefined)) }, { headers: HEADERS });
   } catch (e) {
     logError(`cron ${job}`, e);
     return NextResponse.json({ ok: false, error: "The job failed. See the server log." }, { status: 500, headers: HEADERS });
