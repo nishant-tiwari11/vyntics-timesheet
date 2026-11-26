@@ -9,7 +9,6 @@ import logo from "../login/vyntics-logo.png";
 import NavLinks from "./NavLinks";
 import { UserAvatar } from "./UserAvatar";
 import { clearLocalCache } from "@/lib/client/localCache";
-import { setAdminTopNav } from "./topNavState";
 
 export type SideUser = { id: string; name: string; email: string; roleLabel: string; isAdmin: boolean; isManager: boolean };
 
@@ -55,22 +54,20 @@ export function Sidebar({ user, initialCollapsed }: { user: SideUser; initialCol
   const [collapsed, setCollapsed] = useState(initialCollapsed);
 
   function toggle() {
-    // For an admin, folding the sidebar moves the menu to the top bar instead of shrinking it to icons.
-    if (user.isAdmin) return setAdminTopNav(true);
     const next = !collapsed;
     setCollapsed(next);
     document.cookie = `${COOKIE}=${next ? "collapsed" : "open"}; path=/; max-age=31536000; SameSite=Lax`;
   }
 
   return (
-    <aside className="ts-side" data-collapsed={user.isAdmin ? false : collapsed} aria-label="Sidebar">
+    <aside className="ts-side" data-collapsed={collapsed} aria-label="Sidebar">
       <button
         type="button"
         className="ts-side-toggle"
         onClick={toggle}
-        aria-pressed={user.isAdmin ? false : collapsed}
-        aria-label={user.isAdmin ? "Move the menu to the top bar" : collapsed ? "Expand the menu" : "Collapse the menu to icons"}
-        title={user.isAdmin ? "Move the menu to the top bar" : collapsed ? "Expand the menu" : "Collapse the menu"}
+        aria-pressed={collapsed}
+        aria-label={collapsed ? "Expand the menu" : "Collapse the menu to icons"}
+        title={collapsed ? "Expand the menu" : "Collapse the menu"}
       >
         {collapsed ? <ChevronsRight className="size-4" aria-hidden="true" /> : <ChevronsLeft className="size-4" aria-hidden="true" />}
       </button>
