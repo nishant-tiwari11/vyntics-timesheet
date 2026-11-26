@@ -156,7 +156,8 @@ async function deliver(
   }
 }
 
-export async function runJob(job: Job, now: Date = new Date()): Promise<RunResult> {
+/** `onlyEmail` (the threads job only): start the thread for that one person. */
+export async function runJob(job: Job, now: Date = new Date(), onlyEmail?: string): Promise<RunResult> {
   const result: RunResult = { job, considered: 0, sent: 0, failed: 0 };
   const skip = (why: string): RunResult => ({ ...result, skipped: why });
   if (!chatConfigured()) return skip("Google Chat isn't set up (GOOGLE_CHAT_WEBHOOK_URL).");
@@ -169,7 +170,7 @@ export async function runJob(job: Job, now: Date = new Date()): Promise<RunResul
   if (job === "threads") {
     const [everyone, threads, welcomed] = await Promise.all([loadPeople(db), loadMarks(db, THREAD_NOTE), loadMarks(db, WELCOME_NOTE)]);
     const link = portalUrl("/timesheet/dashboard");
-    const missing = everyone.filter((p) => (p.role === "employee" || p.role === "manager") && p.optedIn && p.email && (!threads.has(p.email) || !welcomed.has(p.email)));
+    const missing = everyone.filter((p) => p.role !== "viewer" && p.optedIn && p.email && (!onlyEmail || p.email === onlyEmail.trim().toLowerCase()) && (!threads.has(p.email) || !welcomed.has(p.email)));
     result.considered = missing.length;
     for (const p of missing) {
       try {
