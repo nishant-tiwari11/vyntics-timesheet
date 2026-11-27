@@ -284,6 +284,22 @@
   padding: 24px 24px 56px;
 }
 
+/* A page that fills the whole content area (beside the side menu, under the top bar) and never scrolls itself: the project's ticket
+   dashboard. It lifts the usual width limit and padding, and is exactly as tall as what is left of the window. */
+.ts-main:has(.ts-fullbleed) {
+  max-width: none;
+  padding: 0;
+}
+.ts-page:has(> .ts-fullbleed) {
+  gap: 0;
+}
+.ts-fullbleed {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 60px);
+  overflow: hidden;
+}
+
 .ts-auth {
   display: grid;
   place-items: center;

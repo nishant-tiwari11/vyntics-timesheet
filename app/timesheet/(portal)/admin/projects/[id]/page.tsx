@@ -10,6 +10,12 @@ import { CATEGORY_LABEL } from "@/lib/timesheet/projectCategories";
 import { listProjectEntries } from "@/lib/timesheet/projectEntries";
 import { listProjects } from "@/lib/timesheet/projectList";
 import { UserAvatar } from "../../../../_components/UserAvatar";
+import { todayInOffice } from "@/lib/timesheet/dates";
+import { listBoard } from "@/lib/tickets/server";
+import type { BoardCard } from "@/lib/tickets/board";
+import { isOverdue } from "@/lib/tickets/model";
+import { Button } from "@/components/ui/button";
+import { Kanban } from "lucide-react";
 
 export const metadata = { title: "Project entries" };
 export const dynamic = "force-dynamic";
@@ -32,6 +38,17 @@ export default async function ProjectEntriesPage({ params }: { params: Promise<{
     error = e instanceof TimesheetError ? e.message : "Something went wrong. Please try again.";
   }
   const hours = data ? Math.round(data.people.reduce((n, p) => n + p.hours, 0) * 100) / 100 : 0;
+
+  // A few numbers about the project's tickets for the button. If tickets aren't set up yet (step 45), the rest of the page still works.
+  let tickets: BoardCard[] | null = null;
+  try {
+    tickets = await listBoard(project.name);
+  } catch (e) {
+    if (!(e instanceof TimesheetError)) logError("project tickets", e);
+  }
+  const today = todayInOffice();
+  const open = tickets?.filter((t) => t.status !== "resolved" && t.status !== "closed").length ?? 0;
+  const overdue = tickets?.filter((t) => isOverdue(t.dueOn, t.status, today)).length ?? 0;
 
   return (
     <div className="ts-page grid gap-5">
@@ -81,6 +98,22 @@ export default async function ProjectEntriesPage({ params }: { params: Promise<{
                   </li>
                 ))}
               </ul>
+            </section>
+          )}
+
+          {tickets && (
+            <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4" aria-label="Tickets for this project">
+              <div className="grid gap-0.5">
+                <h2 className="text-base font-semibold">Tickets</h2>
+                <p className="text-sm text-muted-foreground">
+                  {tickets.length === 0 ? "No tickets about this project yet." : `${tickets.length} ${tickets.length === 1 ? "ticket" : "tickets"} · ${open} open${overdue > 0 ? ` · ${overdue} overdue` : ""}`}
+                </p>
+              </div>
+              <Button asChild>
+                <Link href={`/timesheet/admin/projects/${project.id}/tickets`}>
+                  <Kanban aria-hidden="true" /> Open ticket dashboard
+                </Link>
+              </Button>
             </section>
           )}
 

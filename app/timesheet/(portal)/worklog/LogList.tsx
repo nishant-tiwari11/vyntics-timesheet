@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { formatInstantDate, formatYmd, isWeekend, addDays } from "@/lib/timesheet/dates";
 import { LOCKED_MESSAGE, isLocked } from "@/lib/timesheet/rules";
 import { AddLogButton } from "../dashboard/LogDialog";
+import { ticketsForLogs } from "@/lib/tickets/server";
 import { loadWorkLog } from "./data";
 import { LOCK_WARNING_DAYS, clock12, daysLeftToEdit, editHint, filterEntries, fmtDuration, groupByDay, paginate, type Entry } from "./model";
 import { RetryButton } from "./RetryButton";
@@ -49,7 +50,7 @@ function Row({
   today,
 }: {
   entry: Entry;
-  data: { me: { id: string; admin: boolean }; compOff: Record<string, { status: string; needsReapproval: boolean }>; off: Set<string> };
+  data: { me: { id: string; admin: boolean }; compOff: Record<string, { status: string; needsReapproval: boolean }>; off: Set<string>; tickets: Map<string, { id: string; number: number; status: string }> };
   today: string;
 }) {
   const { me } = data;
@@ -118,6 +119,7 @@ function Row({
           canChange={canChange}
           canFix={own && entry.status === "rejected" && inWindow}
           lockedReason={lockedReason}
+          ticket={own ? (data.tickets.get(entry.id) ?? null) : undefined}
         />
       </div>
     </div>
@@ -175,6 +177,8 @@ export async function LogList({ query }: { query: WorkQuery }) {
 
   const { entries, today, me, period, offDays, compOff, truncated } = res.data;
   const filtered = filterEntries(entries, query);
+  // Tickets raised against your own entries (none before step 45), for the "Raise issue" / "View ticket" action.
+  const tickets = await ticketsForLogs(entries.filter((e) => e.userId === me.id).map((e) => e.id));
   const filtersOn = hasFilters(query);
   const mineDates = new Set(entries.filter((e) => e.userId === me.id).map((e) => e.date));
   const leave = new Set(res.data.leaveDays);
@@ -286,7 +290,7 @@ export async function LogList({ query }: { query: WorkQuery }) {
                 )}
               </div>
               {g.shown.map((e) => (
-                <Row key={e.id} entry={e} data={{ me, compOff, off }} today={today} />
+                <Row key={e.id} entry={e} data={{ me, compOff, off, tickets }} today={today} />
               ))}
             </div>
           );

@@ -1,6 +1,6 @@
 "use client";
 
-import Link, { useLinkStatus } from "next/link";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Fragment, Suspense, useRef } from "react";
 import { useNavCounts } from "./NavCounts";
@@ -105,6 +105,12 @@ export const ICONS = {
       <circle cx="9" cy="17" r="2" />
     </>
   ),
+  tickets: (
+    <>
+      <path d="M3 9a2 2 0 0 0 0 6v3a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-3a2 2 0 0 1 0-6V6a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1z" />
+      <path d="M13 5v2M13 11v2M13 17v2" />
+    </>
+  ),
   admin: (
     <>
       <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" />
@@ -137,6 +143,15 @@ const LINKS: NavLink[] = [
   { href: "/timesheet/expenses", label: "Expenses", icon: "expenses" },
   { href: "/timesheet/salary", label: "My Salary", icon: "salary" },
 ];
+// Ticket Management: raise a problem or request, and follow it until it is resolved. "Raise Ticket" opens the list with the drawer open.
+const TICKET_GROUP = "Ticket Management";
+const TICKET_LINKS: NavLink[] = [
+  { href: "/timesheet/tickets/new", label: "Raise Ticket", icon: "tickets", group: TICKET_GROUP, pill: false },
+  { href: "/timesheet/tickets", label: "My Tickets", icon: "tickets", group: TICKET_GROUP, pill: false, exact: true },
+  { href: "/timesheet/tickets/assigned", label: "Assigned to Me", icon: "tickets", group: TICKET_GROUP, pill: false },
+];
+// Managers and admins also see every ticket they are allowed to (the database decides which).
+const TICKET_ALL_LINK: NavLink = { href: "/timesheet/tickets/all", label: "All Tickets", icon: "tickets", group: TICKET_GROUP, pill: false };
 const TEAM_LINK: NavLink = { href: "/timesheet/team", label: "Team", icon: "team", exact: true };
 // A manager decides leave, work from home and comp-off for the people who report to them.
 const TEAM_APPROVALS_LINK: NavLink = { href: "/timesheet/team/approvals", label: "Team approvals", icon: "approvals" };
@@ -164,6 +179,10 @@ const ADMIN_MENU: NavLink[] = [
 ];
 
 export function titleFor(pathname: string): string {
+  if (pathname.startsWith("/timesheet/tickets/new")) return "Raise ticket";
+  if (pathname.startsWith("/timesheet/tickets/assigned")) return "Assigned to me";
+  if (pathname.startsWith("/timesheet/tickets/all")) return "All tickets";
+  if (pathname.startsWith("/timesheet/tickets")) return "My tickets";
   if (pathname.startsWith("/timesheet/leave")) return "Leave & WFH";
   if (pathname.startsWith("/timesheet/worklog")) return "Work log";
   if (pathname.startsWith("/timesheet/salary")) return "My Salary";
@@ -195,7 +214,7 @@ export function PageTitle() {
 }
 
 export function menuFor(role: string): NavLink[] {
-  return role === "admin" ? ADMIN_MENU : role === "manager" ? [...LINKS, TEAM_LINK, TEAM_APPROVALS_LINK] : LINKS;
+  return role === "admin" ? ADMIN_MENU : role === "manager" ? [...LINKS, TEAM_LINK, TEAM_APPROVALS_LINK, ...TICKET_LINKS, TICKET_ALL_LINK] : [...LINKS, ...TICKET_LINKS];
 }
 
 /** The menu items this role can see, in order. The command palette uses the same list. */
@@ -233,12 +252,6 @@ export default function NavLinks({ isAdmin, isManager = false, onNavigate }: { i
   );
 }
 
-// A small ring beside the label while the page behind this link is loading, so the click is acknowledged at once.
-function LinkPending() {
-  const { pending } = useLinkStatus();
-  return pending ? <span aria-hidden="true" className="ml-auto size-3.5 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent opacity-60" /> : null;
-}
-
 function NavWithTab(props: { isAdmin: boolean; isManager: boolean; onNavigate?: () => void }) {
   return <NavList {...props} tab={useSearchParams().get("tab")} />;
 }
@@ -270,7 +283,6 @@ function NavList({ isAdmin, isManager, tab, onNavigate }: { isAdmin: boolean; is
               {ICONS[l.icon]}
             </svg>
             <span className="ts-nav-label">{l.label}</span>
-            <LinkPending />
             {n > 0 && (
               <span className="ts-nav-badge">
                 <span aria-hidden="true">{n > 99 ? "99+" : n}</span>
