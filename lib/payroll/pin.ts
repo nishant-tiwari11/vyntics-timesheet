@@ -27,6 +27,12 @@ export async function salaryPinState(): Promise<PinState> {
   return s === "open" || s === "locked" ? s : "none";
 }
 
+/** How many digits the person's PIN has (4 to 6), or null when it isn't known yet (a PIN set before step 44, or step 44 not run). */
+export async function salaryPinLength(): Promise<number | null> {
+  const n = await call<number | null>("salary_pin_length").catch(() => null);
+  return typeof n === "number" && n >= 4 && n <= 6 ? n : null;
+}
+
 export const setSalaryPin = (pin: string, current?: string) => call<PinResult>("salary_pin_set", { p_pin: pin, p_current: current ?? null });
 export const checkSalaryPin = (pin: string) => call<PinResult>("salary_pin_check", { p_pin: pin });
 export const resetSalaryPin = (password: string, pin: string) => call<PinResult>("salary_pin_reset", { p_password: password, p_pin: pin });

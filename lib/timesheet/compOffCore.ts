@@ -47,6 +47,8 @@ export type CompOffBalance = {
   available: number;
   /** Part of `available` that expires within EXPIRING_SOON_DAYS. */
   expiringSoon: number;
+  /** The soonest date any unspent credit runs out, and how much runs out then. Null when nothing is left to spend. */
+  nextExpiry: { date: string; days: number } | null;
   /** Days of comp-off leave taken that no credit covers yet: what the person owes, to be earned back by working a weekend or holiday. */
   shortfall: number;
   /** What the person has right now: available credit, or minus what they owe. Can be negative. */
@@ -105,12 +107,18 @@ export function computeBalance(credits: CompOffCredit[], useDates: (string | { d
   let available = 0;
   let expired = 0;
   let expiringSoon = 0;
+  let nextExpiry: { date: string; days: number } | null = null;
   for (const c of sorted) {
     const rest = left.get(c.id) ?? 0;
     if (c.expiresOn < today) expired += rest;
     else {
       available += rest;
       if (c.expiresOn <= soon) expiringSoon += rest;
+      // `sorted` is oldest expiry first, so the first credit with something left sets the date; later ones with the same date add to it.
+      if (rest > 0) {
+        if (!nextExpiry) nextExpiry = { date: c.expiresOn, days: rest };
+        else if (nextExpiry.date === c.expiresOn) nextExpiry.days += rest;
+      }
     }
   }
   const earned = sorted.reduce((n, c) => n + c.credit, 0);
@@ -120,6 +128,7 @@ export function computeBalance(credits: CompOffCredit[], useDates: (string | { d
     expired: round(expired),
     available: round(available),
     expiringSoon: round(expiringSoon),
+    nextExpiry: nextExpiry ? { date: nextExpiry.date, days: round(nextExpiry.days) } : null,
     shortfall: round(shortfall),
     balance: round(available - shortfall),
   };

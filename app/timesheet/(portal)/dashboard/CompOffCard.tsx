@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { dayWord } from "@/lib/timesheet/leaveCore";
 import { myBalance } from "@/lib/timesheet/compOff";
 import { daysText, type CompOffBalance } from "@/lib/timesheet/compOffCore";
+import { formatYmd } from "@/lib/timesheet/dates";
 import { logError } from "@/lib/timesheet/log";
 import { SectionError } from "./sections";
 
@@ -44,8 +45,15 @@ export default async function CompOffCard({ legacy = false }: { /** The plain ca
             <dd className={`text-2xl font-semibold tabular-nums ${balance.balance < 0 ? "text-destructive" : ""}`}>{dayWord(balance.balance)}</dd>
           </div>
           <div>
-            <dt className="text-sm text-muted-foreground">Expiring in 14 days</dt>
-            <dd className="text-2xl font-semibold tabular-nums">{daysText(balance.expiringSoon)}</dd>
+            <dt className="text-sm text-muted-foreground">Next to expire</dt>
+            {balance.nextExpiry ? (
+              <>
+                <dd className="text-2xl font-semibold tabular-nums">{formatYmd(balance.nextExpiry.date, { day: "numeric", month: "short", year: "numeric" })}</dd>
+                <dd className="text-sm text-muted-foreground">{daysText(balance.nextExpiry.days)} expire{balance.nextExpiry.days === 1 ? "s" : ""} then</dd>
+              </>
+            ) : (
+              <dd className="text-2xl font-semibold">None</dd>
+            )}
           </div>
         </dl>
       )}
