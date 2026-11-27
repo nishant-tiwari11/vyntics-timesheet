@@ -41,6 +41,8 @@ export interface TeamLanyardRailLabels {
 
 export interface TeamLanyardRailProps extends React.ComponentProps<"section"> {
   items: LanyardMember[];
+  /** Keep this badge visible and centered while the others leave the stage. */
+  focusedIndex?: number | null;
   eyebrow?: string;
   heading?: string;
   /** Shown under the rail while nobody is selected. */
@@ -382,6 +384,7 @@ const BadgeFaces = React.memo(function BadgeFaces({ item, tone }: { item: Lanyar
 
 export function TeamLanyardRail({
   items,
+  focusedIndex = null,
   eyebrow,
   heading,
   caption,
@@ -421,8 +424,8 @@ export function TeamLanyardRail({
   const active = valid(activeProp !== undefined ? activeProp : innerActive);
   const flipped = valid(flippedProp !== undefined ? flippedProp : innerFlipped);
   const geo = React.useMemo(() => geometry(size.W, items), [size.W, items]);
-  const live = React.useRef({ active, flipped, size, geo, reduced, count, carouselIndex: 0, cyclic: false, activeControlled: false, flippedControlled: false });
-  live.current = { ...live.current, active, flipped, size, geo, reduced, count, activeControlled: activeProp !== undefined, flippedControlled: flippedProp !== undefined };
+  const live = React.useRef({ active, flipped, size, geo, reduced, count, focusedIndex, carouselIndex: 0, cyclic: false, activeControlled: false, flippedControlled: false });
+  live.current = { ...live.current, active, flipped, size, geo, reduced, count, focusedIndex, activeControlled: activeProp !== undefined, flippedControlled: flippedProp !== undefined };
   const callbacks = React.useRef({ onActiveChange, onFlippedChange });
   callbacks.current = { onActiveChange, onFlippedChange };
 
@@ -460,17 +463,21 @@ export function TeamLanyardRail({
     const stage = stageRef.current;
     if (!stage) return;
     const measure = (width: number) => {
-      const n = Math.max(1, live.current.count);
+      const n = focusedIndex === null ? Math.max(1, live.current.count) : 1;
       const railW = Math.min(MAX_W, (width - 40) / (n * RAIL_PITCH_MIN + 0.4));
       const carousel = railW < MIN_RAIL_W;
       const W = Math.round((carousel ? clamp(width * 0.3, 96, 118) : railW) * 4) / 4;
-      setSize((old) => (Math.abs(old.width - width) < 0.5 && old.carousel === carousel && old.W === W ? old : { width, W, carousel }));
+      setSize((old) => {
+        // A selected badge keeps its physical size as its container changes.
+        const next = focusedIndex === null ? { width, W, carousel } : { width, W: old.W, carousel: false };
+        return Math.abs(old.width - next.width) < 0.5 && old.carousel === next.carousel && old.W === next.W ? old : next;
+      });
     };
     measure(stage.clientWidth);
     const observer = new ResizeObserver((entries) => { const box = entries[0]; if (box) measure(box.contentRect.width); });
     observer.observe(stage);
     return () => observer.disconnect();
-  }, [count]);
+  }, [count, focusedIndex]);
 
   const paint = React.useCallback((i: number) => {
     const s = sim.current;
@@ -535,7 +542,7 @@ export function TeamLanyardRail({
           s.x[i] = (s.x[i] ?? 0) + (s.vx[i] ?? 0) * h;
         }
       }
-      if (!carousel && n > 0) {
+      if (!carousel && n > 0 && L.focusedIndex === null) {
         const [left, right] = stops(s, g.W, width, n);
         if (s.drag >= 0) {
           const d = s.drag;
@@ -588,6 +595,7 @@ export function TeamLanyardRail({
         }
       }
       for (let a = 0; a < n - 1; a++) {
+        if (L.focusedIndex !== null) break;
         const b = a + 1;
         if ((s.x[b] ?? 0) <= (s.x[a] ?? 0)) continue;
         const [aTop, aBottom, aArmTop, aArmBottom] = cardEdge(s, g, a, 1);
@@ -671,14 +679,20 @@ export function TeamLanyardRail({
     kick();
   }, [kick]);
 
+  const previousFocus = React.useRef<number | null>(null);
   React.useLayoutEffect(() => {
     if (!size.width) return;
     const s = sim.current;
     const L = live.current;
     const center = size.carousel ? (active ?? L.carouselIndex) : null;
-    const { xs, total } = layoutTargets(size.width, size.W, size.carousel, center, count);
+    const { xs, total } = focusedIndex === null
+      ? layoutTargets(size.width, size.W, size.carousel, center, count)
+      : { xs: items.map((_, i) => i === focusedIndex ? size.width / 2 : -size.W * 2), total: 0 };
     L.cyclic = total > 0;
     const fresh = s.x.length !== count || s.carousel !== size.carousel;
+    const focusChanged = previousFocus.current !== focusedIndex;
+    previousFocus.current = focusedIndex;
+    const snapPosition = fresh || focusChanged || focusedIndex !== null;
     s.carousel = size.carousel;
     for (let i = 0; i < count; i++) {
       const tx = (xs[i] ?? 0) + (size.carousel ? pointer.current.swipe : 0);
@@ -692,16 +706,16 @@ export function TeamLanyardRail({
       s.tz[i] = front ? 0 : REST_Z[i % REST_Z.length] ?? 0;
       s.tl[i] = front ? 1 : 0;
       s.tp[i] = flipped === i ? 1 : 0;
-      if (fresh) {
+      if (snapPosition) {
         s.x[i] = tx; s.vx[i] = 0; s.px[i] = 0; s.sw[i] = 0; s.vsw[i] = 0; s.beta[i] = 0; s.st[i] = 0; s.vst[i] = 0;
         s.ry[i] = s.tr[i] ?? 0; s.vry[i] = 0; s.rz[i] = s.tz[i] ?? 0; s.vrz[i] = 0;
         s.lift[i] = s.tl[i] ?? 0; s.vlift[i] = 0; s.pop[i] = s.tp[i] ?? 0; s.vpop[i] = 0;
       }
     }
     for (const key of ["x", "vx", "px", "tx", "sw", "vsw", "beta", "ry", "vry", "tr", "rz", "vrz", "tz", "lift", "vlift", "tl", "pop", "vpop", "tp", "st", "vst"] as const) s[key].length = count;
-    if (fresh) for (let i = 0; i < count; i++) paint(i);
+    if (snapPosition) for (let i = 0; i < count; i++) paint(i);
     kick();
-  }, [size, active, flipped, count, paint, kick]);
+  }, [size, active, flipped, count, paint, kick, focusedIndex, items]);
 
   React.useEffect(() => { if (reduced) kick(); }, [reduced, kick]);
 
@@ -972,6 +986,7 @@ export function TeamLanyardRail({
       <div
         ref={stageRef}
         data-stage
+        inert={focusedIndex !== null}
         role="group"
         aria-label={heading ?? "Team"}
         aria-roledescription="lanyard rail"
@@ -1013,7 +1028,9 @@ export function TeamLanyardRail({
               key={item.id}
               ref={(node) => { slots.current[i] = node; }}
               data-lanyard={i}
-              className={`pointer-events-none absolute left-0 top-0 ${tone}`}
+              aria-hidden={focusedIndex !== null && focusedIndex !== i}
+              inert={focusedIndex !== null && focusedIndex !== i}
+              className={`pointer-events-none absolute left-0 top-0 transition-opacity duration-300 motion-reduce:transition-none ${focusedIndex !== null && focusedIndex !== i ? "opacity-0" : "opacity-100"} ${tone}`}
               style={{ width: W, height: g.height, zIndex: isFlipped ? 40 : isActive ? 30 : 10 + i, transform: `translate3d(${((sim.current.x[i] ?? 0) - W / 2).toFixed(2)}px,0,0)` }}
             >
               <span aria-hidden="true" className="absolute block rounded-full" style={{ left: W / 2 - 4.5 * g.u, top: g.railY - g.ring, width: 9 * g.u, height: g.ring * 2, border: `${Math.max(1.6, 2.2 * g.u).toFixed(2)}px solid color-mix(in oklab, var(--color-muted-foreground) 45%, white)`, boxShadow: "inset 1px 0 0 color-mix(in oklab, black 25%, transparent), 1px 1px 2px color-mix(in oklab, black 20%, transparent)" }} />

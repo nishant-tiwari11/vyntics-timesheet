@@ -54,23 +54,23 @@ export default function RadialOrbitalTimeline({
   const th = light
     ? {
         root: "bg-transparent text-black",
-        ring: "border border-black/10",
+        ring: "border border-black/30",
         glow: "rgba(0,0,0,0.12)",
         nodeOpen: "bg-black text-white",
         nodeRelated: "bg-black/15 text-black",
         nodeIdle: "bg-white text-black",
         borderOpen: "border-black shadow-lg shadow-black/20",
         borderRelated: "border-black animate-pulse",
-        borderIdle: "border-black/25",
+        borderIdle: "border-black/50 shadow-sm",
         focus: "focus-visible:ring-black",
-        labelOpen: "text-black scale-125",
-        labelIdle: "text-black/60",
-        card: "bg-white/95 backdrop-blur-lg border-black/15 text-black shadow-xl shadow-black/10",
+        labelOpen: "text-black",
+        labelIdle: "text-black/90",
+        card: "bg-white border-black/30 text-black shadow-xl shadow-black/15",
         stem: "bg-black/30",
-        faint: "text-black/50",
+        faint: "text-black/70",
         body: "text-black/80",
         strong: "text-black",
-        muted: "text-black/60",
+        muted: "text-black/75",
         divider: "border-black/10",
         track: "bg-black/10",
         related: "border-black/20 bg-transparent hover:bg-black/5 text-black/70 hover:text-black",
@@ -90,7 +90,7 @@ export default function RadialOrbitalTimeline({
         borderRelated: "border-white animate-pulse",
         borderIdle: "border-white/40",
         focus: "focus-visible:ring-white",
-        labelOpen: "text-white scale-125",
+        labelOpen: "text-white",
         labelIdle: "text-white/70",
         card: "bg-black/90 backdrop-blur-lg border-white/30 text-white shadow-xl shadow-white/10",
         stem: "bg-white/50",
@@ -106,13 +106,11 @@ export default function RadialOrbitalTimeline({
         progress: "text-black bg-white border-black",
         pending: "text-white bg-black/40 border-white/50",
       };
-  const [expandedItems, setExpandedItems] = useState<Record<number, boolean>>(
-    {}
-  );
   const [viewMode] = useState<"orbital">("orbital");
   const [rotationAngle, setRotationAngle] = useState<number>(0);
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
-  const [pulseEffect, setPulseEffect] = useState<Record<number, boolean>>({});
+  const [hoveredNodeId, setHoveredNodeId] = useState<number | null>(null);
+  const [focusedNodeId, setFocusedNodeId] = useState<number | null>(null);
   const [centerOffset] = useState<{ x: number; y: number }>({
     x: 0,
     y: 0,
@@ -126,50 +124,33 @@ export default function RadialOrbitalTimeline({
     // A click on empty space (not on a node or a card) closes whatever is open and starts the orbit turning again.
     const target = e.target as Node;
     if (target === containerRef.current || target === orbitRef.current || (e.currentTarget === target)) {
-      setExpandedItems({});
       setActiveNodeId(null);
-      setPulseEffect({});
       setAutoRotate(true);
     }
   };
 
   const toggleItem = (id: number) => {
-    setExpandedItems((prev) => {
-      const newState = { ...prev };
-      Object.keys(newState).forEach((key) => {
-        if (parseInt(key) !== id) {
-          newState[parseInt(key)] = false;
-        }
-      });
-
-      newState[id] = !prev[id];
-
-      if (!prev[id]) {
-        setActiveNodeId(id);
-        setAutoRotate(false);
-
-        const relatedItems = getRelatedItems(id);
-        const newPulseEffect: Record<number, boolean> = {};
-        relatedItems.forEach((relId) => {
-          newPulseEffect[relId] = true;
-        });
-        setPulseEffect(newPulseEffect);
-
-        centerViewOnNode(id);
-      } else {
-        setActiveNodeId(null);
-        setAutoRotate(true);
-        setPulseEffect({});
-      }
-
-      return newState;
-    });
+    const opening = activeNodeId !== id;
+    setActiveNodeId(opening ? id : null);
+    setAutoRotate(!opening);
+    if (opening) centerViewOnNode(id);
   };
+
+  // Moving between a node and its preview cancels the countdown. Every leave
+  // gets a fresh five seconds; touch selections get the same timeout.
+  useEffect(() => {
+    if (autoRotate || hoveredNodeId !== null || focusedNodeId !== null) return;
+    const timer = setTimeout(() => {
+      setActiveNodeId(null);
+      setAutoRotate(true);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [autoRotate, activeNodeId, hoveredNodeId, focusedNodeId]);
 
   useEffect(() => {
     let rotationTimer: ReturnType<typeof setInterval> | undefined;
 
-    if (autoRotate && viewMode === "orbital") {
+    if (autoRotate && hoveredNodeId === null && focusedNodeId === null && viewMode === "orbital") {
       rotationTimer = setInterval(() => {
         setRotationAngle((prev) => {
           const newAngle = (prev + 0.3) % 360;
@@ -183,7 +164,7 @@ export default function RadialOrbitalTimeline({
         clearInterval(rotationTimer);
       }
     };
-  }, [autoRotate, viewMode]);
+  }, [autoRotate, viewMode, hoveredNodeId, focusedNodeId]);
 
   const centerViewOnNode = (nodeId: number) => {
     if (viewMode !== "orbital" || !nodeRefs.current[nodeId]) return;
@@ -203,7 +184,7 @@ export default function RadialOrbitalTimeline({
     const y = radius * Math.sin(radian) + centerOffset.y;
 
     const zIndex = Math.round(100 + 50 * Math.cos(radian));
-    const opacity = Math.max(
+    const opacity = light ? 1 : Math.max(
       0.4,
       Math.min(1, 0.4 + 0.6 * ((1 + Math.sin(radian)) / 2))
     );
@@ -266,13 +247,16 @@ export default function RadialOrbitalTimeline({
 
           {timelineData.map((item, index) => {
             const position = calculateNodePosition(index, timelineData.length);
-            const isExpanded = expandedItems[item.id];
+            const isExpanded = activeNodeId === item.id;
+            const isHighlighted = isExpanded || hoveredNodeId === item.id;
             const isRelated = isRelatedToActive(item.id);
-            const isPulsing = pulseEffect[item.id];
+            const isPulsing = isRelated;
             const Icon = item.icon;
 
             const nodeStyle = {
-              transform: `translate(${position.x}px, ${position.y}px)`,
+              left: "50%",
+              top: "50%",
+              transform: `translate(${position.x}px, ${position.y}px) translate(-50%, -50%)`,
               zIndex: isExpanded ? 200 : position.zIndex,
               opacity: isExpanded ? 1 : position.opacity,
             };
@@ -285,6 +269,23 @@ export default function RadialOrbitalTimeline({
                 }}
                 className="absolute transition-all duration-700 cursor-pointer"
                 style={nodeStyle}
+                onPointerEnter={(event) => {
+                  if (event.pointerType === "touch") return;
+                  setHoveredNodeId(item.id);
+                  setAutoRotate(false);
+                }}
+                onPointerLeave={(event) => {
+                  if (event.pointerType !== "touch") setHoveredNodeId(null);
+                }}
+                onFocusCapture={(event) => {
+                  if (event.target.matches(":focus-visible")) {
+                    setFocusedNodeId(item.id);
+                    setAutoRotate(false);
+                  }
+                }}
+                onBlurCapture={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) setFocusedNodeId(null);
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleItem(item.id);
@@ -310,7 +311,7 @@ export default function RadialOrbitalTimeline({
                   className={`
                   relative w-10 h-10 rounded-full flex items-center justify-center
                   ${
-                    isExpanded
+                    isHighlighted
                       ? th.nodeOpen
                       : isRelated
                       ? th.nodeRelated
@@ -318,14 +319,13 @@ export default function RadialOrbitalTimeline({
                   }
                   border-2
                   ${
-                    isExpanded
+                    isHighlighted
                       ? th.borderOpen
                       : isRelated
                       ? th.borderRelated
                       : th.borderIdle
                   }
                   transition-all duration-300 transform outline-none focus-visible:ring-2 ${th.focus}
-                  ${isExpanded ? "scale-150" : ""}
                 `}
                 >
                   <Icon size={16} />
@@ -333,10 +333,10 @@ export default function RadialOrbitalTimeline({
 
                 <div
                   className={`
-                  absolute top-12  whitespace-nowrap
+                  absolute top-12 left-1/2 -translate-x-1/2 whitespace-nowrap
                   text-xs font-semibold tracking-wider
                   transition-all duration-300
-                  ${isExpanded ? th.labelOpen : th.labelIdle}
+                  ${isHighlighted ? th.labelOpen : th.labelIdle}
                 `}
                 >
                   {item.title}

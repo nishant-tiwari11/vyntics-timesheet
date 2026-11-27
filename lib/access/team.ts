@@ -28,7 +28,7 @@ export async function loadTeam(): Promise<{ members: TeamMember[]; scope: "team"
   if (me.role !== "manager" && me.role !== "admin") throw new TimesheetError("Only managers and admins can see a team.");
   const supabase = await db();
 
-  const base = supabase.from("profiles").select("id, full_name, email, role, manager_id").neq("id", me.id).order("full_name", { ascending: true }).limit(2000);
+  const base = supabase.from("profiles").select("id, full_name, email, role, manager_id").is("removed_at", null).neq("id", me.id).order("full_name", { ascending: true }).limit(2000);
   const people = await (me.role === "admin" ? base : base.eq("manager_id", me.id));
   if (people.error) {
     if (people.error.code === "42703") return { members: [], scope: "team", needsSetup: true };

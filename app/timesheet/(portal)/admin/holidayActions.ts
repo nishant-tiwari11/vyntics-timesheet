@@ -78,7 +78,7 @@ export async function setOfficeOffAction(id: string, off: boolean): Promise<Holi
   try {
     await setOfficeOff(id, off);
     refresh();
-    return { ok: true, message: off ? "Marked as an office off day." : "The office stays open." };
+    return { ok: true, message: off ? "Office closed for this holiday." : "The office stays open." };
   } catch (e) {
     return fail(e);
   }

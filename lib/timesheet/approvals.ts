@@ -202,7 +202,7 @@ export async function loadBalances(): Promise<{ rows: BalanceRow[]; quota: numbe
   const off = new Set(await offDatesBetween(yearStart, `${today.slice(0, 4)}-12-31`).catch(() => [] as string[]));
 
   const [people, leave, ledger] = await Promise.all([
-    supabase.from("profiles").select("id, full_name, email, role, status").limit(5000),
+    supabase.from("profiles").select("id, full_name, email, role, status").is("removed_at", null).limit(5000),
     supabase.from("requests").select("user_id, from_date, to_date, day_part, leave_kind, comp_off").eq("type", "leave").eq("status", "approved").gte("to_date", yearStart).limit(10000),
     loadLedger("all"),
   ]);

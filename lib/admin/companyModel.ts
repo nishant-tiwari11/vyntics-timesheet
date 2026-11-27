@@ -2,6 +2,25 @@
 
 export type CountRow = { name: string; count: number };
 
+export type WorkingPerson = { id: string; name: string; startedAt: string | null; onDuty: boolean; location: string | null };
+export type DutyTodayRow = { user_id: string; started_at: string; ended_at: string | null; location: string };
+
+/** The roster and the summary count must use the same people, including work-log-only entries. */
+export function workingToday(people: { id: string; name: string }[], duty: DutyTodayRow[], hours: Map<string, number>): WorkingPerson[] {
+  const byUser = new Map<string, DutyTodayRow[]>();
+  for (const row of duty) {
+    const rows = byUser.get(row.user_id) ?? [];
+    rows.push(row);
+    byUser.set(row.user_id, rows);
+  }
+  return people.flatMap((person) => {
+    const rows = (byUser.get(person.id) ?? []).sort((a, b) => a.started_at.localeCompare(b.started_at));
+    if (!rows.length && (hours.get(person.id) ?? 0) <= 0) return [];
+    const current = rows.find((row) => row.ended_at === null);
+    return [{ ...person, startedAt: rows[0]?.started_at ?? null, onDuty: !!current, location: (current ?? rows.at(-1))?.location ?? null }];
+  }).sort((a, b) => Number(b.onDuty) - Number(a.onDuty) || a.name.localeCompare(b.name));
+}
+
 const round = (n: number) => Math.round(n * 100) / 100;
 
 /** How many of each value, biggest first; empty values are grouped as `blank`. At most `limit` rows, the rest joined as "Others". */

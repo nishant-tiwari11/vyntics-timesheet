@@ -26,6 +26,7 @@ export type AdminOverview = {
   attention: AttentionItem[];
   /** How many things wait in total (the list shows only the first few). */
   waitingTotal: number;
+  reviewQueues: { label: string; count: number | null; href: string }[];
 };
 
 const LIMIT = 10;
@@ -52,7 +53,7 @@ export async function loadAdminOverview(): Promise<AdminOverview> {
     safely(
       "people",
       async () => {
-        const { data, error } = await supabase.from("profiles").select("id, full_name, email, role, status").limit(5000);
+        const { data, error } = await supabase.from("profiles").select("id, full_name, email, role, status").is("removed_at", null).limit(5000);
         if (error) throw error;
         return data as { id: string; full_name: string | null; email: string; role: string; status?: string }[];
       },
@@ -191,5 +192,11 @@ export async function loadAdminOverview(): Promise<AdminOverview> {
     dayOff,
     attention: sortAttention(items, LIMIT),
     waitingTotal: (requests?.total ?? 0) + (compOff?.length ?? 0) + (expenses?.total ?? 0) + (documents?.total ?? 0),
+    reviewQueues: [
+      { label: "Documents", count: documents?.total ?? null, href: "/timesheet/admin/documents" },
+      { label: "Leave & work from home", count: requests?.total ?? null, href: "/timesheet/admin/approvals" },
+      { label: "Comp-off", count: compOff?.length ?? null, href: "/timesheet/admin/approvals?view=compoff" },
+      { label: "Expense claims", count: expenses?.total ?? null, href: "/timesheet/payroll/expenses" },
+    ],
   };
 }

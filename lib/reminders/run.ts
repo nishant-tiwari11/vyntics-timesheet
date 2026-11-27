@@ -335,7 +335,7 @@ export async function runJob(job: Job, now: Date = new Date(), onlyEmail?: strin
   result.considered = recipients.length;
   for (const p of recipients) {
     // An admin decides everything except their own; a manager decides for the people who report to them.
-    const mine = (rows: { user_id: unknown }[]) => rows.filter((r) => r.user_id !== p.id && (p.role === "admin" || owner.get(r.user_id as string)?.managerId === p.id)).length;
+    const mine = (rows: { user_id: unknown }[]) => rows.filter((r) => owner.has(r.user_id as string) && r.user_id !== p.id && (p.role === "admin" || owner.get(r.user_id as string)?.managerId === p.id)).length;
     const counts = { requests: mine(reqs.data), logs: mine(logs.data), compOff: mine(comp.data) };
     if (counts.requests + counts.logs + counts.compOff === 0) continue;
     const link = portalUrl(p.role === "admin" ? "/timesheet/admin" : "/timesheet/team");

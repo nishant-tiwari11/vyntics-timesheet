@@ -94,7 +94,7 @@ export async function listEmployeeStructures(): Promise<EmployeeRow[]> {
   await requireAdmin();
   const supabase = await db();
   const [people, details, structures] = await Promise.all([
-    supabase.from("profiles").select("id, full_name, email, created_at").order("full_name", { ascending: true }),
+    supabase.from("profiles").select("id, full_name, email, created_at").is("removed_at", null).order("full_name", { ascending: true }),
     supabase.from("employee_details").select("user_id, joined_on, left_on, department"),
     supabase.from("salary_structures").select("*").order("effective_from", { ascending: false }).limit(5000),
   ]);

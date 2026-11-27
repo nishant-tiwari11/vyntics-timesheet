@@ -144,7 +144,7 @@ async function computeRows(
   const { period_start: start, period_end: end } = run;
 
   const [people, details, structures, hours, requests, compEarned, compOpen, pendingReq, adjustments, inputs, holidays, runExpenses] = await Promise.all([
-    supabase.from("profiles").select("id, full_name, email, created_at").order("full_name", { ascending: true }),
+    supabase.from("profiles").select("id, full_name, email, created_at").is("removed_at", null).order("full_name", { ascending: true }),
     supabase.from("employee_details").select("user_id, joined_on, left_on, department"),
     supabase.from("salary_structures").select("user_id, effective_from, basic_paise, hra_paise, allowances_paise, deductions_paise").lte("effective_from", end).order("effective_from", { ascending: false }).limit(20000),
     supabase.from("work_logs").select("user_id, log_date, hours").neq("status", "rejected").gte("log_date", start).lte("log_date", end).limit(50000),

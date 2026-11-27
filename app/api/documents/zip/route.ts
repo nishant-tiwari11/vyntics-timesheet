@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     if (docs.length === 0) return fail("Those documents no longer exist.", 404);
     if (docs.reduce((n, d) => n + d.size_bytes, 0) > MAX_BYTES) return fail("That is too much to download at once. Choose fewer documents.", 413);
 
-    const { data: people } = await supabase.from("profiles").select("id, full_name, email").in("id", [...new Set(docs.map((d) => d.user_id))]);
+    const { data: people } = await supabase.from("profiles").select("id, full_name, email").is("removed_at", null).in("id", [...new Set(docs.map((d) => d.user_id))]);
     const who = new Map((people ?? []).map((p) => [p.id, displayName(p)]));
 
     const zip = new JSZip();

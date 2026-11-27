@@ -118,7 +118,7 @@ export async function HolidaysTab({ yearParam, typeParam }: { yearParam?: string
                     ) : (
                       <div className="grid gap-1.5">
                         <Badge variant={h.decided ? (h.officeOff ? "default" : "outline") : "outline"} className={`w-fit ${h.decided ? "" : "border-dashed"}`}>
-                          {h.decided ? (h.officeOff ? "Office off" : "Office open") : "○ Not decided"}
+                          {h.decided ? (h.officeOff ? "Office closed" : "Office open") : "○ Not decided"}
                         </Badge>
                         <OfficeOffButtons holiday={h} />
                       </div>

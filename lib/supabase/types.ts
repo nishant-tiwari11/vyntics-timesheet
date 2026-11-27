@@ -415,6 +415,7 @@ export type Database = {
           name: string | null;
           role: Database["public"]["Enums"]["user_role"];
           status: string;
+          removed_at: string | null;
           expires_on: string | null;
           login_method: string;
           seeded: boolean;
@@ -422,8 +423,10 @@ export type Database = {
           created_at: string;
           updated_at: string;
         };
-        Insert: { email: string; name?: string | null; role?: Database["public"]["Enums"]["user_role"]; status?: string; expires_on?: string | null; login_method?: string; seeded?: boolean };
-        Update: { name?: string | null; role?: Database["public"]["Enums"]["user_role"]; status?: string; expires_on?: string | null; login_method?: string };
+        Insert: { email: string; name?: string | null; role?: Database["public"]["Enums"]["user_role"]; status?: string;
+          removed_at?: string | null; expires_on?: string | null; login_method?: string; seeded?: boolean };
+        Update: { name?: string | null; role?: Database["public"]["Enums"]["user_role"]; status?: string;
+          removed_at?: string | null; expires_on?: string | null; login_method?: string };
         Relationships: [];
       };
       access_settings: {
@@ -774,6 +777,7 @@ export type Database = {
           created_at: string;
           manager_id: string | null;
           status: string;
+          removed_at: string | null;
           access_expires_on: string | null;
           last_login_at: string | null;
         };
@@ -785,6 +789,7 @@ export type Database = {
           created_at?: string;
           manager_id?: string | null;
           status?: string;
+          removed_at?: string | null;
           access_expires_on?: string | null;
           last_login_at?: string | null;
         };
@@ -796,6 +801,7 @@ export type Database = {
           created_at?: string;
           manager_id?: string | null;
           status?: string;
+          removed_at?: string | null;
           access_expires_on?: string | null;
           last_login_at?: string | null;
         };
@@ -1029,6 +1035,8 @@ export type Database = {
     Functions: {
       access_add_user: { Args: { p_email: string; p_name: string; p_role: string; p_expires: string | null; p_method: string; p_seeded: boolean; p_only_if_missing: boolean }; Returns: undefined };
       access_update_user: { Args: { p_email: string; p_role: string | null; p_status: string | null; p_expires: string | null; p_clear_expiry: boolean }; Returns: undefined };
+      access_archive_user: { Args: { p_email: string }; Returns: undefined };
+      access_restore_user: { Args: { p_email: string; p_mode: string }; Returns: undefined };
       access_remove_user: { Args: { p_email: string }; Returns: undefined };
       access_set_manager: { Args: { p_email: string; p_manager_email: string }; Returns: undefined };
       access_set_password: { Args: { p_email: string; p_password: string }; Returns: undefined };
