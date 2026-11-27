@@ -31,7 +31,7 @@ type ProfileRow = { id: string; full_name: string | null; email: string; role: s
 
 async function loadProfiles(): Promise<ProfileRow[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("profiles").select("id, full_name, email, role, status").limit(5000);
+  const { data, error } = await supabase.from("profiles").select("id, full_name, email, role, status").is("removed_at", null).limit(5000);
   if (error) throw toError(error, "Couldn't load the people. Please try again.");
   return data as ProfileRow[];
 }

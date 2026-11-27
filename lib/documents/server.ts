@@ -105,7 +105,7 @@ export async function listDocuments(userId: string): Promise<DocumentList> {
   const ids = [...new Set(rows.map((r) => r.uploaded_by).filter((v): v is string => !!v))];
   const names = new Map<string, string>();
   if (ids.length > 0) {
-    const { data: people } = await supabase.from("profiles").select("id, full_name, email").in("id", ids);
+    const { data: people } = await supabase.from("profiles").select("id, full_name, email").is("removed_at", null).in("id", ids);
     for (const p of people ?? []) names.set(p.id, displayName(p));
   }
 

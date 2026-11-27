@@ -24,7 +24,7 @@ async function decide(item: AttentionItem, decision: Decision): Promise<string |
 
 // What is waiting for you, oldest first. Leave, work from home, time logs and comp-off can be approved or rejected right
 // here (rejecting asks to confirm first); expense claims and documents need more detail, so they have a Review link.
-export function AttentionList({ items, total }: { items: AttentionItem[]; total: number }) {
+export function AttentionList({ items, total, queues }: { items: AttentionItem[]; total: number; queues: { label: string; count: number | null; href: string }[] }) {
   const router = useRouter();
   const [gone, setGone] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState<string | null>(null);
@@ -54,6 +54,14 @@ export function AttentionList({ items, total }: { items: AttentionItem[]; total:
           {total === 0 ? "Nothing waiting" : `${total} waiting`}
         </p>
       </div>
+
+      <nav aria-label="Review categories" className="flex flex-wrap gap-2 border-b px-4 py-3">
+        {queues.map((queue) => (
+          <Link key={queue.href} href={queue.href} className="inline-flex min-h-9 items-center gap-2 rounded-md border px-3 text-sm hover:bg-accent">
+            {queue.label} <span className="font-semibold tabular-nums">{queue.count ?? "–"}</span>
+          </Link>
+        ))}
+      </nav>
 
       {shown.length === 0 ? (
         <div className="grid justify-items-center gap-1.5 px-4 py-10 text-center">
@@ -102,11 +110,7 @@ export function AttentionList({ items, total }: { items: AttentionItem[]; total:
 
       {total > shown.length && shown.length > 0 && (
         <p className="border-t px-4 py-2.5 text-sm text-muted-foreground">
-          Showing the {shown.length} that have waited longest.{" "}
-          <Link href="/timesheet/admin/approvals" className="underline underline-offset-2">
-            Open Approvals
-          </Link>{" "}
-          to see the rest.
+          Showing the {shown.length} that have waited longest. Choose a review category above to see the rest.
         </p>
       )}
 

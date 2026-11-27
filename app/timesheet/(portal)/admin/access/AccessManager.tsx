@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { joinName, nameFromEmail } from "@/lib/nameFromEmail";
 import { ROLES, ROLE_LABEL, toRole, type Role, type SignInMethod } from "@/lib/access/config";
 import type { AccessRow } from "@/lib/access/server";
-import { addUserAction, removeUserAction, resetPasswordAction, setManagerAction, updateUserAction } from "./actions";
+import { addUserAction, removeUserAction, restoreUserAction, resetPasswordAction, setManagerAction, updateUserAction } from "./actions";
 
 const NONE = "__none__";
 const ALL = "__all__";
@@ -202,7 +202,7 @@ function AddUserDialog() {
 // ---------------------------- One row ----------------------------
 
 function Row({ row, managers }: { row: AccessRow; managers: Managers }) {
-  const [dialog, setDialog] = useState<"remove" | "password" | null>(null);
+  const [dialog, setDialog] = useState<"remove" | "restore" | "password" | null>(null);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -251,7 +251,7 @@ function Row({ row, managers }: { row: AccessRow; managers: Managers }) {
       <TableCell>
         <Select
           value={row.role}
-          disabled={pending || row.isSelf}
+          disabled={pending || row.isSelf || !!row.removedAt}
           onValueChange={(v) => run(() => updateUserAction({ email: row.email, role: toRole(v) }), "Role changed.")}
         >
           <SelectTrigger className="w-32" aria-label={`Role for ${row.email}`}>
@@ -268,7 +268,7 @@ function Row({ row, managers }: { row: AccessRow; managers: Managers }) {
       </TableCell>
       <TableCell>
         <Badge variant="outline" className={row.status === "disabled" ? "border-dashed" : expired ? "border-destructive text-destructive" : "border-foreground"}>
-          {row.status === "disabled" ? "○ Disabled" : expired ? "✕ Expired" : "✓ Active"}
+          {row.removedAt ? "Removed" : row.status === "disabled" ? "○ Disabled" : expired ? "✕ Expired" : "✓ Active"}
         </Badge>
         <div className="mt-1 text-xs text-muted-foreground">
           {row.type === "manual" ? "Added manually" : "Company domain"}
@@ -281,7 +281,7 @@ function Row({ row, managers }: { row: AccessRow; managers: Managers }) {
         {row.signedIn ? (
           <Select
             value={row.managerEmail || NONE}
-            disabled={pending}
+            disabled={pending || !!row.removedAt}
             onValueChange={(v) => run(() => setManagerAction(row.email, v === NONE ? "" : v), "Manager saved.")}
           >
             <SelectTrigger className="w-40" aria-label={`Manager for ${row.email}`}>
@@ -304,7 +304,7 @@ function Row({ row, managers }: { row: AccessRow; managers: Managers }) {
       </TableCell>
       <TableCell>
         <div className="flex flex-wrap justify-end gap-1.5">
-          {!row.isSelf && (
+          {!row.isSelf && !row.removedAt && (
             <Button
               type="button"
               size="sm"
@@ -318,15 +318,18 @@ function Row({ row, managers }: { row: AccessRow; managers: Managers }) {
               {row.status === "active" ? "Disable" : "Enable"}
             </Button>
           )}
-          {row.loginMethod === "password" && (
+          {!row.removedAt && row.loginMethod === "password" && (
             <Button type="button" size="sm" variant="outline" disabled={pending} onClick={() => setDialog("password")} aria-label={`Reset password for ${row.email}`}>
               Reset password
             </Button>
           )}
-          {!row.isSelf && (
+          {!row.isSelf && !row.removedAt && (
             <Button type="button" size="sm" variant="ghost" disabled={pending} onClick={() => setDialog("remove")} aria-label={`Remove ${row.email}`}>
               Remove
             </Button>
+          )}
+          {row.removedAt && (
+            <Button type="button" size="sm" disabled={pending} onClick={() => setDialog("restore")} aria-label={`Add back ${row.email}`}>Add back</Button>
           )}
         </div>
 
@@ -337,8 +340,7 @@ function Row({ row, managers }: { row: AccessRow; managers: Managers }) {
                 <DialogHeader>
                   <DialogTitle>Remove {row.email}?</DialogTitle>
                   <DialogDescription>
-                    They are taken off the list and can&apos;t sign in. If they already have an account it is switched off, and their timesheets, expenses and payslips are kept.
-                    {row.type === "domain" ? " Anyone on a company domain can still be let back in by adding them again." : ""}
+                    They will move to Removed employees and lose sign-in access. Their activity will be hidden from operational pages. All data stays in the database; expense and payroll history remain visible. You can add them back later.
                   </DialogDescription>
                 </DialogHeader>
                 {error && (
@@ -354,6 +356,26 @@ function Row({ row, managers }: { row: AccessRow; managers: Managers }) {
                     {pending ? "Removing..." : "Remove"}
                   </Button>
                 </DialogFooter>
+              </>
+            )}
+            {dialog === "restore" && (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Add back {row.name || row.email}?</DialogTitle>
+                  <DialogDescription>Choose how this employee returns. Their documents, expenses and payslips are kept with either option. Access expiry is cleared when they return.</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-3">
+                  <Button type="button" variant="outline" className="h-auto min-h-16 flex-col items-start whitespace-normal py-3 text-left" disabled={pending} onClick={() => run(() => restoreUserAction(row.email, "retrieve"), "Restored with previous data.", close)}>
+                    <span className="font-semibold">Retrieve old data</span>
+                    <span className="text-xs font-normal text-muted-foreground">Bring back their time logs, leave, duty history and other activity.</span>
+                  </Button>
+                  <Button type="button" variant="outline" className="h-auto min-h-16 flex-col items-start whitespace-normal py-3 text-left" disabled={pending} onClick={() => run(() => restoreUserAction(row.email, "fresh"), "Restored with a fresh start.", close)}>
+                    <span className="font-semibold">Fresh start</span>
+                    <span className="text-xs font-normal text-muted-foreground">Archive previous activity and start new time logs, leave and duty records. Reuse their documents and keep financial history.</span>
+                  </Button>
+                </div>
+                {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+                <DialogFooter><Button type="button" variant="outline" onClick={close} disabled={pending}>Cancel</Button></DialogFooter>
               </>
             )}
             {dialog === "password" && (
@@ -397,12 +419,14 @@ function Row({ row, managers }: { row: AccessRow; managers: Managers }) {
 // ---------------------------- The table ----------------------------
 
 export default function AccessManager({ rows, managers }: { rows: AccessRow[]; managers: Managers }) {
+  const [view, setView] = useState<"current" | "removed">("current");
   const [q, setQ] = useState("");
   const [role, setRole] = useState<string>(ALL);
   const [status, setStatus] = useState<string>(ALL);
   const needle = q.trim().toLowerCase();
   const today = new Date().toISOString().slice(0, 10);
   const shown = rows.filter((r) => {
+    if ((view === "removed") !== !!r.removedAt) return false;
     const expired = r.expiresOn !== null && r.expiresOn < today;
     if (needle && !`${r.email} ${r.name}`.toLowerCase().includes(needle)) return false;
     if (role !== ALL && r.role !== role) return false;
@@ -415,6 +439,10 @@ export default function AccessManager({ rows, managers }: { rows: AccessRow[]; m
 
   return (
     <div className="grid gap-3">
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Employee list">
+        <Button type="button" variant={view === "current" ? "default" : "outline"} aria-pressed={view === "current"} onClick={() => { setView("current"); setStatus(ALL); }}>Employees ({rows.filter((r) => !r.removedAt).length})</Button>
+        <Button type="button" variant={view === "removed" ? "default" : "outline"} aria-pressed={view === "removed"} onClick={() => { setView("removed"); setStatus(ALL); }}>Removed employees ({rows.filter((r) => !!r.removedAt).length})</Button>
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or email" aria-label="Search people" className="max-w-xs" />
         <Filter label="Role" plural="All roles" value={role} onChange={setRole} options={ROLES.map((r) => [r, ROLE_LABEL[r]])} />
@@ -431,7 +459,7 @@ export default function AccessManager({ rows, managers }: { rows: AccessRow[]; m
       ) : (
         <div className="overflow-x-auto rounded-lg border">
           <Table>
-            <caption className="sr-only">Employees</caption>
+            <caption className="sr-only">{view === "removed" ? "Removed employees" : "Employees"}</caption>
             <TableHeader>
               <TableRow>
                 <TableHead>Person</TableHead>

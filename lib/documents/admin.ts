@@ -39,7 +39,7 @@ export const readDocumentsBase = cache(async () => {
   const supabase = await createClient();
   const [docsRes, peopleRes] = await Promise.all([
     supabase.from("employee_documents" as never).select(COLUMNS).eq("is_current", true).is("deleted_at", null).order("created_at", { ascending: false }).limit(LIMIT),
-    supabase.from("profiles").select("id, full_name, email, role, status, can_view_sensitive_docs" as never).limit(5000),
+    supabase.from("profiles").select("id, full_name, email, role, status, can_view_sensitive_docs" as never).is("removed_at", null).limit(5000),
   ]);
   return { docsRes, peopleRes };
 });
@@ -88,7 +88,7 @@ export async function loadDocumentAudit(): Promise<AuditRow[]> {
   const supabase = await createClient();
   const [auditRes, peopleRes] = await Promise.all([
     supabase.from("document_audit" as never).select("id, document_id, owner_id, actor_email, action, detail, at").order("at", { ascending: false }).limit(100),
-    supabase.from("profiles").select("id, full_name, email").limit(5000),
+    supabase.from("profiles").select("id, full_name, email").is("removed_at", null).limit(5000),
   ]);
   if (auditRes.error) throw toError(auditRes.error, "Couldn't load the activity. Please try again.");
   const names = new Map((peopleRes.data ?? []).map((p) => [p.id, displayName(p)]));

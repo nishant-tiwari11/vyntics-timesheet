@@ -17,7 +17,7 @@ export type Employee = {
 export async function listEmployees(): Promise<Employee[]> {
   await requireAdmin();
   const supabase = await db();
-  const { data, error } = await supabase.from("profiles").select("id, full_name, email, role, created_at");
+  const { data, error } = await supabase.from("profiles").select("id, full_name, email, role, created_at").is("removed_at", null);
   if (error) throw toError(error, "Couldn't load employees. Please try again.");
   return data
     .map((p) => ({

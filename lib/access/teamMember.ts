@@ -36,7 +36,7 @@ export async function loadTeamMember(id: string): Promise<TeamMemberView> {
   assertId(id, "person");
   const me = await requireApprover();
   const supabase = await db();
-  const { data: profile, error } = await supabase.from("profiles").select("id, full_name, email, manager_id").eq("id", id).maybeSingle();
+  const { data: profile, error } = await supabase.from("profiles").select("id, full_name, email, manager_id").is("removed_at", null).eq("id", id).maybeSingle();
   if (error || !profile) throw new TimesheetError("That person isn't on your team.");
   if (me.role !== "admin" && profile.manager_id !== me.id) throw new TimesheetError("That person isn't on your team.");
 

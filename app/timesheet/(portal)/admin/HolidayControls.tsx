@@ -128,7 +128,7 @@ function HolidayForm({ holiday, defaultYear, onClose }: { holiday?: Holiday; def
         <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm">
           <Checkbox checked={officeOff} onCheckedChange={(c) => setOfficeOffState(c === true)} className="mt-0.5" disabled={pending} aria-label="The office is closed" />
           <span>
-            <span className="font-medium">The office is closed (an office off day)</span>
+            <span className="font-medium">The office is closed (paid holiday)</span>
             <span className="block text-xs text-muted-foreground">No hours are expected, it isn&apos;t counted as leave, and it is paid. Leave it unticked and the day stays a working day.</span>
           </span>
         </label>
@@ -351,7 +351,7 @@ export function ImportHolidays() {
   );
 }
 
-// ---------------------------- Office off or open ----------------------------
+// ---------------------------- Office closed or open ----------------------------
 
 /** Two buttons: close the office on this holiday, or keep it a working day. */
 export function OfficeOffButtons({ holiday, compact = false }: { holiday: Holiday; compact?: boolean }) {
@@ -366,7 +366,7 @@ export function OfficeOffButtons({ holiday, compact = false }: { holiday: Holida
   return (
     <span className="inline-flex flex-wrap gap-1.5">
       <Button type="button" size={size} variant={holiday.decided && holiday.officeOff ? "default" : "outline"} disabled={pending} onClick={() => set(true)} aria-pressed={holiday.decided && holiday.officeOff}>
-        Office off
+        Office closed
       </Button>
       <Button type="button" size={size} variant={holiday.decided && !holiday.officeOff ? "default" : "outline"} disabled={pending} onClick={() => set(false)} aria-pressed={holiday.decided && !holiday.officeOff}>
         Office open

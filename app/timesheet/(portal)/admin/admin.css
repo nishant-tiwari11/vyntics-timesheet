@@ -1,5 +1,103 @@
 /* Admin panel. Prefixed .ts- (portal only). */
 
+.employee-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0fr);
+  align-items: start;
+  align-content: start;
+  overflow: clip;
+}
+.employee-stage[data-expanded="true"] {
+  grid-template-columns: minmax(180px, 240px) minmax(0, 560px);
+  justify-content: center;
+}
+.employee-stage-badges,
+.employee-stage-orbit {
+  min-width: 0;
+}
+.employee-stage[data-expanded="true"] .employee-stage-badges {
+  align-self: center;
+}
+/* Let the actual badge travel across its former rail area during the move. */
+.employee-stage[data-animating="true"] .employee-stage-badges [data-slot="team-lanyard-rail"],
+.employee-stage[data-animating="true"] .employee-stage-badges [data-stage] {
+  overflow: visible !important;
+}
+.employee-stage[data-expanded="true"] [data-slot="team-lanyard-rail"] header {
+  padding-top: 0;
+}
+.employee-stage-header {
+  grid-column: 1 / -1;
+  align-self: start;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: min(100%, 760px);
+  margin: 8px auto 0;
+  padding: 8px;
+  border: 1px solid var(--ts-border);
+  border-radius: 18px;
+  background: var(--color-card);
+  box-shadow: 0 3px 12px rgb(0 0 0 / 4%);
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+.employee-stage-identity {
+  min-width: 0;
+  padding-inline: 8px;
+  text-align: center;
+}
+.employee-stage-orbit {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(6px) scale(0.99);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+.employee-stage[data-ready="true"] .employee-stage-orbit {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+.employee-stage[data-ready="true"] .employee-stage-header {
+  opacity: 1;
+}
+.employee-stage:not([data-ready="true"]) .employee-stage-header {
+  pointer-events: none;
+}
+.employee-stage [data-face="front"] {
+  border-color: var(--ts-muted);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
+}
+@media (max-width: 767px) {
+  .employee-stage,
+  .employee-stage[data-expanded="true"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .employee-stage:not([data-expanded="true"]) .employee-stage-orbit {
+    display: none;
+  }
+  .employee-stage-header {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .employee-stage-identity {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    padding: 4px 8px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .employee-stage,
+  .employee-stage-header,
+  .employee-stage-orbit {
+    transition: none;
+  }
+  .employee-stage-orbit {
+    transform: none;
+  }
+}
+
 .ts-admin-tabs {
   display: flex;
   gap: 4px;

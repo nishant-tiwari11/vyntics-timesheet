@@ -110,7 +110,7 @@ export default async function EmployeePage({ params }: { params: Promise<{ id: s
             <div className="mt-2 flex flex-wrap gap-2">
               <Badge variant="outline">{ROLE_LABEL[person.role]}</Badge>
               <Badge variant="outline" className={person.status === "disabled" ? "border-dashed" : expired ? "border-destructive text-destructive" : "border-foreground"}>
-                {person.status === "disabled" ? "○ Disabled" : expired ? "✕ Access expired" : "✓ Active"}
+                {person.removedAt ? "Removed" : person.status === "disabled" ? "○ Disabled" : expired ? "✕ Access expired" : "✓ Active"}
               </Badge>
             </div>
           </div>

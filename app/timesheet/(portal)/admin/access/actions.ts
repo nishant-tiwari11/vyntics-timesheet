@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { setOnboardingSkip } from "@/lib/onboarding/server";
-import { addMany, addUser, removeUser, resetPassword, setManager, setPersonName, updateUser } from "@/lib/access/server";
+import { addMany, addUser, removeUser, restoreUser, resetPassword, setManager, setPersonName, updateUser } from "@/lib/access/server";
 import type { AddUserInput } from "@/lib/access/schemas";
 import { TimesheetError } from "@/lib/timesheet/errors";
 import { logError } from "@/lib/timesheet/log";
@@ -17,7 +17,7 @@ function fail(e: unknown): AccessResult {
   return { ok: false, error: "Something went wrong. Please try again." };
 }
 
-const refresh = () => revalidatePath("/timesheet/admin/access");
+const refresh = () => revalidatePath("/timesheet", "layout");
 
 export async function addUserAction(input: AddUserInput & { skipOnboarding?: boolean }): Promise<AccessResult> {
   try {
@@ -88,6 +88,16 @@ export async function setNameAction(userId: string, first: string, last: string)
     await setPersonName(userId, first, last);
     refresh();
     revalidatePath(`/timesheet/admin/access/${userId}`);
+    return { ok: true };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function restoreUserAction(email: string, mode: "fresh" | "retrieve"): Promise<AccessResult> {
+  try {
+    await restoreUser(email, mode);
+    refresh();
     return { ok: true };
   } catch (e) {
     return fail(e);

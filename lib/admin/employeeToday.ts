@@ -82,7 +82,7 @@ export async function loadEmployeeToday(userId: string): Promise<EmployeeToday> 
     }),
     safely("off day", () => offDatesBetween(today, today)),
     safely("profile", async () => {
-      const { data, error } = await supabase.from("profiles").select("email").eq("id", userId).maybeSingle();
+      const { data, error } = await supabase.from("profiles").select("email").is("removed_at", null).eq("id", userId).maybeSingle();
       if (error) throw error;
       return data;
     }),

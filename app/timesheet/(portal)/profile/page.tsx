@@ -43,17 +43,17 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   const supabase = await createClient();
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, email, full_name, role, created_at, manager_id")
+    .select("id, email, full_name, role, created_at, manager_id").is("removed_at", null)
     .eq("id", targetId)
     .maybeSingle();
   if (!profile) notFound();
 
   // Your Chat reminder switch. Before step 33 has been run the column is not there, so the switch is left out.
-  const chatRow = own && me.role !== "viewer" ? await supabase.from("profiles").select("chat_reminders" as never).eq("id", targetId).maybeSingle() : null;
+  const chatRow = own && me.role !== "viewer" ? await supabase.from("profiles").select("chat_reminders" as never).is("removed_at", null).eq("id", targetId).maybeSingle() : null;
   const chatOn = chatRow && !chatRow.error && chatRow.data ? (chatRow.data as unknown as { chat_reminders: boolean }).chat_reminders !== false : null;
 
   const [manager, photo, docs] = await Promise.all([
-    profile.manager_id ? supabase.from("profiles").select("full_name, email").eq("id", profile.manager_id).maybeSingle() : Promise.resolve({ data: null }),
+    profile.manager_id ? supabase.from("profiles").select("full_name, email").is("removed_at", null).eq("id", profile.manager_id).maybeSingle() : Promise.resolve({ data: null }),
     supabase.storage.from(AVATAR_BUCKET).list("", { limit: 1, search: avatarPath(profile.id) }),
     listDocuments(profile.id).catch((e): DocumentList => {
       logError("profile documents", e);

@@ -58,7 +58,7 @@ export default async function AccessPage() {
         </p>
       </div>
 
-      {data?.ready && <Summary rows={data.rows} domains={data.domains} />}
+      {data?.ready && <Summary rows={data.rows.filter((row) => !row.removedAt)} domains={data.domains} />}
 
       {error && (
         <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive" role="alert">

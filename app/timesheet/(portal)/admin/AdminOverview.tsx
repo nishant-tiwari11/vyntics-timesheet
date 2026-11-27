@@ -12,6 +12,7 @@ import { ROLE_LABEL, toRole } from "@/lib/access/config";
 import { avatarUrl } from "@/lib/avatar";
 import type { LanyardMember } from "@/components/ui/team-lanyard-rail";
 import { AttentionList } from "./AttentionList";
+import { SummaryCardDialog } from "./SummaryCardDialog";
 import { HolidayDecisions } from "./HolidayDecisions";
 import { EmployeeRailLazy as EmployeeRail } from "./EmployeeRailLazy";
 
@@ -112,7 +113,7 @@ function kpis(o: Awaited<ReturnType<typeof loadAdminOverview>>, c: CompanyOvervi
     { label: "Working today", value: n(c.now?.present), note: c.now ? (c.now.onDuty > 0 ? `${c.now.onDuty} on duty now` : c.now.dayOff ? `today is a ${c.now.dayOff}` : "on duty or logged time") : "on duty or logged time", href: "/timesheet/worklog", icon: Clock },
     { label: "On leave", value: n(c.now?.onLeave.length), note: "approved leave today", href: "/timesheet/calendar", icon: Palmtree },
     { label: "Work from home", value: n(c.now?.wfh.length), note: "approved or on duty from home", href: "/timesheet/calendar", icon: Home },
-    { label: "Waiting for you", value: String(o.waitingTotal), note: "approvals and reviews", href: "/timesheet/admin/approvals", icon: CalendarClock, alert: o.waitingTotal > 0 },
+    { label: "Waiting for you", value: String(o.waitingTotal), note: "approvals and reviews", href: "#attention-title", icon: CalendarClock, alert: o.waitingTotal > 0 },
     { label: "Expense claims", value: n(c.expenses?.pending), note: c.expenses ? `${formatMoney(c.expenses.pendingAmount)} to approve` : "to approve", href: "/timesheet/payroll/expenses", icon: Receipt, alert: (c.expenses?.pending ?? 0) > 0 },
   ];
 }
@@ -163,9 +164,9 @@ export async function AdminOverview({ name }: { name: string }) {
       <HolidayDecisions holidays={company.holidaysToDecide ?? []} today={company.today} />
 
       <ul className="grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:grid-cols-6" aria-label="Summary">
-        {kpis(overview, company).map(({ label, value, note, href, icon: Icon, alert }) => (
-          <li key={label}>
-            <Link href={href} className="group flex h-full items-start justify-between gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-foreground max-md:min-h-11">
+        {kpis(overview, company).map(({ label, value, note, href, icon: Icon, alert }) => {
+          const content = (
+            <>
               <span className="min-w-0">
                 <span className="block text-sm text-muted-foreground">{label}</span>
                 <span className="mt-1 flex items-center gap-2 text-3xl font-semibold tabular-nums">
@@ -175,9 +176,20 @@ export async function AdminOverview({ name }: { name: string }) {
                 <span className="block text-xs text-muted-foreground">{note}</span>
               </span>
               <Icon className="size-5 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" aria-hidden="true" />
-            </Link>
-          </li>
-        ))}
+            </>
+          );
+          return (
+            <li key={label}>
+              {label === "Working today" ? (
+                <SummaryCardDialog title={label} working={now?.working ?? null} dutyUnavailable={now?.dutyAvailable === false}>{content}</SummaryCardDialog>
+              ) : label === "Waiting for you" ? (
+                <SummaryCardDialog title={label} queues={overview.reviewQueues}>{content}</SummaryCardDialog>
+              ) : (
+                <Link href={href} className="group flex h-full items-start justify-between gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-foreground max-md:min-h-11">{content}</Link>
+              )}
+            </li>
+          );
+        })}
       </ul>
 
       {badges.length > 0 && (
@@ -188,7 +200,7 @@ export async function AdminOverview({ name }: { name: string }) {
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
         <div className="grid min-w-0 gap-5">
-          <AttentionList items={overview.attention} total={overview.waitingTotal} />
+          <AttentionList items={overview.attention} total={overview.waitingTotal} queues={overview.reviewQueues} />
           <Section title="Hours this week" href="/timesheet/worklog" action="Work logs">
             {week ? <WeekChart week={week} today={company.today} /> : <p className="text-sm text-muted-foreground">Couldn&apos;t load this week&apos;s hours.</p>}
           </Section>
@@ -294,7 +306,7 @@ export async function AdminOverview({ name }: { name: string }) {
                   <li key={h.id} className="flex items-start justify-between gap-3">
                     <span className="min-w-0">
                       <span className="block truncate font-medium">{h.name}</span>
-                      <span className="text-xs text-muted-foreground">{holidayTypeLabel(h.type)}{h.type !== "optional" ? (h.decided ? (h.officeOff ? " · Office off" : " · Office open") : " · Not decided") : ""}</span>
+                      <span className="text-xs text-muted-foreground">{holidayTypeLabel(h.type)}{h.type !== "optional" ? (h.decided ? (h.officeOff ? " · Office closed" : " · Office open") : " · Not decided") : ""}</span>
                     </span>
                     <span className="shrink-0 text-muted-foreground">{formatYmd(h.date, { weekday: "short", day: "numeric", month: "short" })}</span>
                   </li>

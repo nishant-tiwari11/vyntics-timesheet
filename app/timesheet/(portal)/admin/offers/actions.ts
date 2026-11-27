@@ -123,9 +123,9 @@ export async function loadNewOfferAction(userId: string): Promise<Read<{ name: s
   if (!isUuid(userId)) return { ok: false, error: "Choose the employee." };
   try {
     const supabase = await createClient();
-    const { data: person } = await supabase.from("profiles").select("full_name, email, manager_id").eq("id", userId).maybeSingle();
+    const { data: person } = await supabase.from("profiles").select("full_name, email, manager_id").is("removed_at", null).eq("id", userId).maybeSingle();
     if (!person) return { ok: false, error: "That person could not be found." };
-    const manager = person.manager_id ? (await supabase.from("profiles").select("full_name, email").eq("id", person.manager_id).maybeSingle()).data : null;
+    const manager = person.manager_id ? (await supabase.from("profiles").select("full_name, email").is("removed_at", null).eq("id", person.manager_id).maybeSingle()).data : null;
     const name = person.full_name?.trim() || person.email.split("@")[0];
     return { ok: true, name, initial: newLetter(todayInOffice(), { name, email: person.email, manager: manager ? manager.full_name?.trim() || manager.email.split("@")[0] : "" }) };
   } catch (e) {

@@ -19,6 +19,7 @@ export type AccessRow = {
   type: "domain" | "manual";
   loginMethod: SignInMethod | null;
   status: "active" | "disabled";
+  removedAt: string | null;
   expiresOn: string | null;
   lastLogin: string | null;
   /** Has this person signed in at least once (they have a profile)? */
@@ -49,8 +50,8 @@ export async function loadAccess(): Promise<AccessData> {
   const supabase = await db();
   const domains = allowedDomains();
   const [profiles, allowed, audit, details] = await Promise.all([
-    supabase.from("profiles").select("id, email, full_name, role, status, access_expires_on, last_login_at, manager_id").limit(5000),
-    supabase.from("allowed_users").select("email, name, role, status, expires_on, login_method, seeded").limit(5000),
+    supabase.from("profiles").select("id, email, full_name, role, status, removed_at, access_expires_on, last_login_at, manager_id").limit(5000),
+    supabase.from("allowed_users").select("email, name, role, status, removed_at, expires_on, login_method, seeded").limit(5000),
     supabase.from("access_audit").select("id, actor_email, action, target, detail, created_at").order("created_at", { ascending: false }).limit(60),
     // Optional: before the payroll tables exist there are no departments, and that must not break this page.
     supabase.from("employee_details").select("user_id, department, joined_on").limit(5000),
@@ -73,6 +74,7 @@ export async function loadAccess(): Promise<AccessData> {
       type: "domain",
       loginMethod: null,
       status: p.status === "disabled" ? "disabled" : "active",
+      removedAt: p.removed_at,
       expiresOn: p.access_expires_on,
       lastLogin: p.last_login_at,
       signedIn: true,
@@ -87,6 +89,7 @@ export async function loadAccess(): Promise<AccessData> {
     const row = byEmail.get(a.email);
     if (row) {
       row.type = "manual";
+      row.removedAt = row.removedAt ?? a.removed_at;
       row.loginMethod = a.login_method === "password" ? "password" : "google";
       row.seeded = a.seeded;
       row.name = row.name || a.name || "";
@@ -99,6 +102,7 @@ export async function loadAccess(): Promise<AccessData> {
         type: "manual",
         loginMethod: a.login_method === "password" ? "password" : "google",
         status: a.status === "disabled" ? "disabled" : "active",
+        removedAt: a.removed_at,
         expiresOn: a.expires_on,
         lastLogin: null,
         signedIn: false,
@@ -174,8 +178,17 @@ export async function removeUser(email: string): Promise<void> {
   await requireAdmin();
   const e = check(emailSchema.safeParse(email));
   const supabase = await db();
-  const { error } = await supabase.rpc("access_remove_user", { p_email: e });
+  const { error } = await supabase.rpc("access_archive_user", { p_email: e });
   return rpcError(error, "Couldn't remove the person. Please try again.");
+}
+
+export async function restoreUser(email: string, mode: "fresh" | "retrieve"): Promise<void> {
+  await requireAdmin();
+  const e = check(emailSchema.safeParse(email));
+  if (mode !== "fresh" && mode !== "retrieve") throw new TimesheetError("Choose Fresh start or Retrieve old data.");
+  const supabase = await db();
+  const { error } = await supabase.rpc("access_restore_user", { p_email: e, p_mode: mode });
+  return rpcError(error, "Couldn't restore the person. Please try again.");
 }
 
 export async function resetPassword(input: unknown): Promise<void> {

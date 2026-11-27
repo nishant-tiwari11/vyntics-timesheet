@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Briefcase, FolderCheck, Palmtree, Receipt, UserRound, Wallet } from "lucide-react";
+import { Briefcase, FolderCheck, Palmtree, Receipt, UserRound, Wallet } from "lucide-react";
 import RadialOrbitalTimeline, { type TimelineItem } from "@/components/ui/radial-orbital-timeline";
 import type { EmployeeToday } from "@/lib/admin/employeeToday";
 import { formatMoney } from "@/lib/payroll/money";
@@ -113,10 +112,8 @@ function itemsFor(p: DialerPerson, t: EmployeeToday | null, failed: string | nul
   return [workLog, leave, expenses, payroll, documents, profile].map((it) => ({ ...it, details: it.details ?? [] }));
 }
 
-// The overview's "orbit dialer", shown in the page itself: pick a badge and it turns into an orbit with the person in the middle
-// and their areas around them. Each area shows a short look at today; "View full" goes to that page already filtered to this
-// person. "Everyone" turns it back into the badges.
-export function EmployeeOrbit({ person, onBack }: { person: DialerPerson; onBack: () => void }) {
+// Shown beside the selected ID badge. Each node previews this person's day.
+export function EmployeeOrbit({ person }: { person: DialerPerson }) {
   // The answer is kept with the person it is for, so opening someone else never shows the previous person's day.
   const [result, setResult] = useState<{ id: string; data: EmployeeToday | null; error: string | null } | null>(null);
   const [radius, setRadius] = useState(200);
@@ -146,20 +143,7 @@ export function EmployeeOrbit({ person, onBack }: { person: DialerPerson; onBack
   const items = useMemo(() => itemsFor(person, mine?.data ?? null, mine?.error ?? null), [person, mine]);
 
   return (
-    <div ref={box} className="relative h-[620px] w-full">
-      <div className="absolute inset-x-0 top-0 z-[300] flex flex-wrap items-center justify-between gap-2 px-4 pt-4">
-        <button
-          type="button"
-          onClick={onBack}
-          className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-black/15 bg-white/80 px-3 text-sm font-medium backdrop-blur outline-none transition-colors hover:bg-white focus-visible:ring-2 focus-visible:ring-black"
-        >
-          <ArrowLeft className="size-4" aria-hidden="true" /> Everyone
-        </button>
-        <Link href={`/timesheet/admin/access/${person.id}`} className="inline-flex min-h-9 items-center rounded-full border border-black/15 bg-white/80 px-3 text-sm font-medium backdrop-blur transition-colors hover:bg-white">
-          Open employee page
-        </Link>
-      </div>
-
+    <div ref={box} className="relative h-[500px] w-full">
       <RadialOrbitalTimeline
         timelineData={items}
         theme="light"
@@ -173,11 +157,10 @@ export function EmployeeOrbit({ person, onBack }: { person: DialerPerson; onBack
               <UserAvatar userId={person.id} name={person.name} className="size-16 border-2 border-black/20 text-lg" />
             </span>
             <span className="max-w-40 truncate text-center text-xs font-semibold tracking-wide">{person.name}</span>
-            <span className="text-[11px] text-black/50">{person.role}</span>
+            <span className="text-[11px] text-black/75">{person.role}</span>
           </div>
         }
       />
-      <p className="pointer-events-none absolute inset-x-0 bottom-3 z-[300] text-center text-xs text-black/50">Tap a node to preview it. Tap the background to turn the orbit again.</p>
     </div>
   );
 }
