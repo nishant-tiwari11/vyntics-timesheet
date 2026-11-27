@@ -10,14 +10,13 @@ import { loadWorkLog } from "./data";
 import { LOCK_WARNING_DAYS, clock12, daysLeftToEdit, editHint, filterEntries, fmtDuration, groupByDay, paginate, type Entry } from "./model";
 import { RetryButton } from "./RetryButton";
 import { RowActions } from "./RowActions";
-import { StatusBadge } from "./StatusBadge";
 import { TruncatedText } from "./TruncatedText";
-import { clearedFilters, hasFilters, workHref, type SortId, type WorkQuery } from "./query";
+import { clearedFor, hasFilters, workHref, type SortId, type WorkQuery } from "./query";
 
 // One grid for the header and every row. On a wide screen it is a table; under 768px each entry becomes a card
 // (the header row is hidden and the cells stack). ARIA table roles keep it a table for screen readers either way.
 const GRID =
-  "grid gap-x-4 gap-y-1 px-4 max-md:grid-cols-2 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1.3fr)_minmax(0,.8fr)_minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,1.7fr)] md:items-center";
+  "grid gap-x-4 gap-y-1 px-4 max-md:grid-cols-2 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1.3fr)_minmax(0,.8fr)_minmax(0,2.6fr)_minmax(0,1.7fr)] md:items-center";
 
 function dayTitle(date: string, today: string): string {
   if (date === today) return "Today";
@@ -106,9 +105,6 @@ function Row({
             Comp-off: {coff.needsReapproval ? "re-approval needed" : coff.status === "pending" ? "Pending" : coff.status === "approved" ? "Approved" : "Rejected"}
           </p>
         )}
-      </div>
-      <div role="cell">
-        <StatusBadge status={entry.status} />
       </div>
       <div role="cell" className="max-md:col-span-2">
         <RowActions
@@ -207,7 +203,7 @@ export async function LogList({ query }: { query: WorkQuery }) {
         </p>
         {filtersOn ? (
           <Button asChild variant="outline" className="max-md:min-h-11">
-            <Link href={workHref(query, clearedFilters, today)}>Clear filters</Link>
+            <Link href={workHref(query, clearedFor(query), today)}>Clear filters</Link>
           </Button>
         ) : (
           <AddLogButton today={today} />
@@ -250,7 +246,6 @@ export async function LogList({ query }: { query: WorkQuery }) {
             <div role="columnheader" className="font-medium">
               Description
             </div>
-            <SortHeader id="status" label="Status" query={query} today={today} />
             <div role="columnheader" className="text-right font-medium">
               <span className="sr-only">Actions</span>
             </div>

@@ -1,10 +1,16 @@
 // Who may sign in and what each role is. Plain code with no server-only imports, so the server, the browser and the
 // tests can all use it. The database enforces the same rules (supabase/step24_access.sql); this is the app's copy.
 
-export const ROLES = ["admin", "manager", "employee", "viewer"] as const;
+export const ROLES = ["admin", "manager", "employee", "external", "viewer"] as const;
 export type Role = (typeof ROLES)[number];
 
-export const ROLE_LABEL: Record<Role, string> = { admin: "Admin", manager: "Manager", employee: "Employee", viewer: "Viewer" };
+export const ROLE_LABEL: Record<Role, string> = { admin: "Admin", manager: "Manager", employee: "Employee", external: "External", viewer: "Viewer" };
+
+/**
+ * People who use the portal for their own work: timesheet, leave, expenses, duty. An External (someone who works with the company
+ * but isn't on its staff) is one of them, with the same portal as an employee; a viewer only looks, and an admin runs the company.
+ */
+export const worksInPortal = (role: string | null | undefined): boolean => role === "employee" || role === "external" || role === "manager";
 
 export const isRole = (v: unknown): v is Role => typeof v === "string" && (ROLES as readonly string[]).includes(v);
 

@@ -1,3 +1,5 @@
+import { worksInPortal } from "@/lib/access/config";
+
 // Duty: the shapes and small rules the server and the browser share. No server-only imports.
 
 export type DutyLocation = "office" | "wfh";
@@ -25,7 +27,7 @@ export type DutySession = { start: string; end: string | null; location: DutyLoc
 export type DutyDay = { date: string; sessions: DutySession[]; dutySeconds: number; reportedHours: number };
 
 /** Employees and managers go on duty. Admins (who run the place) and read-only viewers don't. */
-export const dutyEligible = (role: string) => role === "employee" || role === "manager";
+export const dutyEligible = (role: string) => worksInPortal(role);
 
 /** "1 h 20 m", "45 m", "0 m". */
 export function durationText(totalSeconds: number): string {

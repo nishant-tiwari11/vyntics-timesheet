@@ -324,19 +324,19 @@ export async function runJob(job: Job, now: Date = new Date(), onlyEmail?: strin
 
   // approvals
   if (!settings.approvalDigest) return skip("Approval messages are turned off.");
-  const [reqs, logs, comp] = await Promise.all([
+  const [reqs, comp] = await Promise.all([
     db.from("requests").select("user_id").eq("status", "pending").limit(5000),
-    db.from("work_logs").select("user_id").eq("status", "pending").limit(10000),
     db.from("comp_off_requests").select("user_id").or("status.eq.pending,needs_reapproval.eq.true").limit(5000),
   ]);
-  if (reqs.error || logs.error || comp.error) throw new Error(WRITE_FAILED);
+  if (reqs.error || comp.error) throw new Error(WRITE_FAILED);
   const owner = new Map(people.map((p) => [p.id, p]));
   const recipients = people.filter((p) => (p.role === "admin" || p.role === "manager") && p.optedIn && p.email && !sentToday(p.digested, today));
   result.considered = recipients.length;
   for (const p of recipients) {
     // An admin decides everything except their own; a manager decides for the people who report to them.
     const mine = (rows: { user_id: unknown }[]) => rows.filter((r) => owner.has(r.user_id as string) && r.user_id !== p.id && (p.role === "admin" || owner.get(r.user_id as string)?.managerId === p.id)).length;
-    const counts = { requests: mine(reqs.data), logs: mine(logs.data), compOff: mine(comp.data) };
+    // Time logs are not approved one by one (the admin looks at them at the end of the month), so they are not counted here.
+    const counts = { requests: mine(reqs.data), logs: 0, compOff: mine(comp.data) };
     if (counts.requests + counts.logs + counts.compOff === 0) continue;
     const link = portalUrl(p.role === "admin" ? "/timesheet/admin" : "/timesheet/team");
     const total = counts.requests + counts.logs + counts.compOff;

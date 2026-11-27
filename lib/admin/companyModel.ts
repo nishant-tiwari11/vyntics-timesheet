@@ -3,6 +3,15 @@
 export type CountRow = { name: string; count: number };
 
 export type WorkingPerson = { id: string; name: string; startedAt: string | null; onDuty: boolean; location: string | null };
+/** Someone on approved leave today: the request's dates, which part of the day, and what kind of leave it was approved as. */
+export type LeaveToday = { id: string; name: string; from: string; to: string; part: string; kind: string | null };
+
+/** Someone working from home today: by an approved request (with its dates), or because they went on duty from home. */
+export type WfhToday = { id: string; name: string; approved: { from: string; to: string; part: string } | null; dutyStartedAt: string | null; onDuty: boolean };
+
+/** One expense claim waiting for a decision, as the overview's Expense claims card lists it. */
+export type PendingClaim = { id: string; code: string; userId: string; employee: string; category: string; description: string; date: string; claimed: number };
+
 export type DutyTodayRow = { user_id: string; started_at: string; ended_at: string | null; location: string };
 
 /** The roster and the summary count must use the same people, including work-log-only entries. */

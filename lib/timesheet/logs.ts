@@ -332,6 +332,8 @@ export async function listLogsInRange(opts: {
   scope: "mine" | "all";
   from: string;
   to: string;
+  /** With scope "all": only this person's entries (read from the database, instead of everyone's and then picked out). */
+  userId?: string;
 }): Promise<{ rows: WorkLogWithPerson[]; total: number }> {
   const from = assertDate(opts.from, "start date");
   const to = assertDate(opts.to, "end date");
@@ -344,6 +346,7 @@ export async function listLogsInRange(opts: {
     .gte("log_date", from)
     .lte("log_date", to);
   if (opts.scope === "mine") query = query.eq("user_id", me.id);
+  else if (opts.userId) query = query.eq("user_id", assertId(opts.userId, "employee"));
 
   const { data, error, count } = await query
     .order("log_date", { ascending: false })

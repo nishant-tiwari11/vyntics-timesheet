@@ -8,7 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { FormField, Input, Select } from "../../_components/Fields";
 import { CopyYesterdayButton } from "./CopyYesterdayButton";
-import { STATUS_OPTIONS, clearedFilters, hasFilters, workHref, type SortId, type StatusId, type WorkQuery } from "./query";
+import { clearedFor, hasFilters, workHref, type SortId, type WorkQuery } from "./query";
 
 // The ways to order the list. Each one is a sort and a direction, kept in the address like every other setting.
 const SORT_CHOICES: { id: string; label: string; sort: SortId; dir: "asc" | "desc" }[] = [
@@ -18,7 +18,6 @@ const SORT_CHOICES: { id: string; label: string; sort: SortId; dir: "asc" | "des
   { id: "longest", label: "Longest first", sort: "duration", dir: "desc" },
   { id: "shortest", label: "Shortest first", sort: "duration", dir: "asc" },
   { id: "time", label: "Time of day", sort: "time", dir: "asc" },
-  { id: "status", label: "Status", sort: "status", dir: "asc" },
 ];
 
 // One tidy row above the entries: Filter (project, status, dates, search in a pop-up), Sort by, and a menu with Export and
@@ -67,7 +66,7 @@ export function WorkLogFilters({
   }, [draft, query, today, router]);
 
   const active = hasFilters(query);
-  const count = [query.project !== "all", query.status !== "all", query.q !== "", query.user !== "", query.from !== "", query.to !== ""].filter(Boolean).length;
+  const count = [query.project !== "all", query.q !== "", query.user !== "" && !query.pinnedUser, query.from !== "", query.to !== ""].filter(Boolean).length;
   const sortNow = SORT_CHOICES.find((c) => c.sort === query.sort && c.dir === query.dir) ?? SORT_CHOICES[0];
   const exportHref = workHref(query, { page: 1 }, today, "/timesheet/worklog/export");
   const csvHref = `${exportHref}${exportHref.includes("?") ? "&" : "?"}format=csv`;
@@ -103,15 +102,6 @@ export function WorkLogFilters({
                 ))}
               </Select>
             </FormField>
-            <FormField label="Status">
-              <Select value={query.status} onChange={(e) => go({ status: e.target.value as StatusId })}>
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.label}
-                  </option>
-                ))}
-              </Select>
-            </FormField>
             <FormField label="From date">
               <Input type="date" value={query.from} max={query.to || undefined} onChange={(e) => go({ from: e.target.value })} />
             </FormField>
@@ -120,7 +110,7 @@ export function WorkLogFilters({
             </FormField>
           </div>
           {active && (
-            <Button type="button" variant="ghost" size="sm" className="w-fit max-md:min-h-11" onClick={() => go(clearedFilters)}>
+            <Button type="button" variant="ghost" size="sm" className="w-fit max-md:min-h-11" onClick={() => go(clearedFor(query))}>
               <X aria-hidden="true" /> Clear filters
             </Button>
           )}
@@ -148,7 +138,7 @@ export function WorkLogFilters({
       </label>
 
       {active && (
-        <Button type="button" variant="ghost" size="sm" className="max-md:min-h-11" onClick={() => go(clearedFilters)}>
+        <Button type="button" variant="ghost" size="sm" className="max-md:min-h-11" onClick={() => go(clearedFor(query))}>
           <X aria-hidden="true" /> Clear filters
         </Button>
       )}

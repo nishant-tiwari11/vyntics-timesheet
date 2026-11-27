@@ -8,6 +8,7 @@ import { TimesheetError, assertId, toError } from "@/lib/timesheet/errors";
 import { logError } from "@/lib/timesheet/log";
 import { displayName } from "@/lib/timesheet/people";
 import { ACCOUNT_TYPES, checkBank, emptyAnswers, missingForSubmit, neededDocs, type AccountType, type Answers, type DegreeMode, type ExperienceType } from "./rules";
+import { worksInPortal } from "@/lib/access/config";
 
 // Reading and saving onboarding answers. The employee only ever reads and writes their own (row-level security and the
 // onboarding_save function enforce it); admins read everyone's. The account number is never logged.
@@ -50,7 +51,7 @@ function answersFrom(r: Db | null): Answers {
 }
 
 /** Who has to onboard: employees and managers. Admins (the owner / HR) and read-only viewers don't. */
-export const mustOnboard = (role: string) => role === "employee" || role === "manager";
+export const mustOnboard = (role: string) => worksInPortal(role);
 
 export type OnboardingGate = { locked: boolean; rejected: number };
 

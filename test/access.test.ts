@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { NO_ACCESS_ERROR, ROLES, isAllowedDomain, parseBulkUsers, parseDomains, sessionMaxHours, toRole } from "@/lib/access/config";
+import { NO_ACCESS_ERROR, ROLES, ROLE_LABEL, isAllowedDomain, parseBulkUsers, parseDomains, sessionMaxHours, toRole, worksInPortal } from "@/lib/access/config";
 import { addUserSchema, bulkSchema, resetPasswordSchema } from "@/lib/access/schemas";
 import { ALLOWED_USERS, PASSWORD_USERS } from "@/config/allowed-users";
 
@@ -30,8 +30,8 @@ describe("allowed domains", () => {
 });
 
 describe("roles", () => {
-  it("has the four roles and reads them in any case", () => {
-    expect(ROLES).toEqual(["admin", "manager", "employee", "viewer"]);
+  it("has the five roles and reads them in any case", () => {
+    expect(ROLES).toEqual(["admin", "manager", "employee", "external", "viewer"]);
     expect(toRole("VIEWER")).toBe("viewer");
     expect(toRole(" Manager ")).toBe("manager");
     expect(toRole("owner")).toBeNull();
@@ -154,5 +154,23 @@ describe("access migration", () => {
     expect(sql).not.toMatch(/create policy "allowed users: admin (write|insert|update|delete)/);
     expect(sql).toMatch(/grant execute on function public\.access_login_locked\(text, text\) to anon/);
     expect(sql).not.toMatch(/grant execute on function public\.access_set_password\(text, text\) to anon/);
+  });
+});
+
+describe("the External role", () => {
+  it("is a role with its own label, and a person can be added as one", () => {
+    expect(toRole("External")).toBe("external");
+    expect(ROLE_LABEL.external).toBe("External");
+    const { entries, errors } = parseBulkUsers("asha@example.com,Asha Rao,external");
+    expect(errors).toEqual([]);
+    expect(entries[0].role).toBe("external");
+  });
+  it("uses the portal like an employee does (timesheet, duty, onboarding), unlike a viewer", () => {
+    expect(worksInPortal("external")).toBe(true);
+    expect(worksInPortal("employee")).toBe(true);
+    expect(worksInPortal("manager")).toBe(true);
+    expect(worksInPortal("viewer")).toBe(false);
+    expect(worksInPortal("admin")).toBe(false);
+    expect(worksInPortal(undefined)).toBe(false);
   });
 });

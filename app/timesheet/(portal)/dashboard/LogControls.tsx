@@ -5,11 +5,9 @@ import { FormField, Select } from "../../_components/Fields";
 import {
   PAGE_SIZES,
   RANGES,
-  STATUS_FILTERS,
   logHref,
   type LogQuery,
   type RangeId,
-  type StatusFilter,
 } from "./logQuery";
 
 // Dropdowns that change the table straight away. Changing a filter goes back to page 1.
@@ -27,20 +25,6 @@ export function LogFilters({ query }: { query: LogQuery }) {
           {RANGES.map((r) => (
             <option key={r.id} value={r.id}>
               {r.label}
-            </option>
-          ))}
-        </Select>
-      </FormField>
-
-      <FormField label="Filter by status" srOnlyLabel>
-        <Select
-          size="sm"
-          value={query.status}
-          onChange={(e) => router.push(logHref(query, { status: e.target.value as StatusFilter, page: 1 }))}
-        >
-          {STATUS_FILTERS.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.label}
             </option>
           ))}
         </Select>

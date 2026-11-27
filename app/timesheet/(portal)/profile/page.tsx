@@ -1,7 +1,7 @@
 import "../dashboard/dashboard.css";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ROLE_LABEL, toRole } from "@/lib/access/config";
+import { worksInPortal, ROLE_LABEL, toRole } from "@/lib/access/config";
 import { AVATAR_BUCKET, avatarPath, isUuid } from "@/lib/avatar";
 import { emptyAnswers } from "@/lib/onboarding/rules";
 import { requiredChecklist } from "@/lib/documents/config";
@@ -37,7 +37,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   const own = targetId === me.id;
   // Documents are for HR to manage (Admin > Documents). An employee's own profile has no Documents tab: they hand those in once,
   // during onboarding.
-  const ownDocs = own && (me.role === "employee" || me.role === "manager");
+  const ownDocs = own && worksInPortal(me.role);
   const tab = (!own || ownDocs) && one(raw.tab) === "documents" ? "documents" : "overview";
 
   const supabase = await createClient();
