@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CopyPlus, Loader2, Lock, MoreHorizontal, Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { CopyPlus, LifeBuoy, Loader2, Lock, MoreHorizontal, Pencil, RotateCcw, Ticket, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatYmd } from "@/lib/timesheet/dates";
+import { ticketCode } from "@/lib/tickets/model";
 import { adminDeleteLogAction } from "../admin/logActions";
 import { deleteLogAction } from "../dashboard/actions";
 import { LazyWorkLogForm } from "../dashboard/LazyForms";
@@ -35,6 +37,7 @@ export function RowActions({
   canChange,
   canFix,
   lockedReason,
+  ticket,
 }: {
   entry: Entry;
   today: string;
@@ -45,6 +48,8 @@ export function RowActions({
   /** A rejected entry of your own whose week hasn't locked yet, so a corrected copy can be sent. */
   canFix: boolean;
   lockedReason: string | null;
+  /** A ticket already raised about this entry (null = none yet; undefined = not your entry, so no ticket actions). */
+  ticket?: { id: string; number: number; status: string } | null;
 }) {
   const [dialog, setDialog] = useState<Dialogs>(null);
   const [deleting, startDelete] = useTransition();
@@ -72,7 +77,14 @@ export function RowActions({
     });
   }
 
-  const hasMenu = canChange || canDuplicate;
+  const hasMenu = canChange || canDuplicate || ticket !== undefined;
+  // "Raise issue" opens the ticket drawer with this entry's details filled in (employee, project, date and hours go with the ticket).
+  const issueHref = `/timesheet/tickets/new?${new URLSearchParams({
+    log: entry.id,
+    category_name: "Timesheet Issues",
+    subject: `Problem with my ${formatYmd(entry.date, { day: "numeric", month: "short" })} time log`,
+    ...(entry.project ? { project: entry.project } : {}),
+  })}`;
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-1.5">
@@ -113,6 +125,19 @@ export function RowActions({
             {canDuplicate && (
               <DropdownMenuItem onSelect={() => setDialog("duplicate")}>
                 <CopyPlus aria-hidden="true" /> Duplicate
+              </DropdownMenuItem>
+            )}
+            {ticket !== undefined && (
+              <DropdownMenuItem asChild>
+                {ticket ? (
+                  <Link href={`/timesheet/tickets?t=${ticket.id}`}>
+                    <Ticket aria-hidden="true" /> View ticket {ticketCode(ticket.number)}
+                  </Link>
+                ) : (
+                  <Link href={issueHref}>
+                    <LifeBuoy aria-hidden="true" /> Raise issue
+                  </Link>
+                )}
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />

@@ -4,6 +4,8 @@ import { requestsByDay } from "@/lib/timesheet/compOff";
 import { formatYmd, isWeekend, todayInOffice } from "@/lib/timesheet/dates";
 import { offDatesBetween } from "@/lib/timesheet/holidays";
 import { LOCKED_MESSAGE, isLocked } from "@/lib/timesheet/rules";
+import { ticketCode } from "@/lib/tickets/model";
+import { ticketsForLogs } from "@/lib/tickets/server";
 import { displayName } from "@/lib/timesheet/people";
 import DecideLogButtons from "./DecideLogButtons";
 import DeleteLogButton from "./DeleteLogButton";
@@ -66,6 +68,8 @@ export default async function TimeLogs({
       ])
     : [[] as string[], {} as Awaited<ReturnType<typeof requestsByDay>>];
   const holidaySet = new Set(offList);
+  // Tickets raised about your own entries (none before step 45), for the "Raise issue" / "View ticket" link on each row.
+  const linked = res.ok && !isAdmin ? await ticketsForLogs(res.data.rows.filter((r) => r.user_id === myId).map((r) => r.id)) : new Map<string, { id: string; number: number }>();
 
   const today = todayInOffice();
   const title = isAdmin ? "All employee time logs" : "Your time logs";
@@ -202,6 +206,23 @@ export default async function TimeLogs({
                               text: row.content,
                             }}
                           />
+                        )}
+                        {!isAdmin && own && (
+                          <span className="ts-decide">
+                            {linked.get(row.id) ? (
+                              <Link href={`/timesheet/tickets?t=${linked.get(row.id)!.id}`} className="ts-btn ts-btn-ghost ts-btn-sm" aria-label={`View ticket ${ticketCode(linked.get(row.id)!.number)} about this time log`}>
+                                {ticketCode(linked.get(row.id)!.number)}
+                              </Link>
+                            ) : (
+                              <Link
+                                href={`/timesheet/tickets/new?${new URLSearchParams({ log: row.id, category_name: "Timesheet Issues", subject: `Problem with my ${formatYmd(row.log_date, { day: "numeric", month: "short" })} time log`, ...(row.project ? { project: row.project } : {}) })}`}
+                                className="ts-btn ts-btn-ghost ts-btn-sm"
+                                aria-label={`Raise an issue about the ${formatYmd(row.log_date, { day: "numeric", month: "short" })} time log`}
+                              >
+                                Raise issue
+                              </Link>
+                            )}
+                          </span>
                         )}
                         {!isAdmin && own && row.status === "pending" && isLocked(row.log_date, today) && (
                           <span className="ts-muted ts-small" title={LOCKED_MESSAGE}>

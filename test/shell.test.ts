@@ -4,9 +4,15 @@ import { currentHref, portalLinks } from "@/app/timesheet/_components/NavLinks";
 const labels = (role: string) => portalLinks(role).map((l) => l.label);
 
 describe("the menu a role sees (the sidebar, the drawer and the command palette share it)", () => {
-  it("shows employees the everyday pages only", () => {
-    expect(labels("employee")).toEqual(["Dashboard", "Leave & WFH", "Work log", "Calendar", "Expenses", "My Salary"]);
+  it("shows employees the everyday pages and their own tickets", () => {
+    expect(labels("employee")).toEqual(["Dashboard", "Leave & WFH", "Work log", "Calendar", "Expenses", "My Salary", "Raise Ticket", "My Tickets", "Assigned to Me"]);
     expect(labels("viewer")).toEqual(labels("employee"));
+  });
+  it("shows All Tickets to managers and admins only", () => {
+    expect(labels("employee")).not.toContain("All Tickets");
+    expect(labels("manager")).toContain("All Tickets");
+    // admins find every ticket inside Projects (the Tickets view), not as a menu item of its own
+    expect(labels("admin")).not.toContain("All Tickets");
   });
   it("adds Team for a manager, but not Payroll or Admin", () => {
     expect(labels("manager")).toContain("Team");
