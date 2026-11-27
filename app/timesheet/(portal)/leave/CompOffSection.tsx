@@ -46,7 +46,12 @@ export default async function CompOffSection() {
           <dl className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
               ["Balance", dayWord(loaded.balance.balance)],
-              ["Expiring soon", daysText(loaded.balance.expiringSoon)],
+              [
+                "Next to expire",
+                loaded.balance.nextExpiry
+                  ? `${formatYmd(loaded.balance.nextExpiry.date, { day: "numeric", month: "short", year: "numeric" })} (${daysText(loaded.balance.nextExpiry.days)})`
+                  : "None",
+              ],
               ["Earned", daysText(loaded.balance.earned)],
               ["Used", daysText(loaded.balance.used)],
             ].map(([label, value]) => (

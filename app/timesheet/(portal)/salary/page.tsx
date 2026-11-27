@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getMyPayslip, getMyStructure, listMyPayslips, logSelf, structureShared } from "@/lib/payroll/mine";
-import { salaryPinState } from "@/lib/payroll/pin";
+import { salaryPinLength, salaryPinState } from "@/lib/payroll/pin";
 import { isMonthKey } from "@/lib/payroll/period";
 import { listMyQueries, type QueryRow } from "@/lib/payroll/queries";
 import type { PayslipDetail, PayslipListItem, StructureView } from "@/lib/payroll/slipTypes";
@@ -14,7 +14,7 @@ import { formatYmd } from "@/lib/timesheet/dates";
 import { TimesheetError } from "@/lib/timesheet/errors";
 import { logError } from "@/lib/timesheet/log";
 import { cn } from "@/lib/utils";
-import { Amount, HideToggle, SalaryLock, type PinState } from "./AmountMask";
+import { Amount, GatedLink, HideToggle, SalaryLock, type PinState } from "./AmountMask";
 import LazyNetPayChart from "./LazyNetPayChart";
 import MonthPicker from "./MonthPicker";
 import PrintButton from "./PrintButton";
@@ -102,13 +102,15 @@ export default async function SalaryPage({ searchParams }: { searchParams: Promi
   let queries: QueryRow[] = [];
   let shared = false;
   let pinState: PinState = "none";
+  let pinLength: number | null = null;
   let error: string | null = null;
   try {
-    [slips, queries, shared, pinState] = await Promise.all([
+    [slips, queries, shared, pinState, pinLength] = await Promise.all([
       listMyPayslips(),
       listMyQueries().catch(() => [] as QueryRow[]),
       structureShared().catch(() => false),
       salaryPinState().catch((): PinState => "none"), // if it can't be checked, stay locked
+      salaryPinLength(),
     ]);
   } catch (e) {
     if (!(e instanceof TimesheetError)) logError("salary-page", e);
@@ -156,7 +158,7 @@ export default async function SalaryPage({ searchParams }: { searchParams: Promi
   const myQueries = queries.filter((q) => !detail || q.payslipId === detail.id);
 
   return (
-    <SalaryLock locked={locked}>
+    <SalaryLock locked={locked} state={pinState} pinLength={pinLength}>
     <div className="grid gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3 no-print">
         <div className="grid gap-1">
@@ -476,12 +478,12 @@ export default async function SalaryPage({ searchParams }: { searchParams: Promi
                           </TableCell>
                           <TableCell>
                             <div className="flex justify-end gap-1.5">
-                              <Link href={`/timesheet/salary?month=${s.month}`} className="inline-flex min-h-9 items-center rounded-md bg-foreground px-4 text-sm font-medium text-background transition-opacity hover:opacity-85" aria-label={`View the ${monthName(s.month)} payslip`}>
+                              <GatedLink href={`/timesheet/salary?month=${s.month}`} className="inline-flex min-h-9 items-center rounded-md bg-foreground px-4 text-sm font-medium text-background transition-opacity hover:opacity-85" aria-label={`View the ${monthName(s.month)} payslip`}>
                                 View
-                              </Link>
-                              <a href={`/timesheet/salary/pdf?month=${s.month}`} className={link} aria-label={`Download the ${monthName(s.month)} payslip as a PDF`}>
+                              </GatedLink>
+                              <GatedLink href={`/timesheet/salary/pdf?month=${s.month}`} download className={link} aria-label={`Download the ${monthName(s.month)} payslip as a PDF`}>
                                 <Download className="mr-1 size-4" aria-hidden="true" /> PDF
-                              </a>
+                              </GatedLink>
                             </div>
                           </TableCell>
                         </TableRow>

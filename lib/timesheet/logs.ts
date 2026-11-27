@@ -53,11 +53,31 @@ async function checkedFields(input: LogFields, admin = false) {
   return { ...fields, project: await assertProject(input.project) };
 }
 
+/** Two entries on the same day can't cover the same time. Rejected entries don't count. `exceptId` is the entry being edited. */
+async function assertNoOverlap(supabase: Awaited<ReturnType<typeof db>>, userId: string, fields: { log_date: string; start_time?: string | null; end_time?: string | null }, exceptId?: string) {
+  const { start_time: start, end_time: end } = fields;
+  if (!start || !end) return;
+  const { data, error } = await supabase
+    .from("work_logs")
+    .select("id, start_time, end_time, project")
+    .eq("user_id", userId)
+    .eq("log_date", fields.log_date)
+    .neq("status", "rejected")
+    .limit(200);
+  if (error) throw toError(error, "Couldn't check your other entries. Please try again.");
+  const clash = (data ?? []).find((r) => r.id !== exceptId && r.start_time && r.end_time && start < r.end_time.slice(0, 5) && end > r.start_time.slice(0, 5));
+  if (clash) {
+    const label = `${clash.start_time!.slice(0, 5)} to ${clash.end_time!.slice(0, 5)}${clash.project ? ` (${clash.project})` : ""}`;
+    throw new TimesheetError(`This overlaps another entry you already added for that day, ${label}. Change the times, or edit that entry instead.`);
+  }
+}
+
 /** Add a time log. New entries start as pending. */
 export async function addLog(input: LogFields): Promise<WorkLog> {
   const fields = await checkedFields(input);
   const me = await requireUser();
   const supabase = await db();
+  await assertNoOverlap(supabase, me.id, fields);
   const { data, error } = await supabase
     .from("work_logs")
     .insert({ user_id: me.id, ...fields })
@@ -73,6 +93,7 @@ export async function updateLog(id: string, input: LogFields): Promise<void> {
   const fields = await checkedFields(input);
   const me = await requireUser();
   const supabase = await db();
+  await assertNoOverlap(supabase, me.id, fields, id);
   const { data, error } = await supabase
     .from("work_logs")
     .update(fields)
@@ -342,6 +363,7 @@ export async function listMyLogsOnDate(date: string): Promise<{ id: string; star
     .select("id, start_time, end_time, project")
     .eq("user_id", me.id)
     .eq("log_date", day)
+    .neq("status", "rejected") // a rejected entry doesn't block the time
     .order("start_time", { ascending: true })
     .limit(50);
   if (error) throw toError(error, "Couldn't check your other entries for that day.");

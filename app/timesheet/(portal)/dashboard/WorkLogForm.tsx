@@ -123,18 +123,16 @@ export default function WorkLogForm({
     };
   }, [initial]);
 
-  // Smart defaults: a new entry starts with the project you used last and your usual start and end time.
+  // Smart default: a new entry starts with the project you used last. The times are left empty for you to fill in.
   const wantsHints = !initial && !prefill && !isAdminMode;
   useEffect(() => {
     if (!wantsHints) return;
     let live = true;
     logHintsAction().then((res) => {
       if (!live || !res.ok || touched.current) return;
-      const { project: p, start: s, end: e } = res.hints;
-      setBase((b) => ({ ...b, project: p ?? b.project, start: s ?? b.start, end: e && s && e > s ? e : b.end }));
+      const { project: p } = res.hints;
+      setBase((b) => ({ ...b, project: p ?? b.project }));
       if (p) setProject(p);
-      if (s) setStart(s);
-      if (e && s && e > s) setEnd(e);
     });
     return () => {
       live = false;
@@ -185,6 +183,7 @@ export default function WorkLogForm({
     if (!start) found.start = "Enter a start time.";
     if (!end) found.end = "Enter an end time.";
     else if (start && end <= start) found.end = "The end time must be after the start time.";
+    else if (overlaps.length > 0) found.end = "These times overlap another entry that day. Change the times.";
     if (empty) found.text = "Write a line or two about what you worked on.";
     return found;
   }
@@ -328,9 +327,9 @@ export default function WorkLogForm({
           </p>
         )}
         {overlaps.length > 0 && (
-          <p role="note" className="rounded-md border border-dashed px-3 py-2">
+          <p role="alert" className="rounded-md border border-destructive px-3 py-2 text-destructive">
             <strong>Overlaps another entry.</strong> You already have{" "}
-            {overlaps.map((o) => `${clock12(o.start)} – ${clock12(o.end)}${o.project ? ` (${o.project})` : ""}`).join(" and ")} that day. You can still save.
+            {overlaps.map((o) => `${clock12(o.start)} – ${clock12(o.end)}${o.project ? ` (${o.project})` : ""}`).join(" and ")} that day. Change the times to save.
           </p>
         )}
       </div>
