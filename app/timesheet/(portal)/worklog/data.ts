@@ -39,7 +39,7 @@ async function load(query: WorkQuery): Promise<Loaded<WorkLogData>> {
     const period = periodOf(query, today);
 
     const [logs, offDays, requests, compOff] = await Promise.all([
-      listLogsInRange({ scope: admin ? "all" : "mine", from: period.from, to: period.to }),
+      listLogsInRange({ scope: admin ? "all" : "mine", from: period.from, to: period.to, ...(admin && query.user ? { userId: query.user } : {}) }),
       // Holidays, leave and comp-off are extras: if one can't load, the list still works without it.
       offDatesBetween(period.from, period.to).catch(() => [] as string[]),
       listRequests().catch(() => []),

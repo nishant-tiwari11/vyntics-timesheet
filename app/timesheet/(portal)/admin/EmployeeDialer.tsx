@@ -37,7 +37,7 @@ function itemsFor(p: DialerPerson, t: EmployeeToday | null, failed: string | nul
     content: !t ? wait : !w ? "Couldn't load the work log." : w.entries.length === 0 ? (t.dayOff ? "Today is a day off, so no time is expected." : "No time logged yet today.") : `${w.entries.length} ${w.entries.length === 1 ? "entry" : "entries"} today.`,
     details: w && w.entries.length > 0 ? [...w.entries.slice(0, 3).map((e) => ({ label: e.project || "Entry", value: `${e.hours} h` })), ...(w.entries.length > 3 ? [{ label: "and", value: `${w.entries.length - 3} more` }] : []), { label: "Last 7 days", value: `${w.weekHours} h` }] : w ? [{ label: "Last 7 days", value: `${w.weekHours} h` }] : undefined,
     meter: w ? { label: "Hours today", value: Math.round((w.hours / TARGET_HOURS) * 100), text: `${w.hours} / ${TARGET_HOURS} h` } : undefined,
-    href: t ? `/timesheet/worklog?view=day&date=${t.today}&user=${p.id}` : undefined,
+    href: t ? `/timesheet/admin/popup/worklog?view=day&date=${t.today}&user=${p.id}` : undefined,
     hrefLabel: "View full work log",
   };
 
@@ -57,7 +57,7 @@ function itemsFor(p: DialerPerson, t: EmployeeToday | null, failed: string | nul
         ]
       : undefined,
     meter: l?.balances && l.balances.quota > 0 ? { label: "Paid leave used this month", value: Math.round((l.balances.paidUsed / l.balances.quota) * 100), text: `${l.balances.paidUsed} / ${l.balances.quota}` } : undefined,
-    href: t ? `/timesheet/admin/approvals?employee=${p.id}${l && l.pending > 0 ? "" : "&view=history"}` : undefined,
+    href: t ? `/timesheet/admin/popup/approvals?employee=${p.id}${l && l.pending > 0 ? "" : "&view=history"}` : undefined,
     hrefLabel: l && l.pending > 0 ? "Review requests" : "View leave history",
   };
 
@@ -69,7 +69,7 @@ function itemsFor(p: DialerPerson, t: EmployeeToday | null, failed: string | nul
     statusLabel: !t ? "…" : (e?.pending ?? 0) > 0 ? `${e?.pending} TO APPROVE` : "ALL CLEAR",
     content: !t ? wait : !e ? "Couldn't load expenses." : e.latest ? `Latest claim ${e.latest.code}, ${e.latest.category}.` : "No expense claims yet.",
     details: e ? [{ label: "Waiting for approval", value: formatMoney(e.pendingAmount) }, { label: "Going into payroll", value: formatMoney(e.approvedAmount) }, ...(e.latest ? [{ label: "Latest amount", value: formatMoney(e.latest.amount) }] : [])] : undefined,
-    href: t ? `/timesheet/payroll/expenses?q=${encodeURIComponent(p.email)}&filter=all` : undefined,
+    href: t ? `/timesheet/admin/popup/expenses?q=${encodeURIComponent(p.email)}&filter=all` : undefined,
     hrefLabel: "View all claims",
   };
 
@@ -81,7 +81,7 @@ function itemsFor(p: DialerPerson, t: EmployeeToday | null, failed: string | nul
     statusLabel: !t ? "…" : pr ? (pr.status === "paid" ? "PAID" : "FINALIZED") : "NO PAYSLIP",
     content: !t ? wait : pr === undefined ? "Couldn't load payroll." : pr ? `Latest payslip: ${formatYmd(`${pr.month}-01`, { month: "long", year: "numeric" })}.` : "No payslip yet. It appears when a payroll run is finalized.",
     details: pr ? [{ label: "Net pay", value: formatMoney(pr.net, pr.currency) }, ...(pr.bonus > 0 ? [{ label: "Bonus", value: formatMoney(pr.bonus, pr.currency) }] : []), ...(pr.expenses > 0 ? [{ label: "Expenses reimbursed", value: formatMoney(pr.expenses, pr.currency) }] : [])] : undefined,
-    href: t ? `/timesheet/payroll/history?employee=${p.id}` : undefined,
+    href: t ? `/timesheet/admin/popup/payroll?employee=${p.id}` : undefined,
     hrefLabel: "View payroll history",
   };
 
@@ -93,7 +93,7 @@ function itemsFor(p: DialerPerson, t: EmployeeToday | null, failed: string | nul
     statusLabel: !t ? "…" : d ? { submitted: "SUBMITTED", in_progress: "IN PROGRESS", skipped: "SKIPPED", not_started: "NOT STARTED" }[d.status] : "UNKNOWN",
     content: !t ? wait : !d ? "Couldn't load documents." : d.rejected > 0 ? `${d.rejected} ${d.rejected === 1 ? "document was" : "documents were"} sent back.` : d.status === "submitted" ? "Onboarding submitted." : d.status === "skipped" ? "Onboarding is skipped for this person." : "Onboarding isn't finished.",
     details: d ? [{ label: "Offer letter", value: d.hasLetters.offer ? "Uploaded" : "To be uploaded" }, { label: "Joining letter", value: d.hasLetters.joining ? "Uploaded" : "To be uploaded" }, { label: "Files submitted", value: String(d.uploaded) }, { label: "Waiting for a check", value: String(d.pending) }] : undefined,
-    href: t ? "/timesheet/admin/documents?view=onboarding" : undefined,
+    href: t ? `/timesheet/admin/popup/documents?view=onboarding&employee=${p.id}` : undefined,
     hrefLabel: "Open documents",
   };
 
@@ -104,7 +104,7 @@ function itemsFor(p: DialerPerson, t: EmployeeToday | null, failed: string | nul
     statusLabel: p.role.toUpperCase(),
     content: p.email,
     details: [{ label: "Role", value: p.role }],
-    href: `/timesheet/admin/access/${p.id}`,
+    href: `/timesheet/admin/popup/employee/${p.id}`,
     hrefLabel: "Open employee page",
   };
 

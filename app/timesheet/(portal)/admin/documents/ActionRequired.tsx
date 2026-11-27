@@ -12,6 +12,7 @@ import { formatInstantDate } from "@/lib/timesheet/dates";
 import { UserAvatar } from "../../../_components/UserAvatar";
 import type { PreviewDoc } from "../../profile/documents/DocumentPreviewModal";
 import type { ReviewTarget } from "../../profile/documents/ReviewDialog";
+import { worksInPortal } from "@/lib/access/config";
 
 const profileLink = (id: string) => `/timesheet/admin/access/${id}`;
 
@@ -90,7 +91,7 @@ export function ActionRequired({
   onPreview: (d: PreviewDoc) => void;
   onReview: (t: ReviewTarget) => void;
 }) {
-  const people = employees.filter((e) => e.role === "employee" || e.role === "manager");
+  const people = employees.filter((e) => worksInPortal(e.role));
   const hasLetter = (id: string, cat: string) => docs.some((d) => d.userId === id && d.category === cat && d.status !== "rejected");
   const toIssue = people.map((e) => ({ e, offer: !hasLetter(e.id, "offer_letter"), joining: !hasLetter(e.id, "appointment_letter") })).filter((r) => r.offer || r.joining);
   const toVerify = docs.filter((d) => d.status === "pending" && !["offer_letter", "appointment_letter"].includes(d.category));

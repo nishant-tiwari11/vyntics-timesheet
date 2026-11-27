@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
+import { isUuid } from "@/lib/avatar";
 import { getCurrentUser } from "@/lib/supabase/getCurrentUser";
 import { AdminTableSkeleton } from "../../_components/skeletons";
 import { AdminOverview, AdminOverviewSkeleton } from "./AdminOverview";
@@ -34,7 +35,7 @@ export default async function AdminPage({
   if (!tab) {
     return (
       <Suspense fallback={<AdminOverviewSkeleton />}>
-        <AdminOverview name={me.name || me.email} />
+        <AdminOverview name={me.name || me.email} employeeId={isUuid(one(raw.employee)) ? (one(raw.employee) as string) : null} raw={raw} />
       </Suspense>
     );
   }

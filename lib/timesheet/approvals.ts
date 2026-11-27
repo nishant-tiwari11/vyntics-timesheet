@@ -10,6 +10,7 @@ import { logError } from "./log";
 import { displayName } from "./people";
 import { listApprovedLeaveBetween } from "./admin";
 import { listAllRequests } from "./requests";
+import { worksInPortal } from "@/lib/access/config";
 
 // The admin's Approvals page: leave and work-from-home requests with what an approval would do (paid leave left, comp-off
 // balance), and the decision itself. Admins decide for everyone; a manager only for their direct reports (the database enforces
@@ -227,7 +228,7 @@ export async function loadBalances(): Promise<{ rows: BalanceRow[]; quota: numbe
   }
 
   const rows = people.data
-    .filter((p) => p.status !== "disabled" && (p.role === "employee" || p.role === "manager"))
+    .filter((p) => p.status !== "disabled" && worksInPortal(p.role))
     .map((p): BalanceRow => {
       const used = usedBy.get(p.id) ?? 0;
       return {

@@ -9,7 +9,7 @@ import type { Holiday } from "@/lib/timesheet/holidayTypes";
 import { logError } from "@/lib/timesheet/log";
 import { listLogsInRange } from "@/lib/timesheet/logs";
 import { displayName } from "@/lib/timesheet/people";
-import { countBy, weekHours, workingToday, type CountRow, type DutyTodayRow, type WorkingPerson } from "./companyModel";
+import { countBy, weekHours, workingToday, type CountRow, type DutyTodayRow, type LeaveToday, type PendingClaim, type WfhToday, type WorkingPerson } from "./companyModel";
 import { notLoggedToday } from "./overviewModel";
 
 // The company picture on the Admin overview: people, today, this week's hours, payroll, expenses and holidays. Admin only.
@@ -22,13 +22,12 @@ export type CompanyOverview = {
   headcount: {
     total: number;
     roles: CountRow[];
-    departments: CountRow[];
     newJoiners: { id: string; name: string; joinedOn: string }[];
   } | null;
-  now: { dayOff: "weekly off" | "holiday" | null; present: number; dutyAvailable: boolean; working: WorkingPerson[]; /** On duty right now. */ onDuty: number; /** Went on duty at all today. */ dutyToday: number; notLogged: number | null; onLeave: Person[]; wfh: Person[] } | null;
+  now: { dayOff: "weekly off" | "holiday" | null; present: number; dutyAvailable: boolean; working: WorkingPerson[]; /** On duty right now. */ onDuty: number; /** Went on duty at all today. */ dutyToday: number; notLogged: number | null; onLeave: Person[]; wfh: Person[]; /** Who is on leave, with dates and kind. */ leaveToday: LeaveToday[]; /** Who works from home, and why we think so. */ wfhToday: WfhToday[] } | null;
   week: { days: { date: string; hours: number }[]; total: number; projects: CountRow[] } | null;
   payroll: { latest: RunSummary | null; open: number } | null;
-  expenses: { pending: number; pendingAmount: number; approvedAmount: number; reimbursedAmount: number } | null;
+  expenses: { pending: number; pendingAmount: number; approvedAmount: number; reimbursedAmount: number; /** The claims waiting for a decision, oldest expense first (at most 40). */ claims: PendingClaim[] } | null;
   holidays: Holiday[] | null;
   /** Public holidays and festivals in the next two weeks that nobody has decided on: is the office closed? */
   holidaysToDecide: Holiday[] | null;
@@ -61,20 +60,20 @@ export async function loadCompanyOverview(): Promise<CompanyOverview> {
       return data as { id: string; full_name: string | null; email: string; role: string; status?: string; created_at: string }[];
     }),
     safely("details", async () => {
-      const { data, error } = await supabase.from("employee_details").select("user_id, department, joined_on, left_on").limit(5000);
+      const { data, error } = await supabase.from("employee_details").select("user_id, joined_on, left_on").limit(5000);
       if (error) throw error;
       return data;
     }),
     safely("requests today", async () => {
       const { data, error } = await supabase
         .from("requests")
-        .select("user_id, type, comp_off, owner:profiles!requests_user_id_fkey(full_name, email)")
+        .select("user_id, type, comp_off, from_date, to_date, day_part, leave_kind, owner:profiles!requests_user_id_fkey(full_name, email)")
         .eq("status", "approved")
         .lte("from_date", today)
         .gte("to_date", today)
         .limit(2000);
       if (error) throw error;
-      return data as unknown as { user_id: string; type: string; comp_off: boolean; owner: Owner }[];
+      return data as unknown as { user_id: string; type: string; comp_off: boolean; from_date: string; to_date: string; day_part: string; leave_kind: string | null; owner: Owner }[];
     }),
     safely("hours", () => listLogsInRange({ scope: "all", from: monday, to: addDays(monday, 6) })),
     safely("payroll", listRuns),
@@ -102,7 +101,6 @@ export async function loadCompanyOverview(): Promise<CompanyOverview> {
           "Employee",
           4,
         ),
-        departments: countBy(active.map((p) => detailBy.get(p.id)?.department ?? "")),
         newJoiners: active
           .map((p) => ({ id: p.id, name: displayName(p), joinedOn: detailBy.get(p.id)?.joined_on ?? p.created_at.slice(0, 10) }))
           .filter((p) => p.joinedOn >= addDays(today, -30))
@@ -127,6 +125,15 @@ export async function loadCompanyOverview(): Promise<CompanyOverview> {
     const wfhPeople = new Map<string, Person>();
     for (const r of requests.filter((r) => r.type === "wfh")) wfhPeople.set(r.user_id, { id: r.user_id, name: displayName(r.owner) });
     for (const id of homeIds) if (!wfhPeople.has(id)) wfhPeople.set(id, { id, name: nameOf.get(id) ?? "Someone" });
+    // What the Leave and Work from home cards list: the dates and kind behind each person, and (for home) whether they are on duty.
+    const leaveToday: LeaveToday[] = leave.map((r) => ({ id: r.user_id, name: displayName(r.owner), from: r.from_date, to: r.to_date, part: r.day_part, kind: r.comp_off ? "comp_off" : r.leave_kind }));
+    const wfhRequest = new Map(requests.filter((r) => r.type === "wfh").map((r) => [r.user_id, r]));
+    const dutyHome = new Map(duty.filter((d) => d.location === "wfh").map((d) => [d.user_id, d]));
+    const wfhToday: WfhToday[] = [...wfhPeople.values()].map((p) => {
+      const asked = wfhRequest.get(p.id);
+      const home = dutyHome.get(p.id);
+      return { id: p.id, name: p.name, approved: asked ? { from: asked.from_date, to: asked.to_date, part: asked.day_part } : null, dutyStartedAt: home?.started_at ?? null, onDuty: !!home && home.ended_at === null };
+    });
     const working = workingToday(active.map((p) => ({ id: p.id, name: displayName(p) })), duty, hoursToday);
     now = {
       dayOff,
@@ -138,6 +145,8 @@ export async function loadCompanyOverview(): Promise<CompanyOverview> {
       notLogged: notLoggedToday({ people, hoursById: hoursToday, onLeave: new Set(leave.map((r) => r.user_id)), dayOff: dayOff !== null }),
       onLeave: leave.map((r) => ({ id: r.user_id, name: displayName(r.owner) })),
       wfh: [...wfhPeople.values()],
+      leaveToday,
+      wfhToday,
     };
   }
 
@@ -165,6 +174,11 @@ export async function loadCompanyOverview(): Promise<CompanyOverview> {
           pendingAmount: sum(["pending"], (c) => c.claimed),
           approvedAmount: sum(["approved", "added_to_payroll"], (c) => c.approved ?? 0),
           reimbursedAmount: sum(["reimbursed"], (c) => c.approved ?? 0, true),
+          claims: claims
+            .filter((c) => c.status === "pending")
+            .sort((a, b) => a.date.localeCompare(b.date) || a.code.localeCompare(b.code))
+            .slice(0, 40)
+            .map((c) => ({ id: c.id, code: c.code, userId: c.userId, employee: c.employee, category: c.category, description: c.description, date: c.date, claimed: c.claimed })),
         }
       : null,
     holidays,

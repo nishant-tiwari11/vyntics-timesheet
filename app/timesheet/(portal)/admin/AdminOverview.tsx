@@ -1,8 +1,10 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { ArrowRight, CalendarClock, Clock, Home, Palmtree, Receipt, UserPlus, Users, Wallet } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { loadAdminOverview } from "@/lib/admin/overview";
-import { loadCompanyOverview, type CompanyOverview, type Person } from "@/lib/admin/company";
+import { loadOverviewData } from "@/lib/admin/overviewCache";
+import { type CompanyOverview, type Person } from "@/lib/admin/company";
+import type { AdminOverview as AdminOverviewData } from "@/lib/admin/overview";
 import { formatMoney } from "@/lib/payroll/money";
 import { formatTodayLong, formatYmd, greeting } from "@/lib/timesheet/dates";
 import { holidayTypeLabel } from "@/lib/timesheet/holidayTypes";
@@ -15,6 +17,9 @@ import { AttentionList } from "./AttentionList";
 import { SummaryCardDialog } from "./SummaryCardDialog";
 import { HolidayDecisions } from "./HolidayDecisions";
 import { EmployeeRailLazy as EmployeeRail } from "./EmployeeRailLazy";
+import { EmployeeTimesheet } from "./EmployeeTimesheet";
+import { EmployeeTimesheetSkeleton } from "./EmployeeTimesheetSkeleton";
+import { LeaveSection } from "./LeaveSection";
 
 const card = "rounded-xl border bg-card p-4";
 const link = "inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground";
@@ -106,7 +111,7 @@ function WeekChart({ week, today }: { week: NonNullable<CompanyOverview["week"]>
   );
 }
 
-function kpis(o: Awaited<ReturnType<typeof loadAdminOverview>>, c: CompanyOverview): Kpi[] {
+function kpis(o: AdminOverviewData, c: CompanyOverview): Kpi[] {
   const n = (v: number | null | undefined) => (v == null ? dash : String(v));
   return [
     { label: "Employees", value: n(c.headcount?.total), note: c.headcount?.newJoiners.length ? `${c.headcount.newJoiners.length} joined this month` : "active accounts", href: "/timesheet/admin/access", icon: Users },
@@ -120,9 +125,11 @@ function kpis(o: Awaited<ReturnType<typeof loadAdminOverview>>, c: CompanyOvervi
 
 // The Admin front page: the whole company at a glance. Everything is fetched at once and each piece fails on its own, so a
 // section that can't load shows a dash or a short note instead of taking the page down.
-export async function AdminOverview({ name }: { name: string }) {
-  const [overview, company] = await Promise.all([loadAdminOverview(), loadCompanyOverview()]);
-  const { headcount, now, week, payroll, expenses, holidays, people } = company;
+export async function AdminOverview({ name, employeeId, raw }: { name: string; /** The person whose card is open (from the address), so their timesheet is shown under the orb. */ employeeId?: string | null; raw?: Record<string, string | string[] | undefined> }) {
+  // With a person open the numbers from a moment ago are reused, so opening someone doesn't wait for all of them to be worked out again.
+  const [overview, company] = await loadOverviewData(!!employeeId);
+  const { now, week, payroll, expenses, holidays, people } = company;
+  const openPerson = employeeId ? ((people ?? []).find((p) => p.id === employeeId) ?? null) : null;
   const badges: LanyardMember[] = (people ?? []).map((p) => {
     const role = toRole(p.role) ?? "employee";
     return {
@@ -131,7 +138,7 @@ export async function AdminOverview({ name }: { name: string }) {
       role: ROLE_LABEL[role],
       team: "Vyntics",
       image: avatarUrl(p.id),
-      tone: role === "admin" ? 1 : role === "manager" ? 2 : role === "employee" ? 3 : 4,
+      tone: role === "admin" ? 1 : role === "manager" ? 2 : role === "employee" ? 3 : role === "external" ? 4 : 5,
       bio: `Joined ${formatYmd(p.joinedOn, { day: "numeric", month: "short", year: "numeric" })}.`,
       tags: [ROLE_LABEL[role]],
       links: [
@@ -184,6 +191,12 @@ export async function AdminOverview({ name }: { name: string }) {
                 <SummaryCardDialog title={label} working={now?.working ?? null} dutyUnavailable={now?.dutyAvailable === false}>{content}</SummaryCardDialog>
               ) : label === "Waiting for you" ? (
                 <SummaryCardDialog title={label} queues={overview.reviewQueues}>{content}</SummaryCardDialog>
+              ) : label === "On leave" ? (
+                <SummaryCardDialog title={label} leave={now?.leaveToday ?? null}>{content}</SummaryCardDialog>
+              ) : label === "Work from home" ? (
+                <SummaryCardDialog title={label} wfh={now?.wfhToday ?? null}>{content}</SummaryCardDialog>
+              ) : label === "Expense claims" ? (
+                <SummaryCardDialog title={label} expenses={expenses}>{content}</SummaryCardDialog>
               ) : (
                 <Link href={href} className="group flex h-full items-start justify-between gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-foreground max-md:min-h-11">{content}</Link>
               )}
@@ -192,10 +205,20 @@ export async function AdminOverview({ name }: { name: string }) {
         })}
       </ul>
 
+      <Suspense fallback={<Skeleton className="h-56 w-full rounded-xl" />}>
+        <LeaveSection />
+      </Suspense>
+
       {badges.length > 0 && (
         <div className="overflow-clip rounded-xl">
-          <EmployeeRail items={badges} total={badges.length} people={Object.fromEntries((people ?? []).map((p) => [p.id, { id: p.id, name: p.name, email: p.email, role: ROLE_LABEL[toRole(p.role) ?? "employee"] }]))} />
+          <EmployeeRail initialId={employeeId ?? null} items={badges} total={badges.length} people={Object.fromEntries((people ?? []).map((p) => [p.id, { id: p.id, name: p.name, email: p.email, role: ROLE_LABEL[toRole(p.role) ?? "employee"] }]))} />
         </div>
+      )}
+
+      {openPerson && (
+        <Suspense fallback={<EmployeeTimesheetSkeleton name={openPerson.name} />}>
+          <EmployeeTimesheet userId={openPerson.id} name={openPerson.name} raw={raw ?? {}} />
+        </Suspense>
       )}
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
@@ -265,33 +288,6 @@ export async function AdminOverview({ name }: { name: string }) {
               </dl>
             ) : (
               <p className="text-sm text-muted-foreground">Couldn&apos;t load expenses.</p>
-            )}
-          </Section>
-
-          <Section title="People" href="/timesheet/admin/access" action="Employees">
-            {headcount ? (
-              <div className="grid gap-4">
-                <div>
-                  <h3 className="mb-2 text-sm font-medium">By department</h3>
-                  <Bars rows={headcount.departments} />
-                </div>
-                {headcount.newJoiners.length > 0 && (
-                  <div>
-                    <h3 className="mb-1.5 text-sm font-medium">New in the last 30 days</h3>
-                    <ul className="grid gap-1.5 text-sm">
-                      {headcount.newJoiners.map((p) => (
-                        <li key={p.id} className="flex justify-between gap-3">
-                          <span className="truncate">{p.name}</span>
-                          <span className="text-muted-foreground">{formatYmd(p.joinedOn, { day: "numeric", month: "short" })}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                <p className="border-t pt-3 text-xs text-muted-foreground">{headcount.roles.map((r) => `${r.count} ${r.name.toLowerCase()}`).join(" · ")}</p>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Couldn&apos;t load people.</p>
             )}
           </Section>
 

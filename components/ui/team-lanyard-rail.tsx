@@ -43,6 +43,12 @@ export interface TeamLanyardRailProps extends React.ComponentProps<"section"> {
   items: LanyardMember[];
   /** Keep this badge visible and centered while the others leave the stage. */
   focusedIndex?: number | null;
+  /**
+   * When there are too many badges to hang on the rail at once (so it is a carousel), slide them one place to the left every this
+   * many milliseconds, round and round, until the pointer is over the rail, someone is picking a badge, or motion is reduced.
+   * The carousel dots are left out, since the badges move by themselves.
+   */
+  autoAdvanceMs?: number;
   eyebrow?: string;
   heading?: string;
   /** Shown under the rail while nobody is selected. */
@@ -64,7 +70,7 @@ export interface TeamLanyardRailProps extends React.ComponentProps<"section"> {
 
 const RATIO = 96 / 62;
 const MAX_W = 124;
-const MIN_RAIL_W = 100;
+const MIN_RAIL_W = 80; // below this card width (a phone, or very many people) the rail becomes a swipeable carousel
 const EM = 11.2;
 const RAIL_PITCH_MIN = 1.16;
 const RAIL_PITCH_MAX = 1.62;
@@ -385,6 +391,7 @@ const BadgeFaces = React.memo(function BadgeFaces({ item, tone }: { item: Lanyar
 export function TeamLanyardRail({
   items,
   focusedIndex = null,
+  autoAdvanceMs,
   eyebrow,
   heading,
   caption,
@@ -419,6 +426,7 @@ export function TeamLanyardRail({
   const [reduced, setReduced] = React.useState(false);
   const [playing, setPlaying] = React.useState(autoplay);
   const pendingOpen = React.useRef(-1);
+  const hovering = React.useRef(false);
   const pointer = React.useRef({ id: -1, index: -1, x: 0, y: 0, mode: "", kind: "", lastX: 0, lastY: 0, lastT: 0, v: 0, swipe: 0, angle: 0, hoverX: 0, hoverT: 0, hoverHit: -1 });
   const valid = (value: number | null | undefined) => (value === null || value === undefined || value < 0 || value >= count ? null : value);
   const active = valid(activeProp !== undefined ? activeProp : innerActive);
@@ -458,6 +466,18 @@ export function TeamLanyardRail({
   }, []);
 
   React.useEffect(() => { setPlaying(autoplay); }, [autoplay]);
+
+  // Slowly slide the badges one place to the left, round and round, while nobody is using the rail.
+  React.useEffect(() => {
+    if (!autoAdvanceMs || !size.carousel || count < 2 || reduced || focusedIndex !== null) return;
+    const timer = window.setInterval(() => {
+      const L = live.current;
+      const busy = document.hidden || hovering.current || pointer.current.id >= 0 || L.flipped !== null || !L.cyclic || !!stageRef.current?.matches(":focus-within");
+      if (busy) return;
+      setActive((((L.active ?? L.carouselIndex) + 1) % L.count));
+    }, autoAdvanceMs);
+    return () => window.clearInterval(timer);
+  }, [autoAdvanceMs, size.carousel, count, reduced, focusedIndex, setActive]);
 
   React.useLayoutEffect(() => {
     const stage = stageRef.current;
@@ -926,7 +946,8 @@ export function TeamLanyardRail({
     }
     if (cancelled || p.mode || p.index < 0) return;
     stop();
-    if ((p.kind !== "mouse" || L.size.carousel) && L.active !== p.index) setActive(p.index);
+    // On the carousel a click opens the badge at once, even while the badges are sliding by.
+    if (p.kind !== "mouse" && !L.size.carousel && L.active !== p.index) setActive(p.index);
     else pendingOpen.current = p.index;
   };
 
@@ -975,7 +996,6 @@ export function TeamLanyardRail({
       className={`relative isolate w-full overflow-hidden bg-background text-foreground ${className ?? ""}`}
     >
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10" style={{ background: "radial-gradient(closest-side at 50% 46%, color-mix(in oklab, var(--color-foreground) 7%, transparent), transparent)" }} />
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10" style={{ background: "radial-gradient(color-mix(in oklab, var(--color-foreground) 8%, transparent) 1px, transparent 1.3px) 0 0 / 18px 18px", maskImage: "radial-gradient(closest-side at 50% 50%, black 55%, transparent)", WebkitMaskImage: "radial-gradient(closest-side at 50% 50%, black 55%, transparent)" }} />
       {(eyebrow || heading) && (
         <header className="relative z-10 flex flex-col items-center gap-2 px-6 pt-7 text-center">
           {eyebrow && <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-muted-foreground">{eyebrow}</p>}
@@ -996,7 +1016,9 @@ export function TeamLanyardRail({
         onPointerDown={onPointerDown}
         onPointerUp={(event) => finishPointer(event, false)}
         onPointerCancel={(event) => finishPointer(event, true)}
+        onPointerEnter={(event) => { if (event.pointerType === "mouse") hovering.current = true; }}
         onPointerLeave={(event) => {
+          hovering.current = false;
           pointer.current.hoverHit = -1;
           if (event.pointerType === "mouse" && pointer.current.id < 0 && !size.carousel && !document.activeElement?.matches("[data-badge]:focus-visible")) setActive(null);
         }}
@@ -1131,7 +1153,7 @@ export function TeamLanyardRail({
         )}
       </div>
 
-      {size.carousel && count > 1 && (
+      {size.carousel && count > 1 && !autoAdvanceMs && (
         <div className="relative z-10 mt-1 flex justify-center gap-1.5" role="group" aria-label={labels.show}>
           {items.map((item, i) => (
             <button key={item.id} type="button" aria-label={`${labels.show} ${item.name}`} aria-current={centerIndex === i} onClick={() => { stop(); setActive(i); }} className={`h-1.5 rounded-full outline-none transition-[width,background-color] duration-300 focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none ${centerIndex === i ? "w-6 bg-foreground" : "w-1.5 bg-foreground/25 hover:bg-foreground/45"}`} />

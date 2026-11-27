@@ -65,7 +65,8 @@
 .employee-stage:not([data-ready="true"]) .employee-stage-header {
   pointer-events: none;
 }
-.employee-stage [data-face="front"] {
+/* Only the picked card gets the stronger outline. The cards on the rail keep their original look (the 24-11 version). */
+.employee-stage[data-expanded="true"] [data-face="front"] {
   border-color: var(--ts-muted);
   box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
 }

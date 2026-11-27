@@ -1079,7 +1079,7 @@ export type Database = {
       log_status: "pending" | "approved" | "rejected";
       request_status: "pending" | "approved" | "rejected" | "cancelled";
       request_type: "leave" | "wfh";
-      user_role: "employee" | "admin" | "manager" | "viewer";
+      user_role: "employee" | "admin" | "manager" | "viewer" | "external";
       week_status: "draft" | "submitted" | "approved" | "sent_back";
     };
     CompositeTypes: { [_ in never]: never };

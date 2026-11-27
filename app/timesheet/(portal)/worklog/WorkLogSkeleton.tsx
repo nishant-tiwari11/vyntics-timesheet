@@ -33,12 +33,11 @@ export function ListSkeleton() {
               <Skeleton className="h-4 w-14" />
             </div>
             {Array.from({ length: rows }, (_, r) => (
-              <div key={r} className="grid gap-3 border-b px-4 py-3.5 last:border-b-0 max-md:grid-cols-2 md:grid-cols-[1.1fr_1.3fr_.8fr_2.4fr_1fr_1.7fr] md:items-center">
+              <div key={r} className="grid gap-3 border-b px-4 py-3.5 last:border-b-0 max-md:grid-cols-2 md:grid-cols-[1.1fr_1.3fr_.8fr_2.6fr_1.7fr] md:items-center">
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-4 w-32" />
                 <Skeleton className="h-4 w-14" />
                 <Skeleton className="h-4 w-full max-md:col-span-2" />
-                <Skeleton className="h-5 w-20 rounded-full" />
                 <Skeleton className="h-8 w-8 justify-self-end" />
               </div>
             ))}

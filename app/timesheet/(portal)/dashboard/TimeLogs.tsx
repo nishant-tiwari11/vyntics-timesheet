@@ -7,7 +7,6 @@ import { LOCKED_MESSAGE, isLocked } from "@/lib/timesheet/rules";
 import { ticketCode } from "@/lib/tickets/model";
 import { ticketsForLogs } from "@/lib/tickets/server";
 import { displayName } from "@/lib/timesheet/people";
-import DecideLogButtons from "./DecideLogButtons";
 import DeleteLogButton from "./DeleteLogButton";
 import { AdminRowActions } from "../admin/AdminLogControls";
 import { EditLogButton } from "./LogDialog";
@@ -25,8 +24,6 @@ function clock(time: string | null): string {
   const m = time.slice(3, 5);
   return `${h % 12 || 12}:${m} ${h < 12 ? "AM" : "PM"}`;
 }
-
-const STATUS = { pending: "Pending", approved: "Approved", rejected: "Rejected" } as const;
 
 /** 1 … 4 5 [6] 7 8 … 20 */
 function pageList(current: number, last: number): (number | "gap")[] {
@@ -130,7 +127,6 @@ export default async function TimeLogs({
                   <th scope="col">Duration</th>
                   <th scope="col">Project</th>
                   <th scope="col">Notes</th>
-                  <th scope="col">Status</th>
                   <th scope="col">
                     <span className="ts-sr-only">Actions</span>
                   </th>
@@ -188,11 +184,7 @@ export default async function TimeLogs({
                         {/* React escapes this text; pre-wrap keeps line breaks from the entry. */}
                         {row.content}
                       </td>
-                      <td data-label="Status">
-                        <span className={`ts-pill ts-pill-${row.status}`}>{STATUS[row.status]}</span>
-                      </td>
                       <td className="ts-actions">
-                        {isAdmin && !own && row.status === "pending" && <DecideLogButtons id={row.id} who={who} />}
                         {isAdmin && (
                           <AdminRowActions
                             ownerName={who}

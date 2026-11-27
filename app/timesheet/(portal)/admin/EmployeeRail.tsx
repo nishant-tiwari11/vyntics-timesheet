@@ -1,14 +1,20 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import { TeamLanyardRail, type LanyardMember } from "@/components/ui/team-lanyard-rail";
 import { EmployeeOrbit, type DialerPerson } from "./EmployeeDialer";
+import { EmployeeTimesheetSkeleton } from "./EmployeeTimesheetSkeleton";
 
-export function EmployeeRail({ items, people, total }: { items: LanyardMember[]; people: Record<string, DialerPerson>; total: number }) {
-  const [selected, setSelected] = useState<number | null>(null);
-  const [ready, setReady] = useState(false);
+export function EmployeeRail({ items, people, total, initialId = null }: { items: LanyardMember[]; people: Record<string, DialerPerson>; total: number; /** Open this person straight away (the address says so). */ initialId?: string | null }) {
+  const router = useRouter();
+  // True from the click until the server has sent the page with the timesheet, so a placeholder can stand in for it.
+  const [loading, startNavigation] = useTransition();
+  const first = initialId ? items.findIndex((m) => m.id === initialId) : -1;
+  const [selected, setSelected] = useState<number | null>(first >= 0 ? first : null);
+  const [ready, setReady] = useState(first >= 0);
   const [animating, setAnimating] = useState(false);
   const stage = useRef<HTMLDivElement>(null);
   const movement = useRef<Animation | null>(null);
@@ -16,8 +22,26 @@ export function EmployeeRail({ items, people, total }: { items: LanyardMember[];
   const origin = useRef<{ index: number; rect: DOMRect; height: number } | null>(null);
   const member = selected === null ? null : items[selected];
   const person = member ? people[member.id] : null;
-  // Equal strap lengths keep the ID cards on the same horizontal baseline.
+  const placeholder = useRef<HTMLDivElement>(null);
+  const showPlaceholder = loading && !!person && selected !== null;
+
+  // The orb is tall, so the timesheet's place is usually below the visible part of the screen. When its placeholder appears there,
+  // scroll down just far enough to see it (after the card has finished moving), so it is clear the timesheet is on its way.
+  useEffect(() => {
+    if (!showPlaceholder) return;
+    const timer = window.setTimeout(() => {
+      const el = placeholder.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top;
+      const visibleUntil = window.innerHeight - 300;
+      if (top > visibleUntil) window.scrollBy({ top: top - visibleUntil, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [showPlaceholder]);
+  // On the rail the cards hang at their own strap lengths, as in the 24-11 version. Once someone is picked, their card hangs straight
+  // on the same baseline as the orbit beside it.
   const alignedItems = useMemo(() => items.map((item) => ({ ...item, drop: 0 })), [items]);
+  const railItems = selected === null ? items : alignedItems;
 
   const rememberPosition = (index: number) => {
     const root = stage.current;
@@ -72,9 +96,11 @@ export function EmployeeRail({ items, people, total }: { items: LanyardMember[];
     setReady(false);
     setAnimating(true);
     setSelected(null);
+    startNavigation(() => router.replace("/timesheet/admin", { scroll: false }));
   };
 
   return (
+    <>
     <div ref={stage} className="employee-stage" data-expanded={!!person} data-ready={ready} data-animating={animating} onKeyDown={(event) => {
       if (event.key === "Escape" && person) close();
     }}>
@@ -94,8 +120,9 @@ export function EmployeeRail({ items, people, total }: { items: LanyardMember[];
       )}
       <div className="employee-stage-badges">
         <TeamLanyardRail
-          items={alignedItems}
+          items={railItems}
           focusedIndex={selected}
+          autoAdvanceMs={3000}
           active={selected ?? undefined}
           eyebrow={person ? "Employee ID" : `Employees · ${total}`}
           heading={person ? undefined : "Everyone at Vyntics"}
@@ -107,6 +134,8 @@ export function EmployeeRail({ items, people, total }: { items: LanyardMember[];
               setReady(false);
               setAnimating(true);
               setSelected(i);
+              // The address names the person, so the page can show their timesheet under the orb (and a refresh keeps it open).
+              startNavigation(() => router.replace(`/timesheet/admin?employee=${items[i].id}`, { scroll: false }));
             }
           }}
           labels={{ flip: person ? "Their day is shown alongside" : "Click to open their day", back: "", show: "Show" }}
@@ -116,5 +145,8 @@ export function EmployeeRail({ items, people, total }: { items: LanyardMember[];
         {person && <EmployeeOrbit key={person.id} person={person} />}
       </div>
     </div>
+    {/* The timesheet is rendered by the server under this; until it arrives, show what is coming. */}
+    {showPlaceholder && person && <div ref={placeholder} className="mt-5"><EmployeeTimesheetSkeleton name={person.name} /></div>}
+    </>
   );
 }

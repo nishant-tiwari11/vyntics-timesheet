@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { ROLE_LABEL, type Role } from "@/lib/access/config";
+import { worksInPortal, ROLE_LABEL, type Role } from "@/lib/access/config";
 import { DutyControl } from "./DutyControl";
 import { CommandPalette } from "./CommandPalette";
 import { MobileNav } from "./MobileNav";
@@ -45,7 +45,7 @@ export default async function Shell({
           <header className="ts-topbar">
             <MobileNav user={user} />
             <PageTitle />
-            {(role === "employee" || role === "manager") && <DutyControl />}
+            {worksInPortal(role) && <DutyControl />}
             <CommandPalette role={role} />
             {/* Keeps the top bar's spacing: the notification bell stays on the right (your profile and sign out are at the bottom of the side menu). */}
             <span className="ts-search" aria-hidden="true" />

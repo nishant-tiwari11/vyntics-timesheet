@@ -23,6 +23,7 @@ import { loadActivityAction, setManagerSensitiveAction } from "./actions";
 import type { OnboardingRow } from "@/lib/onboarding/server";
 import { ActionRequired } from "./ActionRequired";
 import { OnboardingAdmin } from "./OnboardingAdmin";
+import { worksInPortal } from "@/lib/access/config";
 
 const ALL = "__all__";
 type View = "action" | "onboarding" | "documents" | "offer" | "activity" | "managers";
@@ -64,7 +65,7 @@ export function AdminDocuments({ docs, employees, truncated, today, onboarding, 
 
   const pending = docs.filter((d) => d.status === "pending").length;
   const expiring = docs.filter((d) => expiryState(d.expiryDate, today) !== null).length;
-  const people = employees.filter((e) => e.role === "employee" || e.role === "manager");
+  const people = employees.filter((e) => worksInPortal(e.role));
   const hasLetter = (id: string, cat: string) => docs.some((d) => d.userId === id && d.category === cat && d.status !== "rejected");
   const lettersToIssue = people.filter((e) => !hasLetter(e.id, "offer_letter") || !hasLetter(e.id, "appointment_letter")).length;
   const toVerify = docs.filter((d) => d.status === "pending" && !["offer_letter", "appointment_letter"].includes(d.category)).length;

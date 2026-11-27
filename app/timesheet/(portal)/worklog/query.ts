@@ -53,6 +53,12 @@ export type WorkQuery = {
   dir: "asc" | "desc";
   page: number;
   size: number;
+  /** When these settings are shown inside another page: that page's address (links stay on it). Left out on the Work log page itself. */
+  base?: string;
+  /** Other address settings that page needs kept on every link (for example which employee is open). */
+  keep?: Record<string, string>;
+  /** The person is fixed by the page (an employee's timesheet), so it isn't a filter that can be cleared. */
+  pinnedUser?: boolean;
 };
 
 export type Period = { from: string; to: string; custom: boolean };
@@ -84,9 +90,11 @@ export function parseWorkQuery(raw: Record<string, string | string[] | undefined
 }
 
 /** The address for a set of settings. Defaults are left out to keep it short. */
-export function workHref(query: WorkQuery, change: Partial<WorkQuery>, today: string, path = WORKLOG_PATH): string {
+export function workHref(query: WorkQuery, change: Partial<WorkQuery>, today: string, path?: string): string {
   const next = { ...query, ...change };
   const params = new URLSearchParams();
+  // An explicit path (the export) is used as it is; otherwise links stay on the page that shows these settings.
+  if (!path && next.keep) for (const [k, v] of Object.entries(next.keep)) params.set(k, v);
   if (next.view !== "week") params.set("view", next.view);
   if (next.date !== today) params.set("date", next.date);
   if (next.from) params.set("from", next.from);
@@ -100,11 +108,11 @@ export function workHref(query: WorkQuery, change: Partial<WorkQuery>, today: st
   if (next.size !== DEFAULT_SIZE) params.set("size", String(next.size));
   if (next.page > 1) params.set("page", String(next.page));
   const qs = params.toString();
-  return `${path}${qs ? `?${qs}` : ""}`;
+  return `${path ?? next.base ?? WORKLOG_PATH}${qs ? `?${qs}` : ""}`;
 }
 
 /** Is any filter (not the period) in use? */
-export const hasFilters = (q: WorkQuery) => q.project !== "all" || q.status !== "all" || q.q !== "" || q.user !== "" || q.from !== "" || q.to !== "";
+export const hasFilters = (q: WorkQuery) => q.project !== "all" || q.status !== "all" || q.q !== "" || (q.user !== "" && !q.pinnedUser) || q.from !== "" || q.to !== "";
 
 /** The filters off again, keeping the period being shown. */
 export const clearedFilters: Pick<WorkQuery, "project" | "status" | "q" | "user" | "from" | "to" | "page"> = {
@@ -116,6 +124,9 @@ export const clearedFilters: Pick<WorkQuery, "project" | "status" | "q" | "user"
   to: "",
   page: 1,
 };
+
+/** The filters off again; a person the page has fixed stays. */
+export const clearedFor = (q: WorkQuery): Partial<WorkQuery> => ({ ...clearedFilters, user: q.pinnedUser ? q.user : "" });
 
 function shiftMonth(ymd: string, delta: number): string {
   const month = Number(ymd.slice(5, 7)) - 1 + delta;
